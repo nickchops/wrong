@@ -1,0 +1,106 @@
+[S3E]
+# Add any settings here
+DispFixRot=FixedLandscape
+
+#MemSize=40000000
+MemSize=60000000
+MemSizeDebug=200000000
+
+SplashScreenWidth="768"
+SplashScreenHeight="768"
+SplashScreenFile="textures/splash-768x768.jpg"
+SplashScreenBkR=0x00
+SplashScreenBkG=0x00
+SplashScreenBkB=0x00
+SplashScreenMinTime=2000
+
+KeyAbsBSK=Esc
+KeyAbsBSK2=Back
+
+IOSDispScaleFactor=200
+
+{OS=WINDOWS}
+#Windowing options for desktop builds
+WinAllowAltEnter=0
+WinFullScreen=0
+WinFullScreenHeight=640
+WinFullScreenWidth=960
+WinRefresh=0
+WinResizable=0
+WinTitle="W R O N G"
+#WinSuspendOnFocusLoss=1
+
+SplashScreenWidth="384" #0.5x to always look OK when testing :)
+SplashScreenHeight="384"
+
+WinWidth=800
+WinHeight=600
+
+#For testing device sizes with scaling...
+#WinWidth=640
+#WinHeight=480
+#-- iPhone retina
+#WinWidth=960
+#WinHeight=640
+#-- iPhone5 retina
+#WinWidth=1136
+#WinHeight=640
+#-- iPad (1, 2, Mini 1st gen)
+#WinWidth=1024
+#WinHeight=768
+#-- iPad Retina (inc 2nd gen Mini)
+#WinWidth=2048
+#WinHeight=1536
+
+#Android: Android pre-KitKat devices *must* show menu so they lose some screen space...
+#--Nexus 7 1st gen and others 1280x800 - in landscape, 64 pixel menu bar at bottom
+#WinWidth=1280
+#WinHeight=736
+# Galazy Nexus and others 1280x720 - in landscape, 84 pixel menu to the side
+#WinWidth=1196
+#WinHeigh=720
+
+#Galaxy Tab 3
+#WinWidth=???
+#WinHeigh=???
+
+
+#-- Kindle Fire HD 1st & 2nd gen 7"
+#WinWidth=1280
+#WinHeight=800
+#-- Nexus 7 2nd gen, Kindle fire HD 1st gen 8.9" (there's no 2nd gen 8.9"), Kindle Fire HDX 7"
+#WinWidth=1920
+#WinHeight=1200
+#-- Kindle Fire HDX 8.9"
+#WinWidth=2560
+#WinHeight=1600
+#-- Galaxy S3 and others with no menu bar using KitKat immersive mode
+#WinWidth=1280
+#WinHeight=720
+#-- Nexus 4 - no menu bar
+#WinWidth=1280
+#WinHeight=768
+#-- Nexus 4 - with menu bar
+#WinWidth=???
+#WinHeight=???
+#-- Galaxy S 4 and 5, Nexus 5 - no menu bar
+#WinWidth=1920
+#WinHeight=1080
+#-- Galaxy S 4 and 5, Nexus 5 with menu bar (pre kit kat)
+#WinWidth=???
+#WinHeight=1080
+
+#[ASSERT]
+#FLURRY=0
+#above sadly doesnt work... not sure how to control asserts for extensions...
+{}
+
+#Using screenResolutionScaler instead of ICF Virtual Res settings
+#[GL]
+#VirtualWidth=640
+#VirtualHeight=480
+#VirtualLetterbox=1
+
+[QUICK]
+mainFileName="main.lua"
+configFileName="config.lua"

@@ -1,0 +1,92 @@
+#!/usr/bin/env mkb
+
+# Quick Project
+
+if {{ option use_prebuilt }}
+{
+    subproject "$MARMALADE_ROOT/quick/quick_prebuilt"
+}
+else
+{
+    subproject "$MARMALADE_ROOT/quick/quick"
+}
+
+options
+{
+    s3e-data-dir = resources
+    app-icf = 'resources/common.icf,resources/app.icf'
+}
+
+files
+{
+    (resources)
+    .
+}
+
+assets
+{
+	(resources)
+	.
+	
+    [common]
+    (resources)
+    quicklua/dbg.lua
+    quicklua/openquick.lua
+    quicklua/QConfig.lua
+    
+	config.lua
+    fonts
+    textures
+    sounds
+	
+	Utility.lua
+    NodeUtility.lua
+    VirtualResolution.lua
+	Globals.lua
+	Counter.lua
+	MenuScene.lua
+	
+	["development"]
+	<include common>
+	(resources)
+	.
+	
+	["distribution"] # use precompiled and concatenated files for performance
+	<include common>
+	(resources-ram)
+	.
+}
+
+deployments
+{
+    ["Windows"]
+    win32
+    arch=x86
+
+    ["Mac OS X"]
+    osx
+    arch=x86
+
+    # Ensure subsequent options set on "Default" configuration
+    ["Default"]
+}
+
+options
+{
+    builddir = build_temp
+}
+
+#### AUTO GENERATED deployment settings from DeployTool.exe. Do not edit below this line ####
+
+deployments
+{
+    blackberry-author = "Nicholas Smith"
+    blackberry-authorid = "gYAAgGwTu1XxMWOBWcntNTz_WcE"
+    icon = "store_resources/wrongicon480.png"
+    name = "Wrong"
+    provider = "Nicholas Smith"
+    #splashscreen = "splash-768x768.jpg"
+    version-major = "0"
+    version-minor = "1"
+    version-revision = "8"
+}

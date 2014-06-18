@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+      package="${PACKAGENAME}"
+      android:versionCode="5000"
+      android:versionName="${VERSIONNAME}"
+      android:installLocation="${INSTALLLOCATION}"
+      >
+    <application android:icon="@drawable/icon" android:label="@string/app_name" android:theme="@android:style/Theme.NoTitleBar.Fullscreen"${EXTRA_ATTRIBS}>
+        <activity android:name=".${CLASSNAME}"
+                  android:label="@string/app_name"
+                  android:configChanges="locale|keyboardHidden|orientation|screenSize"
+                  android:launchMode="singleTask"
+                  ${EXTRA_ACTIVITY_ATTRIBS}
+                  >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <provider android:name="com.ideaworks3d.marmalade.VFSProvider"
+                  android:authorities="zzzz${HASHNAME}.VFSProvider"
+                  android:exported="false"
+                  android:multiprocess="true"
+        >
+        </provider>
+        ${EXTRA_APPLICATION_MANIFESTS}
+    </application>
+    <!-- For manifest justifications, see https://developer.android.com/about/dashboards/index.html -->
+    <!-- Only for OS 4.0 or newer! Nothing runs 3.0 anymore. From experience, going to assume that pre 3 (17%) are too slow for game -->
+    <uses-sdk android:minSdkVersion="14" android:targetSdkVersion="19"/>
+	<!-- Required by Marmalade internally. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.BATTERY_STATS"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.SET_ORIENTATION"/>
+    <uses-permission android:name="android.permission.DEVICE_POWER"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    ${SUPPORTS_GL_TEXTURE}
+    ${EXTRA_MANIFESTS}
+    <!-- Android versions differ as to if they set these true by default. Smaller sizes always true by default.
+         Disabling small devices - google's stats show 7.5% of market and <0.1% of those are high DPI. Assuming
+         small devices are both too slow and impractical for Wrong's finger controls! -->
+    <supports-screens android:smallScreens="false"
+                      android:largeScreens="true"
+                      android:xlargeScreens="true"/>
+    <!-- needs multitouch - set this explicitly to false if controller/dpad controls are added -->
+    <uses-feature android:name="android.hardware.touchscreen.multitouch"
+                  android:required="true"/>
+    <!-- GLES2 needed for Marmalade Quick/Cocos2d-x v2 -->
+    <uses-feature android:glEsVersion="0x00020000"
+                  android:required="true"/>
+</manifest>
