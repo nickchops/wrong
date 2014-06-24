@@ -2,6 +2,9 @@
 -- So, for good performance but with some ease of code reuse, I'm using
 -- dofile for big one-off inlcudes and require otherwise
 
+androidFullscreen:turnOn(true, true)
+-- turn on as early as possible. screen size won't update till bar is gone
+
 require("Utility")
 
 dofile("Globals.lua") --globals contains all our sensitive data so def want to precompile for some minimal security!
@@ -54,7 +57,7 @@ if useAdverts then
     ads:init()
 end
 
-device:enableVibration()
+--device:enableVibration()
 
 director:moveToScene(sceneMainMenu)
 

@@ -2,7 +2,7 @@ config =
 {
     debug =
     {
-        general = true,
+        general = false,
         traceGC = false,
         typeChecking = false,
         assertDialogs = false,

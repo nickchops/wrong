@@ -218,11 +218,6 @@ function virtualResolution:applyToScene(scene, transformActualScene)
         return
     end
     
-    if scene.scalerRootNode then
-        dbg.assert("virtualResolution:applyToScene called for scene already using virtual resolution")
-        return
-    end
-    
     self.scaleTouch = false
     
     -- transforActualScene makes scaling just be applied to scene. May work if you
@@ -239,20 +234,28 @@ function virtualResolution:applyToScene(scene, transformActualScene)
     -- To support transitions and get more control generally, we have to create
     -- a node, scale and move that, and override how the scene adds children
    
-    scene.scalerRootNode = director:createNode({x=self.xOffset, y=self.yOffset, xScale=self.scale, yScale = self.scale})
-    if not director.addNodesToScene or scene ~= director:getCurrentScene() then
-        scene:addChild(scalerRootNode)
+    if scene.scalerRootNode then
+        dbg.print("virtualResolution:applyToScene called for scene already using virtual resolution - updating values")
+        scene.scalerRootNode.x=self.xOffset
+        scene.scalerRootNode.y=self.yOffset
+        scene.scalerRootNode.xScale=self.scale
+        scene.scalerRootNode.yScale = self.scale
+    else
+        scene.scalerRootNode = director:createNode({x=self.xOffset, y=self.yOffset, xScale=self.scale, yScale = self.scale})
+        if not director.addNodesToScene or scene ~= director:getCurrentScene() then
+            scene:addChild(scalerRootNode) --already added via createNode() above otherwise
+        end
+        
+        -- Override scene:addChild() to call scene.scalerRootNode:addChild()
+        -- Note that we cant just do scene.addChild = scene.scalerRootNode.addChild
+        -- because those .addChild functions are the same actual function value! It's the
+        -- "self" value passed implicitly via : mechanism that determins which node is used!
+        scene.addChildNoTrans = scene.addChild -- keep a backup so user can still add "window space" nodes
+        scene.addChild = virtualResolutionSceneAddChildOverride
+        
+        -- note that scene:addChild() is called internally via director:addNodeToLists()
+        -- on director:createXXX() calls if director.addNodesToScene is true
     end
-    
-    -- Override scene:addChild() to call scene.scalerRootNode:addChild()
-    -- Note that we cant just do scene.addChild = scene.scalerRootNode.addChild
-    -- because those .addChild functions are the same actual function value! It's the
-    -- "self" value passed implicitly via : mechanism that determins which node is used!
-    scene.addChildNoTrans = scene.addChild -- keep a backup so user can still add "window space" nodes
-    scene.addChild = virtualResolutionSceneAddChildOverride
-    
-    -- note that scene:AddChild() is called internally via director:addNodeToLists()
-    -- on director:createXXX() calls if director.addNodesToScene is true
 end
 
 ---------------------------

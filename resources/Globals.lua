@@ -5,7 +5,7 @@
 
 showDebugTouchArea = false
 
---require("mobdebug").start() -- ZeroBrain IDE debuger support
+require("mobdebug").start() -- ZeroBrain IDE debuger support
                    
     -- note that you can only use breakpoints in code loaded *after* this, therefor breakpoints
     -- in engine code will be ignored. TODO: check this is true! may have just been issue with
@@ -19,7 +19,7 @@ showDebugTouchArea = false
 require("Utility")
 
 DEFAULT_HEALTH_BATTLE = 13
-DEFAULT_HEALTH_SURVIVAL = 1
+DEFAULT_HEALTH_SURVIVAL = 8
 DEFAULT_BULLETS_BATTLE = 5
 DEFAULT_AMMO_BATTLE = 1
 DEFAULT_AMMO_WAVES = 0
@@ -54,7 +54,25 @@ director.isAlphaInherited = true -- the default in Quick 1.0 but not in Quick be
 
 pauseflag = false -- flag to work around Quick's pause-resume bug/quirkh
 
-deviceIsAndroid = device:getInfo("platform") == "ANDROID"
+local platform = device:getInfo("platform")
+
+-- string of form "OS name majorversion.minor.revision.etc" Could have spaces in
+-- OS name; could have arbitrary number of points in version; version might be
+-- a string like "XP2"! Following will work for Android and iOS...
+local version = device:getInfo("platformVersion")
+local versionMajor = nil
+local versionMinor = nil
+versionMajor, versionMinor = string.match(version, '%s([^%.%s]+)%.(.+)')
+if versionMajor and versionMinor then
+    versionMajor = tonumber(versionMajor)
+    local minorMatch = string.match(versionMinor, '([^%.]+)%..+')
+    if minorMatch then
+        versionMinor = minorMatch
+    end
+    versionMinor = tonumber(versionMinor)
+end
+
+deviceIsAndroid = platform == "ANDROID"
 
 deviceId = device:getInfo("deviceID")
 deviceIsTab3 = deviceIsAndroid and deviceId == "GT-P5210"
@@ -176,7 +194,7 @@ gameInfo.score = 0
 gameInfo.streak = 0
 gameInfo.maxStreak = 0
 gameInfo.mode = "waves"
-gameInfo.soundOn = true
+gameInfo.soundOn = false--true
 
 gameInfo.achievementIndex = {
     "wave6",
@@ -223,6 +241,7 @@ end
 
 fontMainLarge = "fonts/dosfont32.fnt"
 fontMainSmall = "fonts/dosfont16.fnt"
+fontDefault = "fonts/Default.fnt"
 
 -------------------------------------------
 --Music
@@ -259,7 +278,6 @@ effectSpriteCount = table.getn(effectSprites)
 
 useAdverts = nil
 
-local platform = device:getInfo("platform")
 --if ads:isAvailable() or platform == "WINDOWS" then
 --    useAdverts="leadbolt"
 --    advertType = "banner"
@@ -283,8 +301,21 @@ facebookUrl = "http://www.facebook.com/wrongapp"
 --
 twitterUrl = "http://twitter.com/nickmarmalade"
 --
-storeUrl = "market://details?id=com.nickchops.wrong"
---TODO: switch based on device and config (for amazon etc)
+appId = "com.nickchops.wrong"
+storeUrl = nil
+storeName = nil
+if platform == "ANDROID" then
+    storeUrl = "market://details?id=" .. appId
+    storeName = "google"
+    -- else storeName = "amazon" etc
+elseif platform == "IPHONE" then
+    storeName = "apple"
+    if versionMajor >= 7 then
+        storeUrl = "itms-apps://itunes.apple.com/app/id" .. appId
+    else
+        storeUrl = "itms-apps://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?id=" .. appId .. "&onlyLatestVersion=true&pageNumber=0&sortOrdering=1&type=Purple+Software"
+    end
+end
 
 blogUrl = "http://nickchops.github.io/wrong-prototype"
 ---------------------------------------------------------

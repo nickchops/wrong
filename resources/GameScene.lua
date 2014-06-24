@@ -2344,6 +2344,10 @@ function ResumeGame()
     
     tween:to(sceneBattle.pauseMenu, {time=0.4, yScale=1})
     tween:to(sceneBattle.pauseMenu, {time=0.25, delay=0.15, xScale=1})
+    
+    --in case somethin's gone wrong and bar re-showed itself, now is a good time
+    --to force re-hide
+    androidFullscreen:turnOn(true, true)
 end
 
 -----------------------------------------------------------------------------

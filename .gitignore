@@ -3,7 +3,8 @@
 *.sw?
 build_temp/**
 resources-ram/**
-project_*
+mkb-quick.txt
+project.ini
 **development.icf
 **iwtrace.txt
 resources-source/**

@@ -335,8 +335,8 @@ function menuSaveScoreName(buttonDown)
         sceneMainMenu.scoreLabels[sceneMainMenu.scoreMenuState][gameInfo.newHighScore].alpha=1
         gameInfo.name = gameInfo.highScore[sceneMainMenu.scoreMenuState][gameInfo.newHighScore].name -- store last name entered
         
-        menuSaveHighScores(true)
-        analytics:logEvent("saveHighScores", {scoreName=gameInfo.name})
+        menuSaveData(true)
+        analytics:logEvent("saveData", {scoreName=gameInfo.name})
         sceneMainMenu:activateScoreArrowButtons()
         sceneMainMenu.nameChars = nil
     else
@@ -734,11 +734,11 @@ end
 
 -------------------------------------------------------------
 
-function menuSaveHighScores(clearFlag)
-    local highScorePath = system:getFilePath("storage", "highscore.txt")
-    local file = io.open(highScorePath, "w")
+function menuSaveData(clearFlag)
+    local saveStatePath = system:getFilePath("storage", "data.txt")
+    local file = io.open(saveStatePath, "w")
     if not file then
-        dbg.print("failed to open highscores file for saving: " .. highScorePath)
+        dbg.print("failed to open save-state file for saving: " .. saveStatePath)
     else
         file:write(json.encode({scores=gameInfo.highScore, lastName=gameInfo.name, achievements=gameInfo.achievements, soundOn=gameInfo.soundOn}))
         file:close()
@@ -789,7 +789,7 @@ function menuCheckNewHighScoreAndSave()
     end
     
     if gameInfo.newHighScore then
-        menuSaveHighScores()
+        menuSaveData()
     end
     
     return gameInfo.newHighScore -- allow quick checking if a score was set
@@ -799,10 +799,10 @@ function LoadUserData()
     -- load highscore from JSON encoded lua value
     -- Could switch to sql if more complex.
     -- Eventually integrate some onlne service (nugetta/scoreloop/google play/game center)
-    local highScorePath = system:getFilePath("storage", "highscore.txt")
-    local file = io.open(highScorePath, "r")
+    local saveStatePath = system:getFilePath("storage", "highscore.txt")
+    local file = io.open(saveStatePath, "r")
     if not file then
-        dbg.print("highscore file not found at: " .. highScorePath)
+        dbg.print("save state file not found at: " .. saveStatePath)
     else
         local loaded = json.decode(file:read("*a")) -- "*a" = read the entire file contents
         gameInfo.highScore = loaded.scores
@@ -838,11 +838,13 @@ end
 -- Button handlers
 
 function MenuStartGame()
-    director:moveToScene(sceneBattle, {transitionType="slideInT", transitionTime=0.8})
+    androidFullscreen:turnOn(true, true)
+    menuSaveData()
     if not demoMode then
         audio:stopStream()
         gameInfo.titleMusicPlaying = false
     end
+    director:moveToScene(sceneBattle, {transitionType="slideInT", transitionTime=0.8})
 end
 
 function sceneMainMenu:buttonPressedAnim(touched)
@@ -1052,6 +1054,7 @@ function sceneMainMenu:suspend(event)
     end
     analytics:endSession() --force upload logs to server
     analytics:startSessionWithKeys() --resume previous session
+    menuSaveData()
     dbg.print("...menus suspended!")
 end
 
@@ -1079,7 +1082,15 @@ end
 local wrongColorDark={r=128,g=255,b=128}
 local wrongColorMid={r=0,g=255,b=0}
 local wrongColorBright={r=200,g=255,b=200}
-    
+
+function resizeCheck(event)
+    -- need to wait till nav bar has hidden and then get fullscreen sizes
+    -- need to re-call applyToScene to update transforms
+    -- safe to call if user starts game before timer expires
+    virtualResolution:update()
+    virtualResolution:applyToScene(sceneMainMenu)
+end
+
 function sceneMainMenu:setUp(event)
     dbg.print("sceneMainMenu:setUp")
     
@@ -1207,8 +1218,14 @@ function sceneMainMenu:setUp(event)
     -- score labels
     -- currently just show score and high scroe from last mode played. May want to show multiple modes.
     -- maybe have then on a rolling anim switching between modes
-    self.labelScore = director:createLabel({x=appWidth-170, y=appHeight-35, w=190, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="SCORE    " .. gameInfo.score, color=menuGreen})
-    self.labelHighScore = director:createLabel({x=appWidth-169, y=appHeight-50, w=250, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="HIGH SCORE     " .. gameInfo.highScore[gameInfo.mode][1].score, xScale=0.6, yScale=0.6, color=menuBlue})
+    self.labelScore = director:createLabel({x=appWidth-170, y=appHeight-35, w=190, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="SCORE    " .. gameInfo.score, color=menuGreen, font=fontDefault})
+    self.labelHighScore = director:createLabel({x=appWidth-169, y=appHeight-50, w=250, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="HIGH SCORE     " .. gameInfo.highScore[gameInfo.mode][1].score, xScale=0.6, yScale=0.6, color=menuBlue, font=fontDefault})
+    
+    -- handy debug code to show screen size!
+    --[[
+    self.labelScore = director:createLabel({x=appWidth-170, y=appHeight-35, w=190, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Width: " .. director.displayWidth, color=menuGreen, font=fontDefault})
+    self.labelHighScore = director:createLabel({x=appWidth-169, y=appHeight-50, w=250, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Height: " .. director.displayHeight, xScale=0.6, yScale=0.6, color=menuBlue, font=fontDefault})
+    ]]--
     
     -- buttons for facebook twitter etc
     local btnY = 0
@@ -1235,14 +1252,16 @@ function sceneMainMenu:setUp(event)
     self.servicesBtnsOrigin:addChild(twitter)
     createServicesButtonTouch(twitter, touchTwitter)
     
-    btnY = btnY - btnSize*1.5
-    local rate = director:createSprite({x=0, y=btnY, source="textures/rate_button.png"})
-    rate.defaultScale = btnSize/rate.w
-    rate.xScale = rate.defaultScale
-    rate.yScale = rate.defaultScale
-    self.btns.rate = rate
-    self.servicesBtnsOrigin:addChild(rate)
-    createServicesButtonTouch(rate, touchRate)
+    if storeName then
+        btnY = btnY - btnSize*1.5
+        local rate = director:createSprite({x=0, y=btnY, source="textures/rate_button_" .. storeName .. ".png"})
+        rate.defaultScale = btnSize/rate.w
+        rate.xScale = rate.defaultScale
+        rate.yScale = rate.defaultScale
+        self.btns.rate = rate
+        self.servicesBtnsOrigin:addChild(rate)
+        createServicesButtonTouch(rate, touchRate)
+    end
     
     btnY = btnY - btnSize*1.5
     local sound = director:createSprite({x=0, y=btnY, source="textures/sound_button.png"})
@@ -1266,6 +1285,7 @@ function sceneMainMenu:setUp(event)
             startupFlag = false
             sceneMainMenu.sceneShown = true
             tween:from(self.title, {y=menuScreenMinY-500, time=0.4, xScale=3, yScale=2, onComplete=enableMenu})
+            system:addTimer(resizeCheck, 2, 1, 0)
         else
             tween:from(self.title, {y=menuScreenMinY-500, time=0.4, onComplete=enableMenu})
         end
@@ -1292,7 +1312,9 @@ function sceneMainMenu:setUp(event)
         
         tween:to(self.btns.facebook, {yScale=self.btns.facebook.defaultScale, time=0.1, delay=btnDelay})
         tween:to(self.btns.twitter, {yScale=self.btns.twitter.defaultScale, time=0.1, delay=btnDelay})
-        tween:to(self.btns.rate, {yScale=self.btns.rate.defaultScale, time=0.1, delay=btnDelay})
+        if self.btns.rate then
+            tween:to(self.btns.rate, {yScale=self.btns.rate.defaultScale, time=0.1, delay=btnDelay})
+        end
         tween:to(self.btns.sound, {yScale=self.btns.sound.defaultScale, time=0.1, delay=btnDelay})
         
         self:titleFlash()
