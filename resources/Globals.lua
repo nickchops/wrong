@@ -5,7 +5,7 @@
 
 showDebugTouchArea = false
 
-require("mobdebug").start() -- ZeroBrain IDE debuger support
+--require("mobdebug").start() -- ZeroBrain IDE debuger support
                    
     -- note that you can only use breakpoints in code loaded *after* this, therefor breakpoints
     -- in engine code will be ignored. TODO: check this is true! may have just been issue with
@@ -121,8 +121,7 @@ numColors = table.getn(colorIndex)
 
 -----------------
 
---Need to get DPI or vague equivalent to scale touch controls - thumb vs screen
---size.
+--Need to get DPI or vague equivalent to scale touch controls - thumb vs screen size.
 --Prototyped game on Nexus 7 1st gen (216 DPI), so using that as dpiScale = 1
 local dpiScale = nil
 
@@ -136,7 +135,7 @@ MIN_TOUCH_MOVE_X = dpiScaler:getSize(100) --same for weapon change
 
 -- How many pixels finger must move per weapon change in a swipe. First change happens with X > MIN_TOUCH_MOVE_X,
 -- second happens when x > WEAPON_MOVE_AMOUNT_X, third on x > WEAPON_MOVE_AMOUNT_X*2, etc.
-WEAPON_MOVE_AMOUNT_X = dpiScaler:getSize(100)
+WEAPON_MOVE_AMOUNT_X = dpiScaler:getSize(50)
 
 --TODO: prob want to use pixel density on flick movement scaling too,
 -- i.e. deceleration
@@ -194,7 +193,8 @@ gameInfo.score = 0
 gameInfo.streak = 0
 gameInfo.maxStreak = 0
 gameInfo.mode = "waves"
-gameInfo.soundOn = false--true
+gameInfo.soundOn = true
+gameInfo.titleMusicPlaying = false
 
 gameInfo.achievementIndex = {
     "wave6",
@@ -214,7 +214,7 @@ for k,v in ipairs(gameInfo.achievementIndex) do
 end
 -- to debugging locked modes:
 --gameInfo.achievements.survival=true
---gameInfo.achievements.battle=true
+gameInfo.achievements.battle=true
 
 gameInfo.achievementPages = 0
 local achCount = table.getn(gameInfo.achievementIndex) --NB, can use .achievements as .tablegetn only works on arrays!

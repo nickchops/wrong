@@ -39,7 +39,7 @@ virtualResolution:initialise{userSpaceW=appWidth, userSpaceH=appHeight, nearestM
 screenWidth = virtualResolution:winToUserSize(director.displayWidth)
 screenHeight = virtualResolution:winToUserSize(director.displayHeight)
 
--- These are for game scene, not menu
+-- These are for game scene, need coverting for menu
 screenMaxX = screenWidth/2
 screenMinX = -screenMaxX
 screenMaxY = screenHeight/2

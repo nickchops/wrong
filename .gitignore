@@ -8,3 +8,4 @@ project.ini
 **development.icf
 **iwtrace.txt
 resources-source/**
+builds/**

@@ -558,7 +558,7 @@ ExplodeFX = function(event)
         fx.completeFunc = timer.completeFunc
         fx.completeTarget = timer.completeTarget
         onCompleteFunc = ExplodeFinalFunc
-        device:vibrate(1000)
+        device:vibrate(1500)
     else
         device:vibrate(20)
     end

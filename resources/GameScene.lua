@@ -118,7 +118,7 @@ function HeatseekerDestroy(collidable)
     -- have multi-stage animation
     CollidableDestroy(collidable, true)
     collidable:addTimer(HeatseekerImpactFX, 0.1, 7, 0)
-    device:vibrate(100)
+    device:vibrate(500)
 end
 
 --generic effect, used for new ball adds
@@ -1230,13 +1230,15 @@ function sceneBattle:update(event)
                         player.sled.y = player.touches[player.moveWithFinger].y - player.touches[player.moveWithFinger].touchPosDiff
                     end
                 else
-                    -- if finger is up, keep moving but decelerate
+                    -- if finger is up, keep moving but decelerate by 100pix/sec (cheap approximation)
                     player.sled.y = player.sled.y + player.velocity*system.deltaTime
+                    
+                    local decel = 100*system.deltaTime
 
                     if player.velocity > 0 then
-                        player.velocity = math.max(0, player.velocity - 50*system.deltaTime)
+                        player.velocity = math.max(0, player.velocity - decel)
                     elseif player.velocity < 0 then
-                        player.velocity = math.min(0, player.velocity + 50*system.deltaTime)
+                        player.velocity = math.min(0, player.velocity + decel)
                     end
                 end
             end
@@ -1375,11 +1377,11 @@ function sceneBattle:update(event)
                 end
                 if obj.x > screenMaxX+20 or obj.x < screenMinX-20 or obj.y > screenMaxY+20 or obj.y < screenMinY-50 then
                     --TODO: remove this debug check---------
-                    local hasParent = "no"
-                    if collidable.parent then
-                       hasParent = "yes"
-                    end
-                    table.insert(dbgDeathLog, {name=obj.name, state="offscreen", objType=obj.objType, hasParent=hasParent})
+                    --local hasParent = "no"
+                    --if collidable.parent then
+                    --   hasParent = "yes"
+                    --end
+                    --table.insert(dbgDeathLog, {name=obj.name, state="offscreen", objType=obj.objType, hasParent=hasParent})
                     ----------------------------------------
                     
                     CollidableDestroy(obj)
@@ -1521,7 +1523,6 @@ function sceneBattle:touch(touch)
         return
     end
 
-
     -- TODO: - Add keyboard controls for desktop (and phones or tablets with physical keys)
     --         also support bluetooth keyboard!
     --       - Add optional gestures for weapons - wont actually make it easier but is fun! 
@@ -1549,7 +1550,7 @@ function sceneBattle:touch(touch)
 
     local touchZone
     if player1.touchZone == 3 then
-        touchZone = 3 -- 3 and 4 indicate left and right for 
+        touchZone = 3 -- 3 and 4 indicate left and right both for one local player object
     elseif player2.touchZone == 4 then
         touchZone = 4
     elseif touchX < 0 then
@@ -1563,7 +1564,7 @@ function sceneBattle:touch(touch)
     --dbg.print ("touchX: "..touchX)
 
     for k,player in pairs(players) do
-        if not player.deadFlag and not (k==2 and not touchZone) then
+        if not player.deadFlag and not (k==2 and touchZone > 2) then
             -- no controls if dead, all touches will then get cancelled on player destruction
             -- ignore player 2 if only 1 local player
 
@@ -1611,7 +1612,7 @@ function sceneBattle:touch(touch)
                     --dbg.print("testing non-began touch event for player " .. k)
 
                     if kID == touch.id then -- 3rd,4th,etc finger -> wont have made it into player.touches table, so automatically ignored
-                        -- Quick has a quirk that it records touch events as the pointer movesoutside of the
+                        -- Quick has a quirk that it records touch events as the pointer moves outside of the
                         -- window (desktop only) by returning x=0, y=window height. It fires a "moved" and then
                         -- an "ended" event as soon as the pointer leaves. We ignore by setting to last value.
                         if touch.x == 0 and touch.y == director.displayHeight then
@@ -1631,7 +1632,11 @@ function sceneBattle:touch(touch)
                                 -- "ended" and "moved" events happen in same frame, so cant just calc yDiff
                                 -- here as it would be zero
                                 -- yDiff is already scaled from world to user coords
-                                player.velocity = pTouch.yDiff / system.deltaTime
+                                -- NB: using yDiffPrev (from one before last update) because on android the last
+                                -- touch event tends to return weird values, e.g. really short or even negative ones.
+                                -- seems like a quirk of the native API/screen. TODO: Better solution would be to average
+                                -- velocity over a few frames.
+                                player.velocity = pTouch.yDiffPrev / system.deltaTime
                                 if player.reverseTimer then player.velocity = -player.velocity end
                             end
                             
@@ -1711,7 +1716,9 @@ function sceneBattle:touch(touch)
                                 end
                                 if player.moveWithFinger == touch.id then
                                     pTouch.y = touchY -- will position player based on pTouch.y
+                                    pTouch.yDiffPrev = pTouch.yDiff or yDiff
                                     pTouch.yDiff = yDiff
+                                    -- using yDiffPrev for velocity as Android often returns weird values just before finger is lifted!
                                 end
                             end
                         end

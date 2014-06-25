@@ -10,7 +10,7 @@ startupFlag = true -- for initial menu animation
 menuScreenMinX = appWidth/2 - screenMaxX
 menuScreenMaxX = appWidth/2 + screenMaxX
 menuScreenMinY = appHeight/2 - screenMaxY
-menuScreenMaxY = appHeight/2 - screenMaxY
+menuScreenMaxY = appHeight/2 + screenMaxY
 -----------------------------------------------------------
 -- Simple helper to add more text to screen
 
