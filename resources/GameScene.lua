@@ -717,7 +717,9 @@ end
 -- Collidable callbacks and helper functions --------
 
 function setStarAnimation(speedMultiple, rotation, decelerate)
-    if sceneBattle.deathPhase then return end
+    if sceneBattle.deathPhase then
+        return
+    end
         
     if speedMultiple == 0 then
         endStarMovement(2)
@@ -1142,7 +1144,7 @@ function sceneBattle:update(event)
             system:resumeTimers()
             resumeNodesInTree(origin)
             if sceneBattle.pauseMenu and not sceneBattle.pauseMenu.disabled then
-                PauseGame({phase="began"}) --activate pause menu on non-paused resume
+                PauseGame({phase="ended"}) --activate pause menu on non-paused resume
             end
         end
     end
@@ -1450,7 +1452,7 @@ function sceneBattle:update(event)
                         player.weaponsMeter.origin.isVisible=true
                     end
                     
-                    self.endTimer = system:addTimer(GameOver, 14, 1)
+                    self.endTimer = system:addTimer(GameOver, 2.5, 1)
                     player.deadFlag = 5
                 end
             end
@@ -1501,10 +1503,10 @@ function playerHit(restoreHealth)
         --re-using logic from one player game. Instead of speed based on waves
         -- 1 -> 6 = stopped->fast, we use health left of >5 -> 1 = slow->fast
         local speedMultiple = 6-math.min(player1.health.value, player2.health.value)
-        if speedMultiple ~= sceneBattle.previousStarSpeedMultiple and speedMultiple > 0 and speedMultiple < 6 then
+        if (speedMultiple ~= sceneBattle.previousStarSpeedMultiple) and speedMultiple > 0 and speedMultiple < 6 then
             setStarAnimation(speedMultiple, (speedMultiple-1)*2, sceneBattle.previousStarSpeedMultiple > speedMultiple)
+            sceneBattle.previousStarSpeedMultiple = speedMultiple
         end
-        sceneBattle.previousStarSpeedMultiple = speedMultiple
     end
 end
 
@@ -1774,7 +1776,7 @@ function randomPlayerTimer(event)
 end
 
 function cancelBattle(event)
-    if event.phase == "began" then -- guard or else will try to transition twice!
+    if event.phase == "ended" then -- guard or else will try to transition twice!
         sceneBattle.ignoreEvents = true -- stop balls regenerating etc
         director:moveToScene(sceneMainMenu, {transitionType="slideInB", transitionTime=1.5})
         --objects will all be destroyed in post transition event
@@ -2093,7 +2095,12 @@ function sceneBattle:enterPostTransition(event)
     if not demoMode then
         self.originPause = director:createNode({x=appWidth/2, y=appHeight/2, zOrder=2})
         
-        self.pauseMenu = director:createNode({x=maxX-130, y=minY+20, zOrder=3, xScale=0})
+        local pauseX = maxX-130 --easy to stretch thumb to for single player and avoids wave counter
+        if gameInfo.controlType == "p1LocalVsP2Local" then
+            pauseX = 0 --fairer for 2 player, plus otherwise its easier to accidentally hit when holding from side
+         end
+         
+        self.pauseMenu = director:createNode({x=pauseX, y=minY+20, zOrder=3, xScale=0})
         --y=20 offset put origin at bottom of circle for shrink/expand anims
         self.pauseMenu.touchCircle = director:createCircle({x=0, y=20, xAnchor=0.5, yAnchor=0.5, radius=20, alpha=0, strokeWidth=1, strokeColor=menuBlue})
         self.pauseMenu.pause1 = director:createRectangle({x=-7, y=20, xAnchor=0.5, yAnchor=0.5, w=7, h=25, alpha=0, strokeWidth=1, strokeColor=menuGreen})
@@ -2131,13 +2138,13 @@ function DisablePauseMenu()
 end
 
 function gameBackKeyListener(event)
-    if event.keyCode == key.back and event.phase == "pressed" then
-        sceneBattle.backKeyListener({phase="began"})
+    if event.keyCode == 210 and event.phase == "pressed" then
+        sceneBattle.backKeyListener({phase="ended"})
     end
 end
 
 function PauseGame(touch)
-    if touch.phase == "began" then
+    if touch.phase == "ended" then
         sceneBattle.gamePaused = true
         cancelTweensOnNode(sceneBattle.pauseMenu) --can touch while still re-appearing
         
@@ -2215,7 +2222,7 @@ function ActivatePauseMenu()
 end
 
 function HidePauseMenu(touch)
-    if touch.phase == "began" then
+    if touch.phase == "ended" then
         sceneBattle.pauseMenu.resume.touchCircle:removeEventListener("touch", HidePauseMenu)
         sceneBattle.pauseMenu.quit.touchCircle:removeEventListener("touch", QuitFromPauseMenu)
         
@@ -2233,7 +2240,7 @@ function HidePauseMenu(touch)
 end
 
 function QuitFromPauseMenu(touch)
-    if touch.phase == "began" then
+    if touch.phase == "ended" then
         sceneBattle.pauseMenu.resume.touchCircle:removeEventListener("touch", HidePauseMenu)
         sceneBattle.pauseMenu.quit.touchCircle:removeEventListener("touch", QuitFromPauseMenu)
         
@@ -2294,7 +2301,7 @@ function ActivateQuitConfirmMenu()
 end
 
 function BackToPauseMenu(touch)
-    if touch.phase == "began" then
+    if touch.phase == "ended" then
         sceneBattle.pauseMenu.yes.touchCircle:removeEventListener("touch", ExitFromQuitConfirmMenu)
         sceneBattle.pauseMenu.no.touchCircle:removeEventListener("touch", BackToPauseMenu)
         
@@ -2311,7 +2318,7 @@ function BackToPauseMenu(touch)
 end
 
 function ExitFromQuitConfirmMenu(touch)
-    if touch.phase == "began" then
+    if touch.phase == "ended" then
         sceneBattle.pauseMenu.yes.touchCircle:removeEventListener("touch", ExitFromQuitConfirmMenu)
         sceneBattle.pauseMenu.no.touchCircle:removeEventListener("touch", BackToPauseMenu)
         
@@ -2336,7 +2343,7 @@ function ExitFromQuitConfirmMenu2()
     if wave == nil then wave = "none" end
     system:removeEventListener("key", gameBackKeyListener)
     analytics:logEvent("quitGame", {controlType=gameInfo.controlType, wave=tostring(wave)})
-    cancelBattle({phase="began"})
+    cancelBattle({phase="ended"})
 end
 
 function ResumeGame()
@@ -2354,7 +2361,10 @@ function ResumeGame()
     
     --in case somethin's gone wrong and bar re-showed itself, now is a good time
     --to force re-hide
-    androidFullscreen:turnOn(true, true)
+    if androidFullscreen:isImmersiveSupported() then
+        androidFullscreen:turnOff()
+        androidFullscreen:turnOn()
+    end
 end
 
 -----------------------------------------------------------------------------

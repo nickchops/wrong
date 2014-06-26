@@ -2,7 +2,9 @@
 -- So, for good performance but with some ease of code reuse, I'm using
 -- dofile for big one-off inlcudes and require otherwise
 
-androidFullscreen:turnOn(true, true)
+if androidFullscreen:isImmersiveSupported() then
+    androidFullscreen:turnOn(true, true)
+end
 -- turn on as early as possible. screen size won't update till bar is gone
 
 require("Utility")
@@ -46,7 +48,7 @@ screenMaxY = screenHeight/2
 screenMinY = -screenMaxY
 
 require("MenuScene") -- precompile MenuScene.lua fails for unknown reason with this file, so avoiding with require()
-dofile("GameScene.lua")
+--dofile("GameScene.lua") -- doing this later to save a little bit of load time on platforms that load slower
 
 analytics:setKeys(flurryApiKeyAndroid, flurryApiKeyIos)
 analytics:startSessionWithKeys()

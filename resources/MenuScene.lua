@@ -256,6 +256,9 @@ function menuEnterNameForScore()
     sceneMainMenu.joystick:activate()
     sceneMainMenu.scoreSaveButton:activate()
     
+    sceneMainMenu.backKeyListener = menuSaveOnBackKey --alow android etc back key to press save button
+    system:addEventListener("key", menuBackKeyListener)
+    
     -- poll at intervals so stick position slowly changes selected character
     sceneMainMenu.joyTimer = system:addTimer(menuCheckNameInput, 0.25, 0)
 end
@@ -322,6 +325,10 @@ function menuCheckNameInput(event)
     end
 end
 
+function menuSaveOnBackKey(event)
+    menuSaveScoreName(false)
+end
+
 function menuSaveScoreName(buttonDown)
     if not buttonDown then
         dbg.print("score save button released!")
@@ -329,6 +336,8 @@ function menuSaveScoreName(buttonDown)
         sceneMainMenu.joyTimer=nil
         sceneMainMenu.joystick:deactivate()
         sceneMainMenu.scoreSaveButton:deactivate()
+        system:removeEventListener("key", menuBackKeyListener)
+        sceneMainMenu.backKeyListener = nil
         tween:to(sceneMainMenu.joystick.origin, {x=menuScreenMinX-100, time=1.0})
         tween:to(sceneMainMenu.scoreSaveButton.origin, {x=menuScreenMaxX+100, time=1.0, onComplete=menuRemoveScoreControls})
         tween:cancel(sceneMainMenu.inputAnim)
@@ -726,6 +735,7 @@ function sceneMainMenu:removeArrowButton(btnType, listener)
     
     if btnType == "back" then
         system:removeEventListener("key", menuBackKeyListener)
+        sceneMainMenu.backKeyListener = nil
     end
     
     self[btnName].button:removeEventListener("touch", listener)
@@ -837,12 +847,24 @@ end
 ------------------------------------------------------------
 -- Button handlers
 
+-- Reduce startup loading time by a small bit by loading the large-ish game
+-- scene code only when its first needed
+gameSceneLoadFlag = false
+
 function MenuStartGame()
-    androidFullscreen:turnOn(true, true)
-    menuSaveData()
+    -- A good time to force re-hiding in case OS showed for some reason
+    if androidFullscreen:isImmersiveSupported() then
+        androidFullscreen:turnOff()
+        androidFullscreen:turnOn()
+    end
+    menuSaveData() -- save sound on/off option
     if not demoMode then
         audio:stopStream()
         gameInfo.titleMusicPlaying = false
+    end
+    if not gameSceneLoadFlag then
+        dofile("GameScene.lua")
+        gameSceneLoadFlag = true
     end
     director:moveToScene(sceneBattle, {transitionType="slideInT", transitionTime=0.8})
 end
@@ -1024,6 +1046,11 @@ function sceneMainMenu:removeMainMenuListeners()
     for k,v in pairs(self.btns) do
         v.touchArea:removeEventListener("touch", v.touchArea)
     end
+    
+    if sceneMainMenu.backKeyListener then
+        system:removeEventListener("key", menuBackKeyListener)
+        sceneMainMenu.backKeyListener = nil
+    end
 end
 
 function sceneMainMenu:addMainMenuListeners()
@@ -1038,6 +1065,16 @@ function sceneMainMenu:addMainMenuListeners()
         audio:playStreamWithLoop("sounds/iron-suit.mp3", true)
         gameInfo.titleMusicPlaying = true
     end
+    
+     --alow android etc back key to quit on main menu.
+     --TODO: reuse in-game pause menu exit icons for user to confirm quit
+    sceneMainMenu.backKeyListener = quitGameOnBackKey
+    system:addEventListener("key", menuBackKeyListener)
+end
+
+function quitGameOnBackKey(event)
+    system:removeEventListener("key", menuBackKeyListener)
+    shutDownApp()
 end
 
 --------------------------------------------------------

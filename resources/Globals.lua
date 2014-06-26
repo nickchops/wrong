@@ -135,7 +135,8 @@ MIN_TOUCH_MOVE_X = dpiScaler:getSize(100) --same for weapon change
 
 -- How many pixels finger must move per weapon change in a swipe. First change happens with X > MIN_TOUCH_MOVE_X,
 -- second happens when x > WEAPON_MOVE_AMOUNT_X, third on x > WEAPON_MOVE_AMOUNT_X*2, etc.
-WEAPON_MOVE_AMOUNT_X = dpiScaler:getSize(50)
+-- TODO: needs to be 1st=100, 2nd=90, 3rd=60, 4th+=30 so first two are hard and then progressively easier
+WEAPON_MOVE_AMOUNT_X = dpiScaler:getSize(90)
 
 --TODO: prob want to use pixel density on flick movement scaling too,
 -- i.e. deceleration
@@ -214,7 +215,7 @@ for k,v in ipairs(gameInfo.achievementIndex) do
 end
 -- to debugging locked modes:
 --gameInfo.achievements.survival=true
-gameInfo.achievements.battle=true
+--gameInfo.achievements.battle=true
 
 gameInfo.achievementPages = 0
 local achCount = table.getn(gameInfo.achievementIndex) --NB, can use .achievements as .tablegetn only works on arrays!
