@@ -163,16 +163,14 @@ function Player:AddSled(xPos, yPos)
 
     self.sled:sync()
     
-    if not deviceIsLowEndTouch then
-        if self.halfHeight == self.newHalfHeight then
-            local fxTimer = self.sled:addTimer(PlayerFx, 0.3, 0, 0.5)
-            if not self.effects then
-                self.effects = {}
-                self.fxLastFreed = 1
-                self.fxSize = 0
-            end
-            fxTimer.player = self
+    if self.halfHeight == self.newHalfHeight then
+        local fxTimer = self.sled:addTimer(PlayerFx, 0.3, 0, 0.5)
+        if not self.effects then
+            self.effects = {}
+            self.fxLastFreed = 1
+            self.fxSize = 0
         end
+        fxTimer.player = self
     end
 end
 

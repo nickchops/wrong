@@ -712,7 +712,7 @@ function sceneMainMenu:addArrowButton(btnType, listener) --types are "back", "le
         sceneMainMenu.backKeyListener = listener
         system:addEventListener("key", menuBackKeyListener)
     else
-        dbg.assert("invalid button type in addArrowButton")
+        dbg.assert(false, "invalid button type in addArrowButton")
     end
 
     self[btnName] = director:createLines({x=xPos, y=yPos, coords={-50,30, 0,0, 50, 30}, strokeColor=menuBlue, strokeWidth=2, alpha=0, rotation=rotation})
@@ -752,7 +752,7 @@ function menuSaveData(clearFlag)
     else
         file:write(json.encode({scores=gameInfo.highScore, lastName=gameInfo.name, achievements=gameInfo.achievements, soundOn=gameInfo.soundOn}))
         file:close()
-        dbg.print("highscores saved")
+        dbg.print("user data saved")
     end
     
     if clearFlag then
@@ -809,7 +809,7 @@ function LoadUserData()
     -- load highscore from JSON encoded lua value
     -- Could switch to sql if more complex.
     -- Eventually integrate some onlne service (nugetta/scoreloop/google play/game center)
-    local saveStatePath = system:getFilePath("storage", "highscore.txt")
+    local saveStatePath = system:getFilePath("storage", "data.txt")
     local file = io.open(saveStatePath, "r")
     if not file then
         dbg.print("save state file not found at: " .. saveStatePath)
@@ -853,7 +853,7 @@ gameSceneLoadFlag = false
 
 function MenuStartGame()
     -- A good time to force re-hiding in case OS showed for some reason
-    if androidFullscreen:isImmersiveSupported() then
+    if androidFullscreen and androidFullscreen:isImmersiveSupported() then
         androidFullscreen:turnOff()
         androidFullscreen:turnOn()
     end

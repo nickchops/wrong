@@ -5,8 +5,10 @@
 --------------------------------------------------------------------------------
 
 require("Utility")
+require("NodeUtility")
 dofile("Player.lua")
 dofile("WeaponsMeter.lua")
+--dofile("FrameRate.lua")
 
 function PushCollidablesAwayFromPos(x, y, boostSpeed)
     boostSpeed = boostSpeed or 1
@@ -587,13 +589,11 @@ function CollidableCreate(objType, xPos, yPos, startVector, startSpeed, objectOn
         tween:from(collidable, {xScale=0, yScale=0, time=0.2})
 
         local fxTimer
-        if not deviceIsLowEndTouch then
-            if objType == "bullet" then
-                fxTimer = collidable:addTimer(TrailFx, 0.1, 0, 0)
-                fxTimer.startAlpha = 0.9
-            else
-                fxTimer = collidable:addTimer(TrailFx, 0.3, 0, 0)
-            end
+        if objType == "bullet" then
+            fxTimer = collidable:addTimer(TrailFx, 0.1, 0, 0)
+            fxTimer.startAlpha = 0.9
+        else
+            fxTimer = collidable:addTimer(TrailFx, 0.3, 0, 0)
         end
         --fxTimer.obj = collidable
     end
@@ -724,6 +724,8 @@ function setStarAnimation(speedMultiple, rotation, decelerate)
     if speedMultiple == 0 then
         endStarMovement(2)
     else
+        cancelTweensOnNode(origin)
+        
         sceneBattle.starSpeed = (speedMultiple+1) * speedMultiple * 20 - 10 --max speed on multiple=5 is 590 pixels/sec
         sceneBattle.starAlpha = 0--(speedMultiple-1)/10 -- >0 means get white dot as stars pile up in center!
         sceneBattle.starsMove = true
@@ -747,14 +749,13 @@ function setStarAnimation(speedMultiple, rotation, decelerate)
         end
         
         -- screen wobble on fastest speed
-        if (gameInfo.wave and speedMultiple == 5) or (rotation) then
+        if (gameInfo.wave and speedMultiple == 5) or rotation then
             local time = 2
             if rotation then
                 time = 10 / rotation
             end
             rotation = rotation or gameInfo.wave*0.5
             
-            cancelTweensOnNode(origin)
             if speedMultiple == 1 then
                 tween:to(origin, {time=1, rotation=0}) --reset on battle deceleration
             else
@@ -763,6 +764,8 @@ function setStarAnimation(speedMultiple, rotation, decelerate)
             end
         end
     end
+    
+    sceneBattle.previousStarSpeedMultiple = speedMultiple
 end
 
 function endStarMovement(time)
@@ -1049,16 +1052,8 @@ function DyingCollidableDestroy(collidable)
     --dbg.print("destroy dead collidable: " .. target.name)
     if not deadCollidables[collidable.name] then
         dbg.print(collidable.name)
-        dbg.assert("dead collidable not in list!!!")
+        dbg.assert(false, "dead collidable not in list!!!")
     end
-    
-    --TODO: remove this debugging -----------
-    local hasParent = "no"
-    if collidable.parent then
-       hasParent = "yes"
-    end
-    table.insert(dbgDeathLog, {name=collidable.name, state="removed", objType=collidable.objType, hasParent=hasParent})
-    -----------------------------------------
     
     if collidable.replaceOnLeaveScreen then 
         sceneBattle:queueReplacementBall()
@@ -1071,10 +1066,7 @@ end
 -- Remove from main table - visual node can still be active in order to animate death
 -- Manually cancelling timers & tweens where appropriate because they can still run until Lua does garbage collection!
 -- As this is a static function that takes a Quick Node as 1st param
--- it can be passedto things like tween's onComplete.
-
-dbgDeathLog = {}
-
+-- it can be passed to things like tween's onComplete.
 function CollidableDestroy(collidable, killLater, keepTimersRunning, keepTweensRunning)
     local uniqueId = collidable.name
 
@@ -1089,7 +1081,7 @@ function CollidableDestroy(collidable, killLater, keepTimersRunning, keepTweensR
         -- CollidableDestroy cancels a tween that would have called DyingCollidableDestroy.
         -- Might want to enforce ignoring dying collibales, i.e. by returning here instead of asserting
         -- if game logic changes...
-        dbg.assert("Trying to destroy dying collidable: " .. uniqueId .. " of type " .. collidable.objType)
+        dbg.assert(false, "Trying to destroy dying collidable: " .. uniqueId .. " of type " .. collidable.objType)
         print("Trying to destroy dying collidable: " .. uniqueId .. " of type " .. collidable.objType)
         -- also print() for release build crash debugging
     end
@@ -1103,14 +1095,6 @@ function CollidableDestroy(collidable, killLater, keepTimersRunning, keepTweensR
         if not keepTweensRunning then
             cancelTweensOnNode(collidable)
         end
-
-        --TODO: remove this debugging -----------
-        local hasParent = "no"
-        if collidable.parent then
-           hasParent = "yes"
-        end
-        table.insert(dbgDeathLog, {name=uniqueId, state="added", objType=collidable.objType, hasParent=hasParent})
-        -----------------------------------------
         
         deadCollidables[uniqueId] = collidable -- store by shape name as table can't be an array
                                                -- NB this would be simpler if we had collidables=nodes!
@@ -1378,14 +1362,6 @@ function sceneBattle:update(event)
                     obj.dontCollide = true
                 end
                 if obj.x > screenMaxX+20 or obj.x < screenMinX-20 or obj.y > screenMaxY+20 or obj.y < screenMinY-50 then
-                    --TODO: remove this debug check---------
-                    --local hasParent = "no"
-                    --if collidable.parent then
-                    --   hasParent = "yes"
-                    --end
-                    --table.insert(dbgDeathLog, {name=obj.name, state="offscreen", objType=obj.objType, hasParent=hasParent})
-                    ----------------------------------------
-                    
                     CollidableDestroy(obj)
                 end
             end
@@ -1433,7 +1409,7 @@ function sceneBattle:update(event)
                 end
                 
                 -- can call for both players - will just pleasantly stretch out deceleration a bit more
-                endStarMovement(3)
+                endStarMovement(5)
             end
 
             -- flags increment once when all balls are gone and once player's explosion is over
@@ -1501,11 +1477,10 @@ function playerHit(restoreHealth)
     end
     if gameInfo.controlType == "p1LocalVsP2Local" or gameInfo.mode == "survival" then
         --re-using logic from one player game. Instead of speed based on waves
-        -- 1 -> 6 = stopped->fast, we use health left of >5 -> 1 = slow->fast
-        local speedMultiple = 6-math.min(player1.health.value, player2.health.value)
+        -- multiple of 2 -> 6 = slow->fast; we use health left of >=5 -> 1 = slow->fast
+        local speedMultiple = math.max(1, math.min(6, 6-math.min(player1.health.value, player2.health.value)))
         if (speedMultiple ~= sceneBattle.previousStarSpeedMultiple) and speedMultiple > 0 and speedMultiple < 6 then
             setStarAnimation(speedMultiple, (speedMultiple-1)*2, sceneBattle.previousStarSpeedMultiple > speedMultiple)
-            sceneBattle.previousStarSpeedMultiple = speedMultiple
         end
     end
 end
@@ -1573,37 +1548,37 @@ function sceneBattle:touch(touch)
             --dbg.print("player number: " .. k)
             if touch.phase == "began" then
                 --dbg.print("touch began, id=" .. touch.id)
-                if player.touchZone == touchZone then --touch is for this player
+                 if player.touchZone == touchZone then --touch is for this player
                     --dbg.print("in touch zone for player " .. k)
 
-                    if player.touchCount < 2 then -- ignore > 2 fingers per player
-                        player.touchCount = player.touchCount + 1
+                     if player.touchCount < 2 then -- ignore > 2 fingers per player
+                         player.touchCount = player.touchCount + 1
 
-                        player.touches[touch.id] = {}
-                        player.touches[touch.id].x = touchX
-                        player.touches[touch.id].y = touchY
+                         player.touches[touch.id] = {}
+                         player.touches[touch.id].x = touchX
+                         player.touches[touch.id].y = touchY
 
-                        -- allowed to swipe horizontally until vertical movement starts
-                        -- dont mind both fingers swiping at once - just change weapon twice!
-                        player.touches[touch.id].canSwipeLR = true
+                         -- allowed to swipe horizontally until vertical movement starts
+                         -- dont mind both fingers swiping at once - just change weapon twice!
+                         player.touches[touch.id].canSwipeLR = true
 
-                        -- player-finger offset as we move directly with finger while held down
-                        player.touches[touch.id].touchPosDiff = touchY - player.sled.y
+                         -- player-finger offset as we move directly with finger while held down
+                         player.touches[touch.id].touchPosDiff = touchY - player.sled.y
 
-                        -- reversed movement control (based on point where touch starts from when timer is in effect)
-                        -- always set because any touch could become movement and reverse could start afterwards
-                        player.reversePos = touchY
+                         -- reversed movement control (based on point where touch starts from when timer is in effect)
+                         -- always set because any touch could become movement and reverse could start afterwards
+                         player.reversePos = touchY
 
-                        player.touches[touch.id].touchWasTap = true -- flag will be turned off once finger moves
-                        if not deviceIsLowEndTouch then
-                            player.touches[touch.id].tapTimer = system:addTimer(touchReleaseTimer, 0.3, 1) -- or on timeout
-                        end
-                        if player.touches[touch.id].tapTimer then
-                            player.touches[touch.id].tapTimer.touch = player.touches[touch.id]
-                            player.touches[touch.id].tapTimer.player = player
-                        end
+                         player.touches[touch.id].touchWasTap = true -- flag will be turned off once finger moves
                         
-                        player.touches[touch.id].weaponMoveGate = 0
+                         player.touches[touch.id].tapTimer = system:addTimer(touchReleaseTimer, 0.3, 1) -- or on timeout
+                        
+                         if player.touches[touch.id].tapTimer then
+                             player.touches[touch.id].tapTimer.touch = player.touches[touch.id]
+                             player.touches[touch.id].tapTimer.player = player
+                         end
+                        
+                         player.touches[touch.id].weaponMoveGate = 0
                     end
                 --else
                 --    dbg.print("touch ignored! not in touch zone")
@@ -1721,6 +1696,8 @@ function sceneBattle:touch(touch)
                                     pTouch.yDiffPrev = pTouch.yDiff or yDiff
                                     pTouch.yDiff = yDiff
                                     -- using yDiffPrev for velocity as Android often returns weird values just before finger is lifted!
+                                    -- TODO: This may be performance related. Ideally dont want to do this on iOS/fast devices because
+                                    -- It does mean you get slightly unnatural deceleration.
                                 end
                             end
                         end
@@ -1811,6 +1788,7 @@ function AddStar(twinkleAnimate, n)
     normVector.y = y/length
 
     local star = director:createLines({x=x, y=y, coords={0,0, 1,0.5}, strokeWidth = 1})
+    --local star = director:createCircle({x=x, y=y, xAnchor=0.5, yAnchor=0.5, radius=1})
     star.normVector = normVector
     
     -- rotation allows xScale to be used to strewtch star out into a line for high speeds
@@ -1824,8 +1802,10 @@ function AddStar(twinkleAnimate, n)
     star.originalStroke = {r=math.random(brightness-40, brightness), g=math.random(brightness-40, brightness), b=math.random(brightness-40, brightness)}
     star.strokeColor = star.originalStroke
     
-    if twinkleAnimate then
+    if twinkleAnimate and performanceLevel > 1 then
         tween:to(star, {strokeAlpha=0.3, mode="mirror", time=0.5+n*0.05, delay=n*0.05})
+    else
+        tween:to(star, {strokeAlpha=math.random(3,10) / 10, time=0.5}) -- avoid tweens running during play
     end
 
     sceneBattle.background:addChild(star) -- background.children is now a table with refs to all stars
@@ -1848,9 +1828,7 @@ function sceneBattle:setUp(event)
     
     virtualResolution:applyToScene(self)
     
-    --TODO: remove this debugging -----------
-    dbgDeathLog = {}
-    -----------------------------------------
+    --frameRateOverlay.showFrameRate() --debugging
     
     -- root object at screen centre. Adding children to it means their coords will be
     -- relative to this position. Annoyingly Quick provides no way to set the origin; instead,
@@ -1868,15 +1846,11 @@ function sceneBattle:setUp(event)
     origin:addChild(self.background)
 
     -- create random stars on background
-    
-    local animateStars = not deviceIsTab3
-    if not animate then
-        dbg.print("skipping stars animation....")
-    end
-    
     math.randomseed(os.time())
-    for n=1, 100 do
-        AddStar(animateStars, n)
+    local starCount = 20
+    if performanceLevel > 1 then starCount = 100 end
+    for n=1, starCount do
+        AddStar((performanceLevel > 1), n)
     end
     
     self.starsMove = false
@@ -1903,6 +1877,7 @@ function sceneBattle:setUp(event)
             gameInfo.ammo = DEFAULT_AMMO_SURVIVAL
             gameInfo.wave = nil
             gameInfo.firstCloak = true
+            setStarAnimation(1) -- static is boring!
         else
             self.waveLeft = Counter.Create(0, INIT_WAVE_SIZE, 9999, false, nil, true)
             self.waveLeft.origin:translate(0, minY+38)
@@ -1922,8 +1897,7 @@ function sceneBattle:setUp(event)
         gameInfo.health = DEFAULT_HEALTH_BATTLE
         gameInfo.bullets = DEFAULT_BULLETS_BATTLE
         gameInfo.ammo = DEFAULT_AMMO_BATTLE
-        sceneBattle.previousStarSpeedMultiple = 5
-        setStarAnimation(1) -- static is boring!
+        setStarAnimation(1)
     end
 
     player1 = Player.Create(1, gameInfo.health, gameInfo.bullets, gameInfo.ammo, onePlayerMode)
@@ -1983,7 +1957,7 @@ function sceneBattle:setUp(event)
     elseif gameInfo.controlType == "p1RemoteVsP2Local" then
         player1.touchZone = 4
     end
-
+    
     -- we manage ball movement ourselves. physics/box2d doesn't appear to be well suited to
     -- simple top-down type movement so we just move balls per-frame and do collisions manually.
     collidables = {}
@@ -2361,7 +2335,7 @@ function ResumeGame()
     
     --in case somethin's gone wrong and bar re-showed itself, now is a good time
     --to force re-hide
-    if androidFullscreen:isImmersiveSupported() then
+    if androidFullscreen and androidFullscreen:isImmersiveSupported() then
         androidFullscreen:turnOff()
         androidFullscreen:turnOn()
     end
@@ -2447,6 +2421,8 @@ end
 function sceneBattle:exitPreTransition(event)
     dbg.print("sceneBattle:exitPreTransition")
     
+    --frameRateOverlay.hideFrameRate() --debugging
+    
     system:removeEventListener({"suspend", "resume", "update"}, self)
     if demoMode and not demoModeDebug then
         system:removeEventListener({"touch"}, cancelBattle)
@@ -2492,55 +2468,6 @@ function sceneBattle:exitPostTransition(event)
         CollidableDestroy(v)
     end
     collidables = nil
-    
-    --[[
-    print("------------------------------------------------")
-    print("DEATH LOG")
-    for k,v in ipairs(dbgDeathLog) do
-        print(v.name .. " " .. v.state .. " type=" .. v.objType .. ", parent=" .. v.hasParent)
-    end
-    ]]--
-    
-    --[[local file = io.open("deathlog.txt", "w")
-    local logtext = ""
-    for k,v in ipairs(dbgDeathLog) do
-        logtext = logtext .. v.name .. " " .. v.state .. " type=" .. v.objType .. ", parent=" .. v.hasParent .. "\n"
-    end
-    file:write(logtext)
-    file:close()]]--
-    
-    --[[
-    print("--------------------------------")
-    print("end state of deadCollidables:")
-    local hasParent
-    for k,v in pairs(deadCollidables) do
-        hasParent = "no"
-        if collidable.parent then
-           hasParent = "yes" 
-        end
-        print("deadc: " .. v.name .. ", type:" .. v.objType .. ", parent:" .. hasParent .. ", pos=" .. v.x .. "," .. v.y)
-    end
-    print("destroying deadCollidables")
-    
-    
-    local checker = false
-    for k,v in pairs(deadCollidables) do
-        print ("destroying " .. v.name)
-        if not checker then
-            local file = io.open("deathlog.txt", "w")
-            local logtext = ""
-            for k,v in ipairs(dbgDeathLog) do
-                logtext = logtext .. v.name .. " " .. v.state .. " type=" .. v.objType .. ", parent=" .. v.hasParent .. "\n"
-            end
-            file:write(logtext)
-            file:close()
-        end
-        checker = true
-        DyingCollidableDestroy(v)
-    end
-    deadCollidables = nil
-    print("!!!! dead collidables done")
-    ]]--
 
     for k,v in pairs(players) do
         v:Destroy()

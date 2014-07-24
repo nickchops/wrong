@@ -7,7 +7,7 @@ config =
         typeChecking = false,
         assertDialogs = false,
         
-        makePrecompiledLua = false,
+        makePrecompiledLua = true,
         usePrecompiledLua = true, -- may speed up both load and execution time
         useConcatenatedLua = true, -- speeds up *load* times
     }

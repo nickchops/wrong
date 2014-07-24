@@ -55,6 +55,7 @@ director.isAlphaInherited = true -- the default in Quick 1.0 but not in Quick be
 pauseflag = false -- flag to work around Quick's pause-resume bug/quirkh
 
 local platform = device:getInfo("platform")
+local deviceId = device:getInfo("deviceID")
 
 -- string of form "OS name majorversion.minor.revision.etc" Could have spaces in
 -- OS name; could have arbitrary number of points in version; version might be
@@ -72,12 +73,19 @@ if versionMajor and versionMinor then
     versionMinor = tonumber(versionMinor)
 end
 
-deviceIsAndroid = platform == "ANDROID"
+-- Somewhat hacky at the moment! we know certain devices that run really fast
+-- so on those we are upping some graphic features, notably the amount of stars
+-- (more nodes=more work)
+performanceLevel = 1
+if platform == "OSX" or platform == "WINDOWS" or platform == "WS8" or platform == "WS81" or 
+        string.startswith(deviceId, "iPad4") or string.startswith(deviceId, "iPhone6") then
+    -- These IDs are retina iPads and iPhone 5s - only devices with new PowerVR G6430 GPUs.
+    -- TODO: make this work with newer models (>=ipad4 etc)
+    performanceLevel = 2
+end
 
-deviceId = device:getInfo("deviceID")
-deviceIsTab3 = deviceIsAndroid and deviceId == "GT-P5210"
-deviceIsX86 = device:getInfo("architecture") == "X86"
-deviceIsLowEndTouch = false --deviceIsAndroid and deviceIsX86--deviceIsTab3
+--local deviceIsAndroid = platform == "ANDROID"
+--local deviceIsX86 = device:getInfo("architecture") == "X86"
 
 deviceIsTouch = true -- TODO: for cotrollers set to false. For Windows Surface etc, need a switch in the game! Not yet used.
 
@@ -176,7 +184,7 @@ BALL_PROBABILITY_IN_WAVE = { --effectively inserts this number of "ball" types i
     2, --7
     2, --8
     2, --9
-    11,--10
+    5, --10
     3, --11
     3  --12
 }
@@ -310,9 +318,10 @@ if platform == "ANDROID" then
     storeName = "google"
     -- else storeName = "amazon" etc
 elseif platform == "IPHONE" then
+    appId = "wrong!/id897361366"
     storeName = "apple"
     if versionMajor >= 7 then
-        storeUrl = "itms-apps://itunes.apple.com/app/id" .. appId
+        storeUrl = "itms-apps://itunes.apple.com/app/" .. appId
     else
         storeUrl = "itms-apps://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?id=" .. appId .. "&onlyLatestVersion=true&pageNumber=0&sortOrdering=1&type=Purple+Software"
     end

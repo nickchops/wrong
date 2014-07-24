@@ -30,7 +30,7 @@ function analytics:setKeys(androidKey, iosKey)
 end
 
 function analytics:startSessionWithKeys()
-    dbg.assert(analytics.androidKey, "Must call setFlurryKeys before startFlurrySession")
+    dbg.assert(analytics.androidKey ~= nil, "Must call setFlurryKeys before startFlurrySession")
     
     if device:getInfo("platform") == "ANDROID" then
         analytics:startSession(analytics.androidKey)
