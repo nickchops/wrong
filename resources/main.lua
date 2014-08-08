@@ -1,13 +1,14 @@
 -- NB: Quick supports makePrecompiledLua etc if using dofile(), but not require()
 -- So, for good performance but with some ease of code reuse, I'm using
 -- dofile for big one-off inlcudes and require otherwise
+--require("mobdebug").start() -- to debug before dofile(Globals)!
 
 -- turn fullscreen on as early as possible. screen size won't update till bar is gone
-if not androidFullscreen then
+if androidFullscreen == nil then
     dbg.assert(false, "androidFullscreen extension not found. rebuild quick binaries with this extension!")
 else
-    if androidFullscreen:isImmersiveSupported() then
-        androidFullscreen:turnOn(true, true)
+    if androidFullscreen.isImmersiveSupported() then
+        androidFullscreen.turnOn(true, true)
     end
 end
 

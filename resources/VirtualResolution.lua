@@ -372,7 +372,7 @@ function virtualResolutionHandleEventWithListenerOverride(event, listener)
     -- turn screen coords into user coords
     if event.name == "touch" then
         -- The same touch event object propagates down node chain. We have to flag to avoid
-        -- transforming recursively! Also, the evnent objects get reused for began, moved and ended
+        -- transforming recursively! Also, the event objects get reused for began, moved and ended
         -- phases, so have to flag each separately.
         -- Would be nice to transform on QEvent creation, but would then have to change QSystems
         -- code that does node intersection testing
