@@ -83,7 +83,7 @@ function Player.Create(id, health, ammoBulletAmmount, ammoOtherAmount, onePlayer
     -- initialize the object
 
     player.id = id -- note that player is just a table and we're assigning key-value pairs to it
-    player.reverseTimer = nil -- if non nill, player controls are reversed and a timer counts down
+    player.reverseTimer = nil -- if non nil, player controls are reversed and a timer counts down
     player.cloakTimer = nil --0  -- as above for player being invisible
     player.touches = {} -- track touch events to do movement and weapons
     player.touchCount = 0 -- can't auto get size of key table in lua

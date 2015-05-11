@@ -844,6 +844,37 @@ function LoadUserData()
     if not gameInfo.name then gameInfo.name = "_P1" end --records last name entered to save re-entering
 end
 
+-- as above for restoring last game if game was killed before user explicitly exited
+function LoadContinueData()
+    local saveStatePath = system:getFilePath("storage", "continue.txt")
+    local file = io.open(saveStatePath, "r")
+    if not file then
+        dbg.print("continue data from last run not found at: " .. saveStatePath)
+        return
+    else
+        gameInfo.continue = json.decode(file:read("*a")) -- "*a" = read the entire file contents
+        analytics:logEvent("LoadContineData")
+        file:close()
+        dbg.print("continue data loaded loaded")
+    end
+    
+    if type(gameInfo.continue) ~= "table" or not gameInfo.continue.mode then
+        gameInfo.continue = nil
+        dbg.print("valid continue data not found")
+        return
+    end
+end
+
+function sceneMainMenu:wipeContinueData()
+    if not demoMode then
+        local saveStatePath = system:getFilePath("storage", "continue.txt")
+        local file = io.open(saveStatePath, "w")
+        if file then
+            file:write(json.encode({}))
+            file:close()
+        end
+    end
+end
 ------------------------------------------------------------
 -- Button handlers
 
@@ -852,9 +883,8 @@ end
 gameSceneLoadFlag = false
 
 function MenuStartGame()
-    -- A good time to force re-hiding in case OS showed for some reason
+    -- Just in case! A good time to force re-hiding in case OS showed for some reason
     if androidFullscreen and androidFullscreen:isImmersiveSupported() then
-        androidFullscreen:turnOff()
         androidFullscreen:turnOn()
     end
     menuSaveData() -- save sound on/off option
@@ -863,7 +893,8 @@ function MenuStartGame()
         gameInfo.titleMusicPlaying = false
     end
     if not gameSceneLoadFlag then
-        dofile("GameScene.lua")
+        --dofile("GameScene.lua")
+        require("GameScene")
         gameSceneLoadFlag = true
     end
     director:moveToScene(sceneBattle, {transitionType="slideInT", transitionTime=0.8})
@@ -908,6 +939,16 @@ function sceneMainMenu:restoreButtonsAnim()
     end
     tween:to(self.labelScore, {alpha=1, time=0.3})
     tween:to(self.labelHighScore, {alpha=1, time=0.3})
+end
+
+function touchContinue(self, event)
+    if event.phase == "ended" then
+        gameInfo.controlType = "onePlayer"
+        gameInfo.mode = gameInfo.continue.mode
+        sceneMainMenu:buttonPressedAnim("continue")
+        analytics:logEvent("startContinue")
+        tween:to(sceneMainMenu.title, {y=menuScreenMinY-280, time=0.5, delay=0.3, onComplete=MenuStartGame})
+    end
 end
 
 function touch1pSurvival(self, event)
@@ -1138,6 +1179,7 @@ function sceneMainMenu:setUp(event)
     -- loads scores, last user name and achievements from local storage
     -- TODO: integrate these with online services...
     if not gameInfo.highScore then LoadUserData() end
+    if not gameInfo.continue then LoadContinueData() end
     
     --self.title = director:createSprite(0, 0, "textures/wrongtitle.png")
     ----self.title:getAtlas():setTextureParams("GL_NEAREST", "GL_NEAREST")
@@ -1219,6 +1261,14 @@ function sceneMainMenu:setUp(event)
     local labelY = 0
     
     -- main menu buttons
+    
+    if gameInfo.continue then
+        self.btns["continue"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Continue", color=menuBlue, font=fontMainLarge})
+        createLabelTouchBox(self.btns["continue"], touchContinue)
+        self.btnsOrigin:addChild(self.btns["continue"])
+        labelY = labelY-40
+    end
+    
     self.btns["1pSurvival"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Start Game", color=menuBlue, font=fontMainLarge})
     createLabelTouchBox(self.btns["1pSurvival"], touch1pSurvival)
     self.btnsOrigin:addChild(self.btns["1pSurvival"])
@@ -1333,6 +1383,9 @@ function sceneMainMenu:setUp(event)
         end
         
         local btnDelay = 0.2
+        if self.btns["continue"] then
+            tween:to(self.btns["continue"], {yScale=1, time=0.1, delay=btnDelay}) btnDelay=btnDelay+0.05
+        end
         tween:to(self.btns["1pSurvival"], {yScale=1, time=0.1, delay=btnDelay}) btnDelay=btnDelay+0.05
         if self.btns["survival"] then
             tween:to(self.btns["survival"], {yScale=1, time=0.1, delay=btnDelay}) btnDelay=btnDelay+0.05

@@ -8,7 +8,10 @@ require("Utility")
 require("NodeUtility")
 dofile("Player.lua")
 dofile("WeaponsMeter.lua")
---dofile("FrameRate.lua")
+
+if showFrameRate then
+    dofile("FrameRate.lua")
+end
 
 function PushCollidablesAwayFromPos(x, y, boostSpeed)
     boostSpeed = boostSpeed or 1
@@ -601,7 +604,7 @@ function CollidableCreate(objType, xPos, yPos, startVector, startSpeed, objectOn
     collidable.vec = startVector
     collidable.speed = startSpeed
     if not collidable.objType then collidable.objType = objType end
-
+    
     if not objectOnly then
         -- table indexed by unique main element name. Easier and more robust than trying to use an array with unit index (lua arrays are fiddly)
         collidables[collidable.name] = collidable
@@ -749,8 +752,30 @@ function setStarAnimation(speedMultiple, rotation, decelerate)
         end
         
         -- screen wobble on fastest speed
-        if (gameInfo.wave and speedMultiple == 5) or rotation then
+        local time
+        if gameInfo.wave and speedMultiple > 0 then
+            rotation = gameInfo.wave*0.15
+            if speedMultiple == 5 then
+                time = 2
+                rotation = gameInfo.wave*0.6
+            end
+        end
+        
+        if rotation then
+            if not time then
+                time = 10 / rotation
+            end
+            
+            if speedMultiple == 1 and not gameInfo.wave then
+                tween:to(origin, {time=1, rotation=0}) --reset on deceleration
+            else
+                tween:to(origin, {time=time/2, rotation=-rotation})
+                tween:to(origin, {time=time, mode="mirror", delay=time/2, rotation=rotation})
+            end
+        end
+        --[[if (gameInfo.wave and speedMultiple == 5) or rotation then
             local time = 2
+            
             if rotation then
                 time = 10 / rotation
             end
@@ -762,7 +787,7 @@ function setStarAnimation(speedMultiple, rotation, decelerate)
                 tween:to(origin, {time=time/2, rotation=-rotation})
                 tween:to(origin, {time=time, mode="mirror", delay=time/2, rotation=rotation})
             end
-        end
+        end]]--
     end
     
     sceneBattle.previousStarSpeedMultiple = speedMultiple
@@ -1499,6 +1524,13 @@ function sceneBattle:touch(touch)
     if sceneBattle.endTimer then
         return
     end
+    
+    --reject event when > 1 occurs per frame, for performance
+    if touch.phase == "moved" and self.lastFrameTime[touch.id] == system.gameTime then
+        return
+    end
+    
+    self.lastFrameTime[touch.id] = system.gameTime
 
     -- TODO: - Add keyboard controls for desktop (and phones or tablets with physical keys)
     --         also support bluetooth keyboard!
@@ -1755,6 +1787,7 @@ end
 function cancelBattle(event)
     if event.phase == "ended" then -- guard or else will try to transition twice!
         sceneBattle.ignoreEvents = true -- stop balls regenerating etc
+        sceneMainMenu:wipeContinueData()
         director:moveToScene(sceneMainMenu, {transitionType="slideInB", transitionTime=1.5})
         --objects will all be destroyed in post transition event
     end
@@ -1768,6 +1801,7 @@ end]]--
 
 function GameOver(event)
     sceneBattle.endTimer = nil
+    sceneMainMenu:wipeContinueData()
     director:moveToScene(sceneMainMenu, {transitionType="slideInB", transitionTime=1.5})
     -- all effects must have finished by this point :)
 end
@@ -1796,7 +1830,7 @@ function AddStar(twinkleAnimate, n)
     star.rotation = math.deg(math.atan2(star.normVector.x, star.normVector.y))+90
     
     -- set star colour: get a random white value then allow some variance in each channel for off-white result
-    local brightness = math.random(40, 127)
+    local brightness = math.random(40, 180)
     -- NB: if we assigned value to star.strokeColor first and then do star.originalStroke=star.strokeColor
     -- it actually becomes a 'userdata' type due to Quick C++ internals and then we cant use it in tweens
     star.originalStroke = {r=math.random(brightness-40, brightness), g=math.random(brightness-40, brightness), b=math.random(brightness-40, brightness)}
@@ -1821,14 +1855,90 @@ function StretchStar(star, length)
     destroyNode(star)
 end
 
+-- Save retrieveable game state data. Can recreate game state form this if
+-- game gets killed by OS or user in mid play.
+function sceneBattle:saveState()
+    local continueData = {}
+    continueData.controlType = gameInfo.controlType    
+    continueData.mode = gameInfo.mode
+    continueData.score = self.score.value
+    if self.waveLeft then
+        continueData.wave = self.waveLeft.value
+    end
+    continueData.ballCreateQueue = self.ballCreateQueue
+    continueData.ballsAddedThisWave = self.ballsAddedThisWave
+    
+    continueData.saveObj = {}
+    
+    for k,obj in pairs(collidables) do
+        local saveInfo = {}
+        saveInfo.objType = obj.objType
+        saveInfo.vec = obj.vec
+        saveInfo.speed = obj.speed
+        saveInfo.x = obj.x
+        saveInfo.y = obj.y
+        continueData.saveObj[obj.name] = saveInfo
+    end
+    
+    continueData.players = {}
+    
+    for k,p in ipairs(players) do
+        local player = {}
+        player.id = p.id
+        player.reverseTimer = p.reverseTimer
+        player.cloakTimer = p.cloakTimer
+        player.velocity = p.velocity
+        player.halfHeight = p.newHalfHeight
+        
+        player.y = p.sled.y
+        
+        player.health = p.health.value
+        
+        player.ammo = {}
+        player.ammo.bullet = p.weaponsMeter.ammo.bullet
+        player.ammo.ball = p.weaponsMeter.ammo.ball
+        player.ammo.air = p.weaponsMeter.ammo.air
+        player.ammo.exapnder = p.weaponsMeter.ammo.expander
+        player.ammo.freezer = p.weaponsMeter.ammo.freezer
+        player.ammo.heatseeker = p.weaponsMeter.ammo.heatseeker
+        player.ammo.reverser = p.weaponsMeter.ammo.reverser 
+        
+        player.currentWeaponID =  p.weaponsMeter.currentWeaponID
+        --FYI for restoring: player.currentWeapon = weapons[player.currentWeaponID]
+        
+        table.insert(continueData.players, player)
+    end
+    
+    dbg.printTable(continueData)
+    
+    local saveStatePath = system:getFilePath("storage", "continue.txt")
+    local file = io.open(saveStatePath, "w")
+    if not file then
+        dbg.print("failed to open continue data file for saving: " .. saveStatePath)
+    else
+        file:write(json.encode(continueData))
+        file:close()
+        dbg.print("game state saved for resuming")
+    end
+end
+
 function sceneBattle:setUp(event)
     dbg.print("sceneBattle:setUp")
+    
+    sceneMainMenu:wipeContinueData()
+    
+    self.lastFrameTime = {}
+    for i=1,10 do
+        self.lastFrameTime[i] = system.gameTime
+    end
     
     system:addEventListener({"suspend", "resume"}, sceneBattle)
     
     virtualResolution:applyToScene(self)
     
-    --frameRateOverlay.showFrameRate() --debugging
+    if showFrameRate then
+        frameRateOverlay.showFrameRate() --debugging
+    end
     
     -- root object at screen centre. Adding children to it means their coords will be
     -- relative to this position. Annoyingly Quick provides no way to set the origin; instead,
@@ -1836,6 +1946,10 @@ function sceneBattle:setUp(event)
     -- To hide it we've just made it match the black background (changing visibility or zOrder would be inherited by children!)
     --origin = director:createRectangle({x=appWidth/2, y=appHeight/2, xAnchor=0, yAnchor=0, w=3, h=3, strokeWidth=0, alpha=0})
     origin = director:createNode({x=appWidth/2, y=appHeight/2, zOrder=0})
+    
+    -- we dont have any nodes that need to be touched so for performance prevent whole scene tree ever
+    -- being hit tested. Pause menu has its own originPause
+    origin.isTouchable = false
     
     self.background = director:createRectangle({
         x=0, y=0,
@@ -2097,7 +2211,7 @@ end
 ----------------------------------------------------------------
 -- Pause Menu
 
--- TODO: should move this out to its own file and pass in origin and pauseOrigin
+-- TODO: should move this out to its own file and pass in origin and originPause
 
 -- Cleaner to use sceneBattle.pauseMenu.touchCircle:touch() etc for functions?
 
@@ -2336,7 +2450,6 @@ function ResumeGame()
     --in case somethin's gone wrong and bar re-showed itself, now is a good time
     --to force re-hide
     if androidFullscreen and androidFullscreen:isImmersiveSupported() then
-        androidFullscreen:turnOff()
         androidFullscreen:turnOn()
     end
 end
@@ -2353,6 +2466,11 @@ function sceneBattle:suspend(event)
             pauseNodesInTree(self.originPause)
         end
     end
+    
+    if not demoMode then
+        self:saveState()
+    end
+    
     analytics:endSession() --force upload logs to server
     analytics:startSessionWithKeys()
     dbg.print("...suspended!")
@@ -2421,7 +2539,9 @@ end
 function sceneBattle:exitPreTransition(event)
     dbg.print("sceneBattle:exitPreTransition")
     
-    --frameRateOverlay.hideFrameRate() --debugging
+    if showFrameRate then
+        frameRateOverlay.hideFrameRate() --debugging
+    end
     
     system:removeEventListener({"suspend", "resume", "update"}, self)
     if demoMode and not demoModeDebug then

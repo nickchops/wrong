@@ -3,6 +3,9 @@
 *.sw?
 build_temp/**
 resources-ram/**
+resources-precompiled/**
+resources-concatenated/**
+OLDproject_Wrong/**
 mkb-quick.txt
 project.ini
 **development.icf

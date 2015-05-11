@@ -15,6 +15,7 @@ options
 {
     s3e-data-dir = resources
     app-icf = 'resources/common.icf,resources/app.icf'
+    builddir = build_temp
 }
 
 files
@@ -46,47 +47,30 @@ assets
 	Counter.lua
 	MenuScene.lua
 	
-	["development"]
-	<include common>
-	(resources)
-	.
-	
 	["distribution"] # use precompiled and concatenated files for performance
 	<include common>
-	(resources-ram)
+	(resources-concatenated)
 	.
 }
 
-deployments
+subprojects
 {
-    ["Windows"]
-    win32
-    arch=x86
-
-    ["Mac OS X"]
-    osx
-    arch=x86
-
-    # Ensure subsequent options set on "Default" configuration
-    ["Default"]
+    s3eAndroidFullscreen
+    IwGameController
 }
-
-options
-{
-    builddir = build_temp
-}
-
-#### AUTO GENERATED deployment settings from DeployTool.exe. Do not edit below this line ####
 
 deployments
 {
     blackberry-author = "Nicholas Smith"
     blackberry-authorid = "gYAAgGwTu1XxMWOBWcntNTz_WcE"
-    icon = "store_resources/wrongicon480.png"
+    icon = "resources-deploy/wrongicon480.png"
     name = "Wrong"
     provider = "Nicholas Smith"
     #splashscreen = "splash-768x768.jpg"
     version-major = "0"
     version-minor = "1"
     version-revision = "8"
+    
+    # App ID for Facebook apps
+    android-extra-strings='(app_id,fb_app_id)'
 }

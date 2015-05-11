@@ -21,27 +21,27 @@ IOSDispScaleFactor=200
 
 {OS=WINDOWS}
 #Windowing options for desktop builds
-WinAllowAltEnter=0
-WinFullScreen=0
-WinFullScreenHeight=640
-WinFullScreenWidth=960
-WinRefresh=0
-WinResizable=0
+#WinAllowAltEnter=1
+#WinFullScreen=1
+#WinFullScreenHeight=1440
+#WinFullScreenWidth=2160
+#WinRefresh=0
+#WinResizable=0
 WinTitle="W R O N G"
 #WinSuspendOnFocusLoss=1
 
 SplashScreenWidth="384" #0.5x to always look OK when testing :)
 SplashScreenHeight="384"
 
-WinWidth=800
-WinHeight=600
+#WinWidth=960
+#WinHeight=640
 
 #For testing device sizes with scaling...
 #WinWidth=640
 #WinHeight=480
 #-- iPhone retina
-#WinWidth=960
-#WinHeight=640
+WinWidth=960
+WinHeight=640
 #-- iPhone5 retina
 #WinWidth=1136
 #WinHeight=640
@@ -103,4 +103,4 @@ WinHeight=600
 
 [QUICK]
 mainFileName="main.lua"
-configFileName="config.lua"
+#configFileName="config.lua"

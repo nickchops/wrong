@@ -5,7 +5,9 @@
 
 showDebugTouchArea = false
 
---require("mobdebug").start() -- ZeroBrain IDE debuger support
+showFrameRate = true
+
+require("mobdebug").start() -- ZeroBrain IDE debuger support
                    
     -- note that you can only use breakpoints in code loaded *after* this, therefor breakpoints
     -- in engine code will be ignored. TODO: check this is true! may have just been issue with
@@ -221,12 +223,12 @@ gameInfo.achievements = {}
 for k,v in ipairs(gameInfo.achievementIndex) do
     gameInfo.achievements[v] = false
 end
--- to debugging locked modes:
---gameInfo.achievements.survival=true
---gameInfo.achievements.battle=true
+-- uncomment to debug locked modes:
+gameInfo.achievements.survival=true
+gameInfo.achievements.battle=true
 
 gameInfo.achievementPages = 0
-local achCount = table.getn(gameInfo.achievementIndex) --NB, can use .achievements as .tablegetn only works on arrays!
+local achCount = table.getn(gameInfo.achievementIndex) --NB, cant use .achievements as .tablegetn only works on arrays!
 while achCount > 0 do
     gameInfo.achievementPages = gameInfo.achievementPages+1
     achCount = achCount-10
@@ -308,7 +310,7 @@ facebookAppId = "236640686544406"
 facebookScret = "49f2a9700f5511daa111250a4166b088"
 facebookUrl = "http://www.facebook.com/wrongapp"
 --
-twitterUrl = "http://twitter.com/nickmarmalade"
+twitterUrl = "http://twitter.com/nick_chops"
 --
 appId = "com.nickchops.wrong"
 storeUrl = nil
