@@ -5,7 +5,8 @@ require("Counter")
 WeaponsMeter = {}
 WeaponsMeter.__index = WeaponsMeter
 
-function WeaponsMeter.Create(playerId, mirrorX, ammoBulletAmmount, ammoOtherAmount, colourOverride)
+--function WeaponsMeter.Create(playerId, mirrorX, ammoBulletAmmount, ammoOtherAmount, colourOverride)
+function WeaponsMeter.Create(playerId, mirrorX, ammo, ammoDefault, colourOverride)
     local meter = {}
     setmetatable(meter,WeaponsMeter)
 
@@ -30,7 +31,7 @@ function WeaponsMeter.Create(playerId, mirrorX, ammoBulletAmmount, ammoOtherAmou
 
     meter.currentWeaponID = 1
     meter.currentWeapon = "bullet"
-    meter.ammo = {bullet = ammoBulletAmmount, ball = ammoOtherAmount, air = ammoOtherAmount, expander = ammoOtherAmount, freezer = ammoOtherAmount, heatseeker = ammoOtherAmount, reverser = ammoOtherAmount}
+    meter.ammo = {bullet = ammo.bullet or ammoDefault, ball = ammo.ball or ammoDefault, air =  ammo.air or ammDefault, expander = ammo.expander or ammoDefault, freezer = ammo.freezer or ammoDefault, heatseeker = ammo.heatseeker or ammoDefault, reverser = ammo.reverser or ammoDefault}
 
     -- only allow air to have ammo at start in survival
     if gameInfo.controlType == "onePlayer" then
@@ -187,6 +188,12 @@ function WeaponsMeter:ChangeWeapon(swipe)
     self:UpdateDisplay(swipe)
 
     return true
+end
+
+function WeaponsMeter:SetWeapon(weaponID)
+    self.currentWeaponID = weaponID
+    self.currentWeapon = weapons[weaponID]
+    self:UpdateDisplay()
 end
 
 function WeaponsMeter:UpdateDisplay(swipe, hideCounter)

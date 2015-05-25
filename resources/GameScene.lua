@@ -793,6 +793,67 @@ function setStarAnimation(speedMultiple, rotation, decelerate)
     sceneBattle.previousStarSpeedMultiple = speedMultiple
 end
 
+function setBgAnimations(wavePosInSet)
+    -- set star movement and screen rotation.
+    -- first of 6 wave set has static twinkling stars.
+    -- then they move, accelerate and eventually reset to static
+    setStarAnimation((gameInfo.wave-1) % 6) --0->5, not 1->6
+            
+    --animate flying sprites
+    for kT,vT in pairs(sceneBattle.spriteFxTimer) do
+        vT:cancel()
+        sceneBattle.spriteFxTimer[kT] = nil
+    end
+    sceneBattle.spriteFxTimer = {}
+    
+    if wavePosInSet == 5 or (gameInfo.wave > 6 and wavePosInSet > 3) then
+        for i=0,2 do
+            local t = system:addTimer(SpriteFX, 2, 1, i*2)
+            table.insert(sceneBattle.spriteFxTimer, t)
+            t.id = i+1
+            
+            if wavePosInSet == 4 then
+                t.durationMin = 40
+                t.durationMax = 60
+                t.freqMin = 40
+                t.freqMax = 80
+            else
+                t.durationMin = 20
+                t.durationMax = 40
+                t.freqMin = 10
+                t.freqMax = 30
+            end
+            t.fxType = "shooting"
+        end
+    elseif wavePosInSet < 4 and gameInfo.wave > 6 then
+        for i=0,2 do
+            local delay = 0
+            if wavePosInSet == 1 then delay = 6 end
+            local t = system:addTimer(SpriteFX, 2, 1, delay+i*2)
+            table.insert(sceneBattle.spriteFxTimer, t)
+            t.id = i+1
+            
+            if wavePosInSet == 1 then
+                t.freqMin = 50
+                t.freqMax = 80
+            else
+                t.freqMin = 20
+                t.freqMax = 40
+                t.canExplode = 3 --1 in 3 explode
+            end
+            
+            if wavePosInSet == 3 then
+                t.durationMin = 20
+                t.durationMax = 30
+            else
+                t.durationMin = 40
+                t.durationMax = 80
+            end
+            t.fxType = "floating"
+        end
+    end
+end
+
 function endStarMovement(time)
     cancelTweensOnNode(origin)
     tween:to(origin, {time=time, rotation=0})
@@ -849,62 +910,7 @@ function checkWaveIsOver()
             -- waves run in sets of 6
             local wavePosInSet = gameInfo.wave % 6
             
-            --first of 6 wave set has static twinkling stars.
-            -- then they move, accelerate and eventually reset to static
-            setStarAnimation((gameInfo.wave-1) % 6) --0->5, not 1->6
-        
-            for kT,vT in pairs(sceneBattle.spriteFxTimer) do
-                vT:cancel()
-                sceneBattle.spriteFxTimer[kT] = nil
-            end
-            sceneBattle.spriteFxTimer = {}
-            
-            if wavePosInSet == 5 or (gameInfo.wave > 6 and wavePosInSet > 3) then
-                for i=0,2 do
-                    local t = system:addTimer(SpriteFX, 2, 1, i*2)
-                    table.insert(sceneBattle.spriteFxTimer, t)
-                    t.id = i+1
-                    
-                    if wavePosInSet == 4 then
-                        t.durationMin = 40
-                        t.durationMax = 60
-                        t.freqMin = 40
-                        t.freqMax = 80
-                    else
-                        t.durationMin = 20
-                        t.durationMax = 40
-                        t.freqMin = 10
-                        t.freqMax = 30
-                    end
-                    t.fxType = "shooting"
-                end
-            elseif wavePosInSet < 4 and gameInfo.wave > 6 then
-                for i=0,2 do
-                    local delay = 0
-                    if wavePosInSet == 1 then delay = 6 end
-                    local t = system:addTimer(SpriteFX, 2, 1, delay+i*2)
-                    table.insert(sceneBattle.spriteFxTimer, t)
-                    t.id = i+1
-                    
-                    if wavePosInSet == 1 then
-                        t.freqMin = 50
-                        t.freqMax = 80
-                    else
-                        t.freqMin = 20
-                        t.freqMax = 40
-                        t.canExplode = 3 --1 in 3 explode
-                    end
-                    
-                    if wavePosInSet == 3 then
-                        t.durationMin = 20
-                        t.durationMax = 30
-                    else
-                        t.durationMin = 40
-                        t.durationMax = 80
-                    end
-                    t.fxType = "floating"
-                end
-            end
+            setBgAnimations(wavePosInSet)
             
             if sceneBattle.ballInitTimer then
                 sceneBattle.ballInitTimer:cancel() --maybe user created balls with weapon before timer finished!
@@ -916,38 +922,8 @@ function checkWaveIsOver()
             sceneBattle.ballInitTimer = system:addTimer(AddNewBall, INITIAL_BALL_DELAY, math.min(INITIAL_BALL_QUEUE+gameInfo.wave-1, MAX_INIT_BALLS))
 
             sceneBattle.ballInitTimer.isInit = true
-            if gameInfo.wave == 2 then
-                 -- dont lock type as gives too high probability to balls
-                sceneBattle.ballOverrides[3]["objType"]="health"
-                sceneBattle.ballOverrides[4]["objType"]="powerup"
-            elseif gameInfo.wave == 3 then
-                sceneBattle.ballOverrides[4]["objType"]="cloak"
-                sceneBattle.ballOverrides[6] = nil
-            elseif gameInfo.wave == 5 or gameInfo.wave == 7 then
-                sceneBattle.ballOverrides[1]["objType"]=nil
-                sceneBattle.ballOverrides[2]["objType"]=nil
-                sceneBattle.ballOverrides[3]["objType"]=nil
-                sceneBattle.ballOverrides[4]["objType"]=nil
-                sceneBattle.ballOverrides[5]["objType"]=nil
-                sceneBattle.ballOverrides[6]["objType"]=nil
-                sceneBattle.ballOverrides[7]["objType"]=nil
-            elseif gameInfo.wave == 4 or gameInfo.wave == 6 then
-                sceneBattle.ballOverrides[1]["objType"]="bullet"
-                sceneBattle.ballOverrides[2]["objType"]="bullet"
-                sceneBattle.ballOverrides[3]["objType"]="bullet"
-                sceneBattle.ballOverrides[4]["objType"]="bullet"
-                sceneBattle.ballOverrides[5]["objType"]="bullet"
-                sceneBattle.ballOverrides[6]={objType="bullet"}
-                if gameInfo.wave == 6 then
-                    sceneBattle.ballOverrides[7]["objType"]="freezer"
-                end
-            end
             
-            if wavePosInSet == 1 then
-                -- waves afer star speed resets - give player help since they survived!
-                sceneBattle.ballOverrides[1]["objType"]="health"
-                sceneBattle.ballOverrides[2]["objType"]="powerup"
-            end
+            sceneBattle:setBallOverrides(gameInfo.wave)
             
             for n=1, INITIAL_BALL_QUEUE do
                  -- lock first balls to fairly horizontal angles
@@ -1062,6 +1038,7 @@ end
 
 function sceneBattle:queueReplacementBall(extraDelayTime)
     if self.deathPhase or self.ignoreEvents then return end
+    
     dbg.print("queue replacement ball")
     extraDelayTime = extraDelayTime or 0
     
@@ -1787,7 +1764,7 @@ end
 function cancelBattle(event)
     if event.phase == "ended" then -- guard or else will try to transition twice!
         sceneBattle.ignoreEvents = true -- stop balls regenerating etc
-        sceneMainMenu:wipeContinueData()
+        sceneMainMenu:wipeContinueFile()
         director:moveToScene(sceneMainMenu, {transitionType="slideInB", transitionTime=1.5})
         --objects will all be destroyed in post transition event
     end
@@ -1801,7 +1778,7 @@ end]]--
 
 function GameOver(event)
     sceneBattle.endTimer = nil
-    sceneMainMenu:wipeContinueData()
+    sceneMainMenu:wipeContinueFile()
     director:moveToScene(sceneMainMenu, {transitionType="slideInB", transitionTime=1.5})
     -- all effects must have finished by this point :)
 end
@@ -1855,61 +1832,78 @@ function StretchStar(star, length)
     destroyNode(star)
 end
 
--- Save retrieveable game state data. Can recreate game state form this if
+-- Save retrievable game state data. Can recreate game state form this if
 -- game gets killed by OS or user in mid play.
 function sceneBattle:saveState()
     local continueData = {}
-    continueData.controlType = gameInfo.controlType    
-    continueData.mode = gameInfo.mode
-    continueData.score = self.score.value
-    if self.waveLeft then
-        continueData.wave = self.waveLeft.value
+    
+    if not player1.deadFlag and not player2.deadFlag then
+        continueData.controlType = gameInfo.controlType    
+        continueData.mode = gameInfo.mode
+        continueData.score = self.score.value
+        continueData.wave = gameInfo.wave --can be nil
+        continueData.powerupLevel = gameInfo.powerupLevel
+        continueData.streak = gameInfo.streak
+        continueData.streakMax = gameInfo.streakMax
+        continueData.firstCloak = gameInfo.firstCloak
+
+        if self.waveLeft then
+            continueData.wave = self.waveLeft.value
+        end
+        continueData.ballCreateQueue = self.ballCreateQueue
+        continueData.ballsAddedThisWave = self.ballsAddedThisWave
+        
+        if self.ballTimer then
+            continueData.ballDelay = self.ballTimer.ballDelay
+        end
+        
+        continueData.saveObj = {}
+        
+        for k,obj in pairs(collidables) do
+            local saveInfo = {}
+            saveInfo.objType = obj.objType
+            saveInfo.vec = obj.vec
+            saveInfo.speed = obj.speed
+            saveInfo.x = obj.x
+            saveInfo.y = obj.y
+            continueData.saveObj[obj.name] = saveInfo
+        end
+        
+        continueData.players = {}
+        
+        for k,p in ipairs(players) do
+            local player = {}
+            player.id = p.id
+            player.reverseTimer = p.reverseTimer
+            player.cloakTimer = p.cloakTimer
+            player.velocity = p.velocity
+            player.halfHeight = p.newHalfHeight
+            
+            player.y = p.sled.y
+            
+            player.health = p.health.value
+            
+            player.ammo = {}
+            player.ammo.bullet = p.weaponsMeter.ammo.bullet
+            player.ammo.ball = p.weaponsMeter.ammo.ball
+            player.ammo.air = p.weaponsMeter.ammo.air
+            player.ammo.exapnder = p.weaponsMeter.ammo.expander
+            player.ammo.freezer = p.weaponsMeter.ammo.freezer
+            player.ammo.heatseeker = p.weaponsMeter.ammo.heatseeker
+            player.ammo.reverser = p.weaponsMeter.ammo.reverser 
+            
+            player.currentWeaponID =  p.weaponsMeter.currentWeaponID
+            --FYI for restoring: player.currentWeapon = weapons[player.currentWeaponID]
+            
+            table.insert(continueData.players, player)
+        end
+        
+        continueData.canContinue = true -- last flag set for safety check plus allowing use of empty table
+        
+        dbg.printTable(continueData)
+    else
+        dbg.print("wiping save state file as player(s) is/are dead")
     end
-    continueData.ballCreateQueue = self.ballCreateQueue
-    continueData.ballsAddedThisWave = self.ballsAddedThisWave
-    
-    continueData.saveObj = {}
-    
-    for k,obj in pairs(collidables) do
-        local saveInfo = {}
-        saveInfo.objType = obj.objType
-        saveInfo.vec = obj.vec
-        saveInfo.speed = obj.speed
-        saveInfo.x = obj.x
-        saveInfo.y = obj.y
-        continueData.saveObj[obj.name] = saveInfo
-    end
-    
-    continueData.players = {}
-    
-    for k,p in ipairs(players) do
-        local player = {}
-        player.id = p.id
-        player.reverseTimer = p.reverseTimer
-        player.cloakTimer = p.cloakTimer
-        player.velocity = p.velocity
-        player.halfHeight = p.newHalfHeight
-        
-        player.y = p.sled.y
-        
-        player.health = p.health.value
-        
-        player.ammo = {}
-        player.ammo.bullet = p.weaponsMeter.ammo.bullet
-        player.ammo.ball = p.weaponsMeter.ammo.ball
-        player.ammo.air = p.weaponsMeter.ammo.air
-        player.ammo.exapnder = p.weaponsMeter.ammo.expander
-        player.ammo.freezer = p.weaponsMeter.ammo.freezer
-        player.ammo.heatseeker = p.weaponsMeter.ammo.heatseeker
-        player.ammo.reverser = p.weaponsMeter.ammo.reverser 
-        
-        player.currentWeaponID =  p.weaponsMeter.currentWeaponID
-        --FYI for restoring: player.currentWeapon = weapons[player.currentWeaponID]
-        
-        table.insert(continueData.players, player)
-    end
-    
-    dbg.printTable(continueData)
     
     local saveStatePath = system:getFilePath("storage", "continue.txt")
     local file = io.open(saveStatePath, "w")
@@ -1924,8 +1918,6 @@ end
 
 function sceneBattle:setUp(event)
     dbg.print("sceneBattle:setUp")
-    
-    sceneMainMenu:wipeContinueData()
     
     self.lastFrameTime = {}
     for i=1,10 do
@@ -1979,45 +1971,73 @@ function sceneBattle:setUp(event)
     local onePlayerMode = gameInfo.controlType == "onePlayer"
     -- onePlayerMode mode: p1 controls both sleds and score records survival time in amount of balls added
     
+    self.unFreezeTimer = nil
+    self.frameCounter = 0
+    self.spriteFxTimer = {}
+    
+    local health, health2
+    local ammo = {}
+    local ammo2 = {}
+    
     gameInfo.playerColours[1] = {50,255,50}
     if onePlayerMode then
         gameInfo.playerColours[2] = {50,255,50}
-        self.score = Counter.Create(0, 0, 9999, false, 1, true)
+        self.score = Counter.Create(0, gameInfo.continue.score or 0, 9999, false, 1, true)
         self.score.origin:translate(0, maxY-38)
-        gameInfo.health = DEFAULT_HEALTH_SURVIVAL
+        health = DEFAULT_HEALTH_SURVIVAL
         
         if gameInfo.mode == "survival" then -- survival mode
             gameInfo.powerupLevel = 8 --allow all weapons from start
-            gameInfo.ammo = DEFAULT_AMMO_SURVIVAL
+            ammoDefault = DEFAULT_AMMO_SURVIVAL
             gameInfo.wave = nil
-            gameInfo.firstCloak = true
+            gameInfo.firstCloak = gameInfo.continue.firstCloak or true --flag so only first cloak powerup will show message
             setStarAnimation(1) -- static is boring!
         else
             self.waveLeft = Counter.Create(0, INIT_WAVE_SIZE, 9999, false, nil, true)
             self.waveLeft.origin:translate(0, minY+38)
-            gameInfo.powerupLevel = 0
-            gameInfo.ammo = DEFAULT_AMMO_WAVES
-            gameInfo.wave = INITIAL_WAVE
+            gameInfo.powerupLevel = gameInfo.continue.powerupLevel or 0
+            ammoDefault = DEFAULT_AMMO_WAVES
+            gameInfo.wave = gameinfo.continue.wave or INITIAL_WAVE
             gameInfo.firstCloak = nil
+            if gameInfo.wave > 0 then
+                setBgAnimations(gameInfo.wave % 6)
+            end
         end
-        gameInfo.bullets = 0
-        gameInfo.streak = 0
-        gameInfo.streakMax = 0
+
+        gameInfo.streak = gameinfo.continue.streak or 0
+        gameInfo.streakMax = gameinfo.continue.streakMax or 0
         --TODO: currently will mix in some wave 1 logic with whatever the INITIAL_WAVE wave is.
         --      Should move all the wave logic out to a standalone funciton used both here and in the next wave event.
     else
         gameInfo.wave = nil
         gameInfo.playerColours[2] = {255,50,50}
-        gameInfo.health = DEFAULT_HEALTH_BATTLE
-        gameInfo.bullets = DEFAULT_BULLETS_BATTLE
-        gameInfo.ammo = DEFAULT_AMMO_BATTLE
+        health = DEFAULT_HEALTH_BATTLE
+        ammo = {bullets = DEFAULT_BULLETS_BATTLE}
+        ammoDefault = DEFAULT_AMMO_BATTLE
         setStarAnimation(1)
     end
+    
+    health2 = health
+    
+    if gameInfo.continue.player and gameInfo.continue.player[1] and gameInfo.continue.player[2] then
+        health = gameInfo.continue.player[1].health or health --just in case!
+        ammo = gameInfo.continue.player[1]. ammo or ammo
+        health2 = gameInfo.continue.player[2].health or health2
+        ammo2 = gameInfo.continue.player[2].ammo or ammo2
+    end
 
-    player1 = Player.Create(1, gameInfo.health, gameInfo.bullets, gameInfo.ammo, onePlayerMode)
-    player2 = Player.Create(2, gameInfo.health, gameInfo.bullets, gameInfo.ammo, onePlayerMode)
+    player1 = Player.Create(1, health, ammo, ammoDefault, onePlayerMode)
+    player2 = Player.Create(2, health2, ammo2, ammoDefault, onePlayerMode)
     player1.enemy = player2
     player2.enemy = player1
+    
+    if gameInfo.continue.player[1] then
+        player1.weaponsMeter:SetWeapon(gameInfo.continue.player[1].currentWeaponID)
+    end
+    
+    if gameInfo.continue.player[2] then
+        player2.weaponsMeter:SetWeapon(gameInfo.continue.player[2].currentWeaponID)
+    end
     
     players = {}
     table.insert(players, player1)
@@ -2026,23 +2046,14 @@ function sceneBattle:setUp(event)
     sceneBattle.deathPhase = false
     sceneBattle.ignoreEvents = false
 
-    self.ballSpeed = SECOND_BALL_SPEED --(pixels/second)
-    self.ballCreateQueue = 0 -- queues up balls to add to replace destroyed ones
-    self.ballsAddedThisWave = 0
+    self.ballSpeed = gameInfo.continue.ballSpeed or SECOND_BALL_SPEED --(pixels/second)
+    self.ballCreateQueue = gameInfo.continue.ballCreateQueue or 0 -- queues up balls to add to replace destroyed ones
+    self.ballsAddedThisWave = gameInfo.continue.ballsAddedThisWave or 0
 
-    --set params for certain balls in the first wave. index 1 = first ball added, 6=6th ball, etc
-    -- these keep the first round from being too dull!
     self.ballOverrides={}
+    
     if gameInfo.controlType == "onePlayer" then
-        self.ballOverrides[1]={angle=95, objType="ball", speed=FIRST_BALL_SPEED}
-        self.ballOverrides[2]={angle=275, objType="ball", speed=FIRST_BALL_SPEED}
-        self.ballOverrides[3]={objType="ball", speed=FIRST_BALL_SPEED}
-        self.ballOverrides[4]={objType="ball", speed=FIRST_BALL_SPEED}
-        if gameInfo.mode ~= "survival" then
-            self.ballOverrides[5]={}
-            self.ballOverrides[6]={objType="heatseeker"} -- run the flashiest powerup early on to peek user interest
-            self.ballOverrides[7]={}
-        end
+        self:setBallOverrides(gameInfo.wave)
     else
         for n=1, INITIAL_BALL_QUEUE do
             self.ballOverrides[n] = {}
@@ -2053,15 +2064,11 @@ function sceneBattle:setUp(event)
             elseif randAngle > 315 then
                 randAngle = randAngle - 270
             end
-            sceneBattle.ballOverrides[n]["angle"]=randAngle
-            sceneBattle.ballOverrides[n]["speed"]=FIRST_BALL_SPEED/n
+            self.ballOverrides[n]["angle"] = randAngle
+            self.ballOverrides[n]["speed"] = FIRST_BALL_SPEED/n
         end
     end
     
-    self.unFreezeTimer = nil
-    self.frameCounter = 0
-    self.spriteFxTimer = {}
-
     if not (demoMode and not demoModeDebug) and (gameInfo.controlType == "p1LocalVsP2Local" or gameInfo.controlType == "onePlayer") then
         --one uses left, one usese right side of screen
         player1.touchZone = 1
@@ -2076,6 +2083,53 @@ function sceneBattle:setUp(event)
     -- simple top-down type movement so we just move balls per-frame and do collisions manually.
     collidables = {}
     deadCollidables = {} --table to hold objects kept active while they animate death
+end
+
+--set params for certain balls in the wave. index 1 = first ball added, 6=6th ball, etc
+function sceneBattle:setBallOverrides(wave)
+    if wave == 1 then
+        -- these keep the first round from being too dull!
+        self.ballOverrides[1]={angle=95, objType="ball", speed=FIRST_BALL_SPEED}
+        self.ballOverrides[2]={angle=275, objType="ball", speed=FIRST_BALL_SPEED}
+        self.ballOverrides[3]={objType="ball", speed=FIRST_BALL_SPEED}
+        self.ballOverrides[4]={objType="ball", speed=FIRST_BALL_SPEED}
+        if gameInfo.mode ~= "survival" then
+            self.ballOverrides[5]={}
+            self.ballOverrides[6]={objType="heatseeker"} -- run the flashiest powerup early on to peek user interest
+            self.ballOverrides[7]={}
+        end
+    elseif wave == 2 then
+         -- dont lock type as gives too high probability to balls
+        self.ballOverrides[3]["objType"]="health"
+        self.ballOverrides[4]["objType"]="powerup"
+    elseif wave == 3 then
+        self.ballOverrides[4]["objType"]="cloak"
+        self.ballOverrides[6] = nil
+    elseif wave == 5 or wave == 7 then
+        self.ballOverrides[1]["objType"]=nil
+        self.ballOverrides[2]["objType"]=nil
+        self.ballOverrides[3]["objType"]=nil
+        self.ballOverrides[4]["objType"]=nil
+        self.ballOverrides[5]["objType"]=nil
+        self.ballOverrides[6]["objType"]=nil
+        self.ballOverrides[7]["objType"]=nil
+    elseif wave == 4 or wave == 6 then
+        self.ballOverrides[1]["objType"]="bullet"
+        self.ballOverrides[2]["objType"]="bullet"
+        self.ballOverrides[3]["objType"]="bullet"
+        self.ballOverrides[4]["objType"]="bullet"
+        self.ballOverrides[5]["objType"]="bullet"
+        self.ballOverrides[6]={objType="bullet"}
+        if wave == 6 then
+            self.ballOverrides[7]["objType"]="freezer"
+        end
+    end
+    
+    if wave > 1 and wavePosInSet == 1 then
+        -- waves afer star speed resets - give player help since they survived!
+        self.ballOverrides[1]["objType"]="health"
+        self.ballOverrides[2]["objType"]="powerup"
+    end
 end
 
 function ScoreHelperLabels(event)
@@ -2142,39 +2196,59 @@ function sceneBattle:enterPostTransition(event)
         startDelay = 5
 
         --NB: with debug builds, messages may appear out of order due to slow debug text creation speed vs timers!
-        if gameInfo.mode == "survival" then
-            ShowMessage("SURVIVAL", 0.5, false, "up")
-            ShowMessage("MODE", 0.5, false, "down")
-            ShowMessage("no waves", 2.5, false, "up", 60)
-            ShowMessage("random items", 3, false, "down", -60)
-            ShowMessage("GO!", startDelay, false, "up")
+        if gameInfo.continue.canContinue then
+            ShowMessage("COONTINUING", 0.5, false, "up")
+            ShowMessage("ABANDONED GAME", 0.5, false, "down")
+            if gameInfo.mode == "survival" then
+                ShowMessage("survival mode", 2.5, false, "down", 60)
+                ShowMessage("GO!", startDelay, false, "up")
+            else
+                ShowMessage("WAVE " .. gameInfo.wave, startDelay, false, "up")
+            end
         else
-            ShowMessage("control", 0.5, false, "up", 100)
-            ShowMessage("both sides", 1, false, "up", 60)
-            ShowMessage("with thumbs", 1.5, false, "up", 20)
-             
-            ShowMessage("avoid the", 2.5, false, "down", -20)
-            ShowMessage("bombs!", 3, false, "down", -100)
+            if gameInfo.mode == "survival" then
+                ShowMessage("SURVIVAL", 0.5, false, "up")
+                ShowMessage("MODE", 0.5, false, "down")
+                ShowMessage("no waves", 2.5, false, "up", 60)
+                ShowMessage("random items", 3, false, "down", -60)
+                ShowMessage("GO!", startDelay, false, "up")
+            else
+                ShowMessage("control", 0.5, false, "up", 100)
+                ShowMessage("both sides", 1, false, "up", 60)
+                ShowMessage("with thumbs", 1.5, false, "up", 20)
+                 
+                ShowMessage("avoid the", 2.5, false, "down", -20)
+                ShowMessage("bombs!", 3, false, "down", -100)
+                
+                ShowMessage("WAVE " .. gameInfo.wave, startDelay, false, "up")
+            end
             
-            ShowMessage("WAVE " .. gameInfo.wave, startDelay, false, "up")
+            -- self-restarting timer that adds a ball every so-many seconds
+            self.ballTimer = system:addTimer(AddNewBall, gameInfo.continue.ballDelay or INTIAL_NEW_BALL_DELAY, 1, startDelay)
+            self.ballTimer.ballDelay = gameInfo.continue.ballDelay or INTIAL_NEW_BALL_DELAY
+        end
+        
+        --only happens when continuing atm, but could use queue up balls on start if wanted
+        if self.ballCreateQueue > 0 then
+            self.ballReplaceTimer = system:addTimer(ReplenishBalls, REPLACE_BALL_DELAY, 1)
         end
         
         local scoreHelper = director:createLabel({x=30, y=maxY-54, hAlignment="left", vAlignment="center", w=100, text="score: bombs survived", color=menuBlue, font=fontMainSmall, alpha=0})
         origin:addChild(scoreHelper)
         scoreHelper:addTimer(ScoreHelperLabels, startDelay+2, 1)
-        
-        self.ballTimer = system:addTimer(AddNewBall, INTIAL_NEW_BALL_DELAY, 1, startDelay)
-        self.ballTimer.ballDelay = INTIAL_NEW_BALL_DELAY
     else
         startDelay = 0
         ShowMessage("FIGHT", startDelay, false, "up")
-        self.ballTimer = system:addTimer(AddNewBall, FIGHT_NEW_BALL_DELAY, 0, startDelay)
+        self.ballTimer = system:addTimer(AddNewBall, gameInfo.continue.ballDelay or FIGHT_NEW_BALL_DELAY, 0, startDelay)
     end
 
-    self.ballInitTimer = system:addTimer(AddNewBall, INITIAL_BALL_DELAY, INITIAL_BALL_QUEUE, startDelay)
-    self.ballInitTimer.isInit = true
-      -- Note that first frame has a huge time delta so we'd get a fast first ball if there was no delay
-      -- Ideally this should be improved in Quick internals.
+    if not gameInfo.continue.canContinue then
+        --this timer fires the initial rapid volley of balls on game start
+        self.ballInitTimer = system:addTimer(AddNewBall, INITIAL_BALL_DELAY, INITIAL_BALL_QUEUE, startDelay)
+        self.ballInitTimer.isInit = true
+          -- Note that first frame has a huge time delta so we'd get a fast first ball if there was no delay
+          -- Ideally this should be improved in Quick internals.
+    end
     
     --system:addTimer(TestGun, 4, 1)
     

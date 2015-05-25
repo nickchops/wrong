@@ -77,7 +77,7 @@ function PlayerFx(event)
     tween:to(fx, {alpha=0, time=0.8, xScale=2, yScale=2, onComplete=ReusePlayerFX})
 end
 
-function Player.Create(id, health, ammoBulletAmmount, ammoOtherAmount, onePlayerMode)
+function Player.Create(id, health, ammo, ammoDefault, onePlayerMode)
     local player = {}            -- the new object
     setmetatable(player,Player)  -- make Player handle lookup
     -- initialize the object
@@ -115,7 +115,7 @@ function Player.Create(id, health, ammoBulletAmmount, ammoOtherAmount, onePlayer
     local colourOverride = nil
     if onePlayerMode then colourOverride = 2 end
     player.health = Counter.Create(id, health, 99, true, colourOverride)
-    player.weaponsMeter = WeaponsMeter.Create(id, player.mirrorX, ammoBulletAmmount, ammoOtherAmount, colourOverride)
+    player.weaponsMeter = WeaponsMeter.Create(id, player.mirrorX, ammo, ammoDefault, colourOverride)
 
     -- pre-calculate collision pos for balls to do super-cheap collision detection
     player.collideX = xPos + player.mirrorX*ballRadius
