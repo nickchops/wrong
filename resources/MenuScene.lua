@@ -1517,6 +1517,7 @@ function sceneMainMenu:exitPostTransition(event)
     
     dbg.print("sceneMainMenu:exitPostTransition done")
 end
+
 function sceneMainMenu:touch(event)
     if self.demoTimer and event.phase == "ended" then
         self.demoTimer:cancel()

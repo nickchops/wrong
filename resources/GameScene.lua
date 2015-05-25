@@ -923,7 +923,7 @@ function checkWaveIsOver()
 
             sceneBattle.ballInitTimer.isInit = true
             
-            sceneBattle:setBallOverrides(gameInfo.wave)
+            sceneBattle:setBallOverrides(gameInfo.wave, wavePosInSet)
             
             for n=1, INITIAL_BALL_QUEUE do
                  -- lock first balls to fairly horizontal angles
@@ -1028,8 +1028,8 @@ end
 function sceneBattle:setBallSpeed(speed)
     if speed >= MAX_BALL_SPEED then
         if self.waveLeft then
-            dbg.print("MAX SPEED REACHED, wave = " .. gameInfo.wave .. ", balls left = " .. self.waveLeft)
-            dbg.assert(false, "MAX SPEED REACHED, wave = " .. gameInfo.wave .. ", balls left = " .. self.waveLeft)
+            dbg.print("MAX SPEED REACHED, wave = " .. gameInfo.wave .. ", balls left = " .. self.waveLeft.value)
+            dbg.assert(false, "MAX SPEED REACHED, wave = " .. gameInfo.wave .. ", balls left = " .. self.waveLeft.value)
         end
     end
     speed = math.min(speed, MAX_BALL_SPEED)
@@ -1978,6 +1978,7 @@ function sceneBattle:setUp(event)
     local health, health2
     local ammo = {}
     local ammo2 = {}
+    local wavePosInSet
     
     gameInfo.playerColours[1] = {50,255,50}
     if onePlayerMode then
@@ -1997,15 +1998,16 @@ function sceneBattle:setUp(event)
             self.waveLeft.origin:translate(0, minY+38)
             gameInfo.powerupLevel = gameInfo.continue.powerupLevel or 0
             ammoDefault = DEFAULT_AMMO_WAVES
-            gameInfo.wave = gameinfo.continue.wave or INITIAL_WAVE
+            gameInfo.wave = gameInfo.continue.wave or INITIAL_WAVE
+            wavePosInSet = gameInfo.wave % 6
             gameInfo.firstCloak = nil
             if gameInfo.wave > 0 then
-                setBgAnimations(gameInfo.wave % 6)
+                setBgAnimations(wavePosInSet)
             end
         end
 
-        gameInfo.streak = gameinfo.continue.streak or 0
-        gameInfo.streakMax = gameinfo.continue.streakMax or 0
+        gameInfo.streak = gameInfo.continue.streak or 0
+        gameInfo.streakMax = gameInfo.continue.streakMax or 0
         --TODO: currently will mix in some wave 1 logic with whatever the INITIAL_WAVE wave is.
         --      Should move all the wave logic out to a standalone funciton used both here and in the next wave event.
     else
@@ -2019,11 +2021,11 @@ function sceneBattle:setUp(event)
     
     health2 = health
     
-    if gameInfo.continue.player and gameInfo.continue.player[1] and gameInfo.continue.player[2] then
-        health = gameInfo.continue.player[1].health or health --just in case!
-        ammo = gameInfo.continue.player[1]. ammo or ammo
-        health2 = gameInfo.continue.player[2].health or health2
-        ammo2 = gameInfo.continue.player[2].ammo or ammo2
+    if gameInfo.continue.player then
+        health = gameInfo.continue.player[1].health
+        ammo = gameInfo.continue.player[1].ammo
+        health2 = gameInfo.continue.player[2].health
+        ammo2 = gameInfo.continue.player[2].ammo
     end
 
     player1 = Player.Create(1, health, ammo, ammoDefault, onePlayerMode)
@@ -2031,11 +2033,8 @@ function sceneBattle:setUp(event)
     player1.enemy = player2
     player2.enemy = player1
     
-    if gameInfo.continue.player[1] then
+    if gameInfo.continue.player then
         player1.weaponsMeter:SetWeapon(gameInfo.continue.player[1].currentWeaponID)
-    end
-    
-    if gameInfo.continue.player[2] then
         player2.weaponsMeter:SetWeapon(gameInfo.continue.player[2].currentWeaponID)
     end
     
@@ -2053,7 +2052,7 @@ function sceneBattle:setUp(event)
     self.ballOverrides={}
     
     if gameInfo.controlType == "onePlayer" then
-        self:setBallOverrides(gameInfo.wave)
+        self:setBallOverrides(gameInfo.wave, wavePosInSet)
     else
         for n=1, INITIAL_BALL_QUEUE do
             self.ballOverrides[n] = {}
@@ -2086,7 +2085,7 @@ function sceneBattle:setUp(event)
 end
 
 --set params for certain balls in the wave. index 1 = first ball added, 6=6th ball, etc
-function sceneBattle:setBallOverrides(wave)
+function sceneBattle:setBallOverrides(wave, wavePosInSet)
     if wave == 1 then
         -- these keep the first round from being too dull!
         self.ballOverrides[1]={angle=95, objType="ball", speed=FIRST_BALL_SPEED}
@@ -2224,8 +2223,9 @@ function sceneBattle:enterPostTransition(event)
             end
             
             -- self-restarting timer that adds a ball every so-many seconds
-            self.ballTimer = system:addTimer(AddNewBall, gameInfo.continue.ballDelay or INTIAL_NEW_BALL_DELAY, 1, startDelay)
-            self.ballTimer.ballDelay = gameInfo.continue.ballDelay or INTIAL_NEW_BALL_DELAY
+            local delay = gameInfo.continue.ballDelay or INTIAL_NEW_BALL_DELAY
+            self.ballTimer = system:addTimer(AddNewBall, delay, 1, startDelay)
+            self.ballTimer.ballDelay = delay
         end
         
         --only happens when continuing atm, but could use queue up balls on start if wanted
@@ -2702,3 +2702,4 @@ function sceneBattle:exitPostTransition(event)
 end
 
 sceneBattle:addEventListener({"setUp", "enterPostTransition", "exitPreTransition", "exitPostTransition"}, sceneBattle)
+

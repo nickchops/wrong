@@ -31,7 +31,7 @@ function WeaponsMeter.Create(playerId, mirrorX, ammo, ammoDefault, colourOverrid
 
     meter.currentWeaponID = 1
     meter.currentWeapon = "bullet"
-    meter.ammo = {bullet = ammo.bullet or ammoDefault, ball = ammo.ball or ammoDefault, air =  ammo.air or ammDefault, expander = ammo.expander or ammoDefault, freezer = ammo.freezer or ammoDefault, heatseeker = ammo.heatseeker or ammoDefault, reverser = ammo.reverser or ammoDefault}
+    meter.ammo = {bullet = ammo.bullet or ammoDefault, ball = ammo.ball or ammoDefault, air =  ammo.air or ammoDefault, expander = ammo.expander or ammoDefault, freezer = ammo.freezer or ammoDefault, heatseeker = ammo.heatseeker or ammoDefault, reverser = ammo.reverser or ammoDefault}
 
     -- only allow air to have ammo at start in survival
     if gameInfo.controlType == "onePlayer" then
