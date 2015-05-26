@@ -1848,7 +1848,7 @@ function sceneBattle:saveState()
         continueData.firstCloak = gameInfo.firstCloak
 
         if self.waveLeft then
-            continueData.wave = self.waveLeft.value
+            continueData.waveLeft = self.waveLeft.value
         end
         continueData.ballCreateQueue = self.ballCreateQueue
         continueData.ballsAddedThisWave = self.ballsAddedThisWave
@@ -1874,14 +1874,15 @@ function sceneBattle:saveState()
         for k,p in ipairs(players) do
             local player = {}
             player.id = p.id
-            player.reverseTimer = p.reverseTimer
-            player.cloakTimer = p.cloakTimer
             player.velocity = p.velocity
             player.halfHeight = p.newHalfHeight
-            
-            player.y = p.sled.y
-            
+            player.y = p.sled.y            
             player.health = p.health.value
+            
+            --TODO These need to be values which are used to set the timers again
+            -- e.g. reverseTimer = p.reverseTimer.timeLeft or whatever
+            --player.reverseTimer = p.reverseTimer
+            --player.cloakTimer = p.cloakTimer
             
             player.ammo = {}
             player.ammo.bullet = p.weaponsMeter.ammo.bullet
@@ -1994,14 +1995,14 @@ function sceneBattle:setUp(event)
             gameInfo.firstCloak = gameInfo.continue.firstCloak or true --flag so only first cloak powerup will show message
             setStarAnimation(1) -- static is boring!
         else
-            self.waveLeft = Counter.Create(0, INIT_WAVE_SIZE, 9999, false, nil, true)
+            self.waveLeft = Counter.Create(0, gameInfo.continue.waveLeft or INIT_WAVE_SIZE, 9999, false, nil, true)
             self.waveLeft.origin:translate(0, minY+38)
             gameInfo.powerupLevel = gameInfo.continue.powerupLevel or 0
             ammoDefault = DEFAULT_AMMO_WAVES
             gameInfo.wave = gameInfo.continue.wave or INITIAL_WAVE
             wavePosInSet = gameInfo.wave % 6
-            gameInfo.firstCloak = nil
-            if gameInfo.wave > 0 then
+            gameInfo.firstCloak = nil --never show message
+            if gameInfo.wave > 1 then
                 setBgAnimations(wavePosInSet)
             end
         end
@@ -2033,14 +2034,21 @@ function sceneBattle:setUp(event)
     player1.enemy = player2
     player2.enemy = player1
     
-    if gameInfo.continue.player then
-        player1.weaponsMeter:SetWeapon(gameInfo.continue.player[1].currentWeaponID)
-        player2.weaponsMeter:SetWeapon(gameInfo.continue.player[2].currentWeaponID)
-    end
-    
     players = {}
     table.insert(players, player1)
     table.insert(players, player2)
+    
+    if gameInfo.continue.player then
+        for k,saveInfo in ipairs(gameInfo.continue.player) do
+            players[k].weaponsMeter:SetWeapon(saveInfo.currentWeaponID)
+            players[k].sled.y = saveInfo.y
+            players[k].velocity = saveInfo.velocity
+            players[k].halfHeight = saveInfo.newHalfHeight
+            --These need to be values which are used to set the timers again
+            --players[k].reverseTimer = saveInfo.reverseTimer
+            --players[k].cloakTimer = saveInfo.cloakTimer
+        end
+    end
     
     sceneBattle.deathPhase = false
     sceneBattle.ignoreEvents = false
