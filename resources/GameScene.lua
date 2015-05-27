@@ -1147,6 +1147,11 @@ function sceneBattle:update(event)
         system.deltaTime = 0.1
     end
     
+    -- freeze during intro messages on resuming suspended games
+    if self.continuePause and system.gameTime < self.continuePause then
+        return
+    end
+    
     if self.starsDecelerate then
         -- wind down speed during death animations and when stars stop every 6 waves
         if self.starSpeed > 0 then
@@ -1850,8 +1855,10 @@ function sceneBattle:saveState()
         if self.waveLeft then
             continueData.waveLeft = self.waveLeft.value
         end
+        
         continueData.ballCreateQueue = self.ballCreateQueue
         continueData.ballsAddedThisWave = self.ballsAddedThisWave
+        continueData.ballSpeed = self.ballSpeed
         
         if self.ballTimer then
             continueData.ballDelay = self.ballTimer.ballDelay
@@ -1888,7 +1895,7 @@ function sceneBattle:saveState()
             player.ammo.bullet = p.weaponsMeter.ammo.bullet
             player.ammo.ball = p.weaponsMeter.ammo.ball
             player.ammo.air = p.weaponsMeter.ammo.air
-            player.ammo.exapnder = p.weaponsMeter.ammo.expander
+            player.ammo.expander = p.weaponsMeter.ammo.expander
             player.ammo.freezer = p.weaponsMeter.ammo.freezer
             player.ammo.heatseeker = p.weaponsMeter.ammo.heatseeker
             player.ammo.reverser = p.weaponsMeter.ammo.reverser 
@@ -2022,11 +2029,11 @@ function sceneBattle:setUp(event)
     
     health2 = health
     
-    if gameInfo.continue.player then
-        health = gameInfo.continue.player[1].health
-        ammo = gameInfo.continue.player[1].ammo
-        health2 = gameInfo.continue.player[2].health
-        ammo2 = gameInfo.continue.player[2].ammo
+    if gameInfo.continue.players then
+        health = gameInfo.continue.players[1].health
+        ammo = gameInfo.continue.players[1].ammo
+        health2 = gameInfo.continue.players[2].health
+        ammo2 = gameInfo.continue.players[2].ammo
     end
 
     player1 = Player.Create(1, health, ammo, ammoDefault, onePlayerMode)
@@ -2038,12 +2045,13 @@ function sceneBattle:setUp(event)
     table.insert(players, player1)
     table.insert(players, player2)
     
-    if gameInfo.continue.player then
-        for k,saveInfo in ipairs(gameInfo.continue.player) do
+    if gameInfo.continue.players then
+        for k,saveInfo in ipairs(gameInfo.continue.players) do
             players[k].weaponsMeter:SetWeapon(saveInfo.currentWeaponID)
             players[k].sled.y = saveInfo.y
             players[k].velocity = saveInfo.velocity
-            players[k].halfHeight = saveInfo.newHalfHeight
+            players[k].halfHeight = saveInfo.halfHeight
+            players[k].newHalfHeight = saveInfo.halfHeight
             --These need to be values which are used to set the timers again
             --players[k].reverseTimer = saveInfo.reverseTimer
             --players[k].cloakTimer = saveInfo.cloakTimer
@@ -2200,19 +2208,23 @@ function sceneBattle:enterPostTransition(event)
     
     local startDelay
     if gameInfo.controlType == "onePlayer" then
-        startDelay = 5
-
+        
         --NB: with debug builds, messages may appear out of order due to slow debug text creation speed vs timers!
         if gameInfo.continue.canContinue then
+            startDelay = 4
+            self.continuePause = system.gameTime + startDelay
             ShowMessage("COONTINUING", 0.5, false, "up")
-            ShowMessage("ABANDONED GAME", 0.5, false, "down")
+            ShowMessage("ABANDONED GAME", 1.5, false, "down")
             if gameInfo.mode == "survival" then
                 ShowMessage("survival mode", 2.5, false, "down", 60)
                 ShowMessage("GO!", startDelay, false, "up")
             else
-                ShowMessage("WAVE " .. gameInfo.wave, startDelay, false, "up")
+                ShowMessage("WAVE " .. gameInfo.wave, 2.5, false, "down", 60)
             end
+            ShowMessage("GO!", startDelay, false, "up")
         else
+            startDelay = 5
+            
             if gameInfo.mode == "survival" then
                 ShowMessage("SURVIVAL", 0.5, false, "up")
                 ShowMessage("MODE", 0.5, false, "down")
@@ -2229,12 +2241,12 @@ function sceneBattle:enterPostTransition(event)
                 
                 ShowMessage("WAVE " .. gameInfo.wave, startDelay, false, "up")
             end
-            
-            -- self-restarting timer that adds a ball every so-many seconds
-            local delay = gameInfo.continue.ballDelay or INTIAL_NEW_BALL_DELAY
-            self.ballTimer = system:addTimer(AddNewBall, delay, 1, startDelay)
-            self.ballTimer.ballDelay = delay
         end
+        
+        -- self-restarting timer that adds a ball every so-many seconds
+        local delay = gameInfo.continue.ballDelay or INTIAL_NEW_BALL_DELAY
+        self.ballTimer = system:addTimer(AddNewBall, delay, 1, startDelay)
+        self.ballTimer.ballDelay = delay
         
         --only happens when continuing atm, but could use queue up balls on start if wanted
         if self.ballCreateQueue > 0 then

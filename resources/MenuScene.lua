@@ -846,25 +846,24 @@ end
 
 -- as above for restoring last game if game was killed before user explicitly exited
 function LoadContinueData()
-    gameInfo.continue = {}
-    
     local saveStatePath = system:getFilePath("storage", "continue.txt")
     local file = io.open(saveStatePath, "r")
     if not file then
         dbg.print("continue data from last run not found at: " .. saveStatePath)
-        return
-    else
-        gameInfo.continue = json.decode(file:read("*a")) -- "*a" = read the entire file contents
-        analytics:logEvent("LoadContineData")
-        file:close()
-        dbg.print("continue data loaded")
+        return nil
     end
     
-    if type(gameInfo.continue) ~= "table" or not gameInfo.continue.canContinue then
-        gameInfo.continue = {} --just in case
+    local continue = json.decode(file:read("*a")) -- "*a" = read the entire file contents
+    analytics:logEvent("LoadContineData")
+    file:close()
+    dbg.print("continue data loaded")
+    
+    if type(continue) ~= "table" or not continue.canContinue then
         dbg.print("valid continue data not found")
-        return
+        return nil
     end
+    
+    return continue
 end
 
 function sceneMainMenu:wipeContinueFile()
@@ -946,6 +945,8 @@ end
 
 function touchContinue(self, event)
     if event.phase == "ended" then
+        gameInfo.continue = sceneMainMenu.readyToContinue
+        sceneMainMenu.readyToContinue = nil
         gameInfo.controlType = gameInfo.continue.controlType
         gameInfo.mode = gameInfo.continue.mode
         sceneMainMenu:buttonPressedAnim("continue")
@@ -1183,7 +1184,8 @@ function sceneMainMenu:setUp(event)
     -- TODO: integrate these with online services...
     if not gameInfo.highScore then LoadUserData() end
     
-    LoadContinueData()
+    self.readyToContinue = LoadContinueData()
+    gameInfo.continue = {} --needed for demo mode to not try to do continue logic
     
     --self.title = director:createSprite(0, 0, "textures/wrongtitle.png")
     ----self.title:getAtlas():setTextureParams("GL_NEAREST", "GL_NEAREST")
@@ -1266,7 +1268,7 @@ function sceneMainMenu:setUp(event)
     
     -- main menu buttons
     
-    if gameInfo.continue.canContinue then
+    if self.readyToContinue then
         self.btns["continue"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Continue", color=menuBlue, font=fontMainLarge})
         createLabelTouchBox(self.btns["continue"], touchContinue)
         self.btnsOrigin:addChild(self.btns["continue"])
