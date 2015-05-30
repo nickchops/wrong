@@ -616,6 +616,17 @@ function CollidableCreate(objType, xPos, yPos, startVector, startSpeed, objectOn
     return collidable
 end
 
+function RestoreBall(vals)
+    local ball = CollidableCreate(vals.objType, vals.x, vals.y, vals.vec, vals.speed)
+    ball.replaceOnLeaveScreen = vals.replaceOnLeaveScreen
+    
+    if objType == "expander-up" then
+        CollidableCreate("expander-down", vals.x, vals.y, vals.vec, vals.speed)
+    elseif objType == "heatseeker" then
+        ball.enemy = vals.enemy
+    end
+end
+
 function AddBall(vals)
     dbg.print("AddBall")
     -- deafult values
@@ -1873,6 +1884,8 @@ function sceneBattle:saveState()
             saveInfo.speed = obj.speed
             saveInfo.x = obj.x
             saveInfo.y = obj.y
+            saveInfo.replaceOnLeaveScreen = obj.replaceOnLeaveScreen
+            saveInfo.enemy = obj.enemy
             continueData.saveObj[obj.name] = saveInfo
         end
         
@@ -2268,6 +2281,12 @@ function sceneBattle:enterPostTransition(event)
         self.ballInitTimer.isInit = true
           -- Note that first frame has a huge time delta so we'd get a fast first ball if there was no delay
           -- Ideally this should be improved in Quick internals.
+    end
+    
+    if gameInfo.continue.saveObj then
+        for k,ballInfo in pairs(gameInfo.continue.saveObj) do
+            RestoreBall(ballInfo)
+        end
     end
     
     --system:addTimer(TestGun, 4, 1)
