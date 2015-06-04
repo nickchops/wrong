@@ -620,10 +620,10 @@ function RestoreBall(vals)
     local ball = CollidableCreate(vals.objType, vals.x, vals.y, vals.vec, vals.speed)
     ball.replaceOnLeaveScreen = vals.replaceOnLeaveScreen
     
-    if objType == "expander-up" then
+    if vals.objType == "expander-up" then
         CollidableCreate("expander-down", vals.x, vals.y, vals.vec, vals.speed)
-    elseif objType == "heatseeker" then
-        ball.enemy = vals.enemy
+    elseif vals.objType == "heatseeker" then
+        ball.enemy = players[vals.enemyId]
     end
 end
 
@@ -895,10 +895,10 @@ function checkWaveIsOver()
             gameInfo.wave = gameInfo.wave + 1
             ShowMessage("WAVE " .. gameInfo.wave, 0, false, "up")
             if gameInfo.controlType == "onePlayer" and gameInfo.wave == 2 then
-                ShowMessage("collect powerups", 2.0, false, "down", -20)
+                ShowMessage("collect powerups", 2.0, false, "down", 0)
                 ShowMessage("for ammo and health", 2.8, false, "down", -100)
             elseif gameInfo.controlType == "onePlayer" and gameInfo.wave == 3 then
-                ShowMessage("beware of ", 2.0, false, "down", -20)
+                ShowMessage("beware of ", 2.0, false, "down", 0)
                 ShowMessage("faulty powerups!", 2.8, false, "down", -100)
             end
             
@@ -1885,7 +1885,9 @@ function sceneBattle:saveState()
             saveInfo.x = obj.x
             saveInfo.y = obj.y
             saveInfo.replaceOnLeaveScreen = obj.replaceOnLeaveScreen
-            saveInfo.enemy = obj.enemy
+            if obj.enemy then
+                saveInfo.enemyId = obj.enemy.id
+            end
             continueData.saveObj[obj.name] = saveInfo
         end
         
@@ -1926,14 +1928,19 @@ function sceneBattle:saveState()
         dbg.print("wiping save state file as player(s) is/are dead")
     end
     
-    local saveStatePath = system:getFilePath("storage", "continue.txt")
-    local file = io.open(saveStatePath, "w")
-    if not file then
-        dbg.print("failed to open continue data file for saving: " .. saveStatePath)
+    local success, jsonData = pcall(json.encode, continueData) --"exception" handling
+    if success then
+        local saveStatePath = system:getFilePath("storage", "continue.txt")
+        local file = io.open(saveStatePath, "w")
+        if not file then
+            dbg.print("failed to open continue data file for saving: " .. saveStatePath)
+        else
+            file:write(jsonData)
+            file:close()
+            dbg.print("game state saved for resuming")
+        end
     else
-        file:write(json.encode(continueData))
-        file:close()
-        dbg.print("game state saved for resuming")
+        dbg.print("encode JSON save data failed: " .. jsonData) --jsonData is error info
     end
 end
 

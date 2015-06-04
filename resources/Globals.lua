@@ -5,7 +5,7 @@
 
 showDebugTouchArea = false
 
-showFrameRate = true
+--showFrameRate = true
 
 --require("mobdebug").start() -- ZeroBrain IDE debuger support
                    

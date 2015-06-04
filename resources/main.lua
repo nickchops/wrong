@@ -3,9 +3,15 @@
 -- dofile for big one-off inlcudes and require otherwise
 --require("mobdebug").start() -- to debug before dofile(Globals)!
 
+--workaround for asserts causing game to hang on Win Store 8.1 (at least)
+if device:getInfo("platform") == "WS81" then
+    dbg.assert = function(a,b) if b then dbg.print("assert: " .. b) else dbg.print("assert with no comment!") end end
+    --above must be on one line so will be trimmed out safely if using debug.general = false!
+end
+
 -- turn fullscreen on as early as possible. screen size won't update till bar is gone
 if androidFullscreen == nil then
-    dbg.assert(false, "androidFullscreen extension not found. rebuild quick binaries with this extension!")
+    --dbg.assert(false, "androidFullscreen extension not found. rebuild quick binaries with this extension!")
 else
     if androidFullscreen.isImmersiveSupported() then
         androidFullscreen.turnOn(true, true)
@@ -41,16 +47,26 @@ virtualResolution:initialise{userSpaceW=appWidth, userSpaceH=appHeight, nearestM
     windowOverrideW=overrideW, windowOverrideH=overrideH, ignoreMultipleIfTooSmall = 0.9, forceScale=0.96, maxScreenW=0.9}
 --virtualResolution:scaleTouchEvents(true) -- not using as not very stable or fast!
 
--- User space values of screen edges: for detecting edges of full screen area, including letterbox/borders
--- Useful for positioning things like the title screen hills just on the screen no matter the resolution
-screenWidth = virtualResolution:winToUserSize(director.displayWidth)
-screenHeight = virtualResolution:winToUserSize(director.displayHeight)
+-- Re-setup virtual resolution on rotation events
+function adaptToOrientation(event)
+    if event then --avoid apply to default scene on startup
+        virtualResolution:update()
+        virtualResolution:applyToScene(director:getCurrentScene())
+    end
+    
+    -- User space values of screen edges: for detecting edges of full screen area, including letterbox/borders
+    -- Useful for positioning things like the title screen hills just on the screen no matter the resolution
+    screenWidth = virtualResolution:winToUserSize(director.displayWidth)
+    screenHeight = virtualResolution:winToUserSize(director.displayHeight)
 
--- These are for game scene, need coverting for menu
-screenMaxX = screenWidth/2
-screenMinX = -screenMaxX
-screenMaxY = screenHeight/2
-screenMinY = -screenMaxY
+    -- These are for game scene, need coverting for menu
+    screenMaxX = screenWidth/2
+    screenMinX = -screenMaxX
+    screenMaxY = screenHeight/2
+    screenMinY = -screenMaxY
+end
+adaptToOrientation()
+system:addEventListener("orientation", adaptToOrientation)
 
 require("MenuScene") -- precompile MenuScene.lua fails for unknown reason with this file, so avoiding with require()
 --dofile("GameScene.lua") -- doing this later to save a little bit of load time on platforms that load slower

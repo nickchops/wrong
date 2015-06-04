@@ -813,15 +813,20 @@ function LoadUserData()
     local file = io.open(saveStatePath, "r")
     if not file then
         dbg.print("save state file not found at: " .. saveStatePath)
-    else
-        local loaded = json.decode(file:read("*a")) -- "*a" = read the entire file contents
-        gameInfo.highScore = loaded.scores
-        gameInfo.name = loaded.lastName
-        gameInfo.achievements = loaded.achievements
-        gameInfo.soundOn = loaded.soundOn
-        analytics:logEvent("LoadUserData", {scoreName=gameInfo.name})
+    else        
+        local success, loaded = pcall(json.decode, file:read("*a")) -- "*a" = read the entire file contents
         file:close()
-        dbg.print("highscore loaded")
+        
+        if not success then
+            dbg.print("json error loading continue data - ignoring")
+        else
+            gameInfo.highScore = loaded.scores
+            gameInfo.name = loaded.lastName
+            gameInfo.achievements = loaded.achievements
+            gameInfo.soundOn = loaded.soundOn
+            analytics:logEvent("LoadUserData", {scoreName=gameInfo.name})
+            dbg.print("highscore etc loaded")
+        end
     end
     
     -- do "if nil then create" for all values so game can be updated and new settings get
@@ -853,9 +858,15 @@ function LoadContinueData()
         return nil
     end
     
-    local continue = json.decode(file:read("*a")) -- "*a" = read the entire file contents
     analytics:logEvent("LoadContineData")
+    local success, continue = pcall(json.decode, file:read("*a")) -- "*a" = read the entire file contents
     file:close()
+    
+    if not success then
+        dbg.print("json error loading continue data - ignoring")
+        return nil
+    end
+    
     dbg.print("continue data loaded")
     
     if type(continue) ~= "table" or not continue.canContinue then
@@ -1174,6 +1185,7 @@ function resizeCheck(event)
 end
 
 function sceneMainMenu:setUp(event)
+    --dbg.assert(false, "1")
     dbg.print("sceneMainMenu:setUp")
     
     system:addEventListener({"suspend", "resume", "update"}, self)
@@ -1206,6 +1218,8 @@ function sceneMainMenu:setUp(event)
     if gameInfo.achievements.battle then
         self.titleY = self.titleY - 35
     end
+    
+    --dbg.assert(false, "2")
 
     self.title = director:createNode({x=appWidth/2,y=self.titleY})
     self.title.origin = director:createNode({x=-appWidth/2,y=0})
@@ -1232,6 +1246,8 @@ function sceneMainMenu:setUp(event)
     
     self.title.G = director:createLines({x=452, y=titlePartsY, coords={66,0, 30,14, 0,61, 8,80, 37,80, 57,72, 71,61, 55,61, 36,70, 24,70, 18,59, 41,26, 67,17, 93,17, 77,36, 59,36, 49,48, 84,48, 129,0, 65,0}, strokeWidth=wrongWidth, strokeColor=wrongColor, alpha=0})
     table.insert(self.title.letters, self.title.G)
+    
+    --dbg.assert(false, "3")
     
     self.hills = director:createLines({x=0, y=titlePartsY+111, coords={8,0, 632,0}, strokeWidth=hillWidth, strokeColor=hillColor, alpha=0})
     
@@ -1370,6 +1386,8 @@ function sceneMainMenu:setUp(event)
     
     -- start flickering effect but pause until menu is shown
     self:restartFlicker()
+    
+    --dbg.assert(false, "4")
 
     if gameInfo.newHighScore then
         self:setMenuState("highscores")
@@ -1415,7 +1433,7 @@ function sceneMainMenu:setUp(event)
         
         self:titleFlash()
     end
-    
+    --dbg.assert(false, "5")
 end
 
 -- cancels any existing flicker animations, then sets up and pauses new ones,
