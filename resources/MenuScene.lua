@@ -339,6 +339,7 @@ function menuSaveScoreName(buttonDown)
         system:removeEventListener("key", menuBackKeyListener)
         sceneMainMenu.backKeyListener = nil
         tween:to(sceneMainMenu.joystick.origin, {x=menuScreenMinX-100, time=1.0})
+        sceneMainMenu.newDontClear = true -- flashy effects back on once controls done with
         tween:to(sceneMainMenu.scoreSaveButton.origin, {x=menuScreenMaxX+100, time=1.0, onComplete=menuRemoveScoreControls})
         tween:cancel(sceneMainMenu.inputAnim)
         sceneMainMenu.scoreLabels[sceneMainMenu.scoreMenuState][gameInfo.newHighScore].alpha=1
@@ -896,6 +897,7 @@ end
 gameSceneLoadFlag = false
 
 function MenuStartGame()
+    
     -- Just in case! A good time to force re-hiding in case OS showed for some reason
     if androidFullscreen and androidFullscreen:isImmersiveSupported() then
         androidFullscreen:turnOn()
@@ -906,8 +908,8 @@ function MenuStartGame()
         gameInfo.titleMusicPlaying = false
     end
     if not gameSceneLoadFlag then
-        --dofile("GameScene.lua")
-        require("GameScene")
+        dofile("GameScene.lua")
+        --require("GameScene")
         gameSceneLoadFlag = true
     end
     director:moveToScene(sceneBattle, {transitionType="slideInT", transitionTime=0.8})
@@ -954,6 +956,12 @@ function sceneMainMenu:restoreButtonsAnim()
     tween:to(self.labelHighScore, {alpha=1, time=0.3})
 end
 
+function sceneMainMenu:animateSceneOut()
+    tween:to(self.title, {y=menuScreenMinY-280, time=0.5, delay=0.3, onComplete=MenuStartGame})
+    fullscreenEffectsStop(self)
+    tween:to(self.screenFx, {alpha=0, time=0.8})
+end
+
 function touchContinue(self, event)
     if event.phase == "ended" then
         gameInfo.continue = sceneMainMenu.readyToContinue
@@ -962,7 +970,7 @@ function touchContinue(self, event)
         gameInfo.mode = gameInfo.continue.mode
         sceneMainMenu:buttonPressedAnim("continue")
         analytics:logEvent("startContinue")
-        tween:to(sceneMainMenu.title, {y=menuScreenMinY-280, time=0.5, delay=0.3, onComplete=MenuStartGame})
+        sceneMainMenu:animateSceneOut()
     end
 end
 
@@ -972,7 +980,7 @@ function touch1pSurvival(self, event)
         gameInfo.mode = "waves"
         sceneMainMenu:buttonPressedAnim("1pSurvival")
         analytics:logEvent("startMain")
-        tween:to(sceneMainMenu.title, {y=menuScreenMinY-280, time=0.5, delay=0.3, onComplete=MenuStartGame})
+        sceneMainMenu:animateSceneOut()
     end
 end
 
@@ -982,7 +990,7 @@ function touchSurvival(self, event)
         gameInfo.mode = "survival"
         sceneMainMenu:buttonPressedAnim("survival")
         analytics:logEvent("startSurvival")
-        tween:to(sceneMainMenu.title, {y=menuScreenMinY-280, time=0.5, delay=0.3, onComplete=MenuStartGame})
+        sceneMainMenu:animateSceneOut()
     end
 end
 
@@ -991,7 +999,7 @@ function touch2pLocal(self, event)
         gameInfo.controlType = "p1LocalVsP2Local"
         sceneMainMenu:buttonPressedAnim("2pLocal")
         analytics:logEvent("start2pLocal")
-        tween:to(sceneMainMenu.title, {y=menuScreenMinY-280, time=0.5, delay=0.3, onComplete=MenuStartGame})
+        sceneMainMenu:animateSceneOut()
     end
 end
 
@@ -1046,13 +1054,13 @@ function touchSound(self, event)
             audio:stopStream()
             gameInfo.titleMusicPlaying = false
             gameInfo.soundOn = false
-            sceneMainMenu.btns.sound.alpha = 0.5
+            sceneMainMenu.btns.sound.color = {75,75,128}
         else
             analytics:logEvent("turnOnSound")
             audio:playStreamWithLoop("sounds/iron-suit.mp3", true)
             gameInfo.titleMusicPlaying = true
             gameInfo.soundOn = true
-            sceneMainMenu.btns.sound.alpha = 1
+            sceneMainMenu.btns.sound.color = color.white
         end
     end
 end
@@ -1092,6 +1100,11 @@ end
 -- demo timers and touch listener are added/removed on enabling/disabling main menu
 -- controls. Guaranteed to be disabled on leaving the scene (via buttonPressedAnim)
 function sceneMainMenu:removeMainMenuListeners()
+    if self.screenFx then
+        -- swap effect each time we open a menu
+        dbg.print("!!!!")
+        self.newDontClear = not self.newDontClear
+    end
     if demoAvailable then
         self:removeEventListener({"touch"}, self)
         if self.demoTimer then
@@ -1168,6 +1181,8 @@ function sceneMainMenu:update(event)
         system:resumeTimers()
         resumeNodesInTree(self)
     end
+    
+    fullscreenEffectsUpdate(self)
 end
 
 --------------------------------------------------------
@@ -1180,17 +1195,149 @@ function resizeCheck(event)
     -- need to wait till nav bar has hidden and then get fullscreen sizes
     -- need to re-call applyToScene to update transforms
     -- safe to call if user starts game before timer expires
-    virtualResolution:update()
-    virtualResolution:applyToScene(sceneMainMenu)
+    --virtualResolution:update()
+    --virtualResolution:applyToScene(sceneMainMenu)
+end
+
+function sceneMainMenu:fullscreenEffect()
+    dbg.print("!1")
+    if not gameInfo.useFullscreenEffects then
+        dbg.print("!2")
+        return
+    end
+    dbg.print("setting up fullscreen render texture effect")
+    self.rt = director:createRenderTexture(director.displayWidth, director.displayHeight, pixel_format.RGBA8888)
+        
+    self.rt.x = virtualResolution.userWinMinX + screenWidth/2
+    self.rt.y = virtualResolution.userWinMinY + screenHeight/2
+    self.rt.isVisible = false
+
+    -- Bug: sprite from getSprite will be inverted un-transformed version of the rendertexture for first frame
+    -- Workaround: render nothing for first frame
+    self.rtWorkaround = 1
+    self.rt:clear(clearCol)
+    -- Workaround end --
+   
+    -- Only create sprite for rendering once. It has a clone of the renderTexture's texture
+    -- so gets updated with each frame
+    self.screenFx = self.rt:getSprite()
+    self.screenFx.zOrder = -1
+    --self.screenFx.alpha=0.95
+    
+    -- have to scale to match VR
+    self.screenFx.xScale = 1/virtualResolution.scale
+    self.screenFx.x = virtualResolution.userWinMinX
+    self.screenFx.yScale = -1/virtualResolution.scale
+    self.screenFx.y = screenHeight + virtualResolution.userWinMinY --screenHeight is workaround for bug in renderTexture!
+    
+    -------- debugging --------------------
+    --self.screenFx.xScale = self.screenFx.xScale / 2
+    --self.screenFx.yScale = self.screenFx.yScale / 2
+    --self.screenFx.x = self.screenFx.x + 100
+    --self.screenFx.y = self.screenFx.y + 100
+    ---------------------------------------
+    
+    self.screenFx.filter.name = "blur"
+    self.screenFx.filter.x = 0
+    self.screenFx.filter.y = 0
+    
+    local fxType = math.random(1,5)
+    local x,y = 0,0
+    if fxType == 1 then
+        x = math.random(2,7)
+    elseif fxType == 2 then
+        y = math.random(2,7)
+    else
+        x = math.random(2,5)
+        y = math.random(2,5)
+    end
+    
+    --debugging
+    --x = x*2
+    --y = y*2
+    
+    dbg.print("tweening!")
+    self.screenFx.tween = tween:to(self.screenFx, {filter={x=x,y=y}, time=2, mode="mirror",
+            easing=ease.bounceInOut, onComplete=self.pauseResumeTween})
+    
+    self.screenFx.targX = x
+    self.screenFx.targY = y
+end
+
+
+function sceneMainMenu:orientation(event, delayEffects)
+    fullscreenEffectsReset(self)
+        
+    adaptToOrientation(event)
+    
+    -- (re)setup screen burn filter effect...
+    if not delayEffects then -- dont do when called form setUp() pre transition! Cant start tweens until transition is over.
+        self:queueFullscreenEffect()
+    end
+end
+
+function sceneMainMenu:queueFullscreenEffect()
+    self.screenFxTimer = system:addTimer(self.startFullscreenEffect, 2, 1)
+end
+
+function sceneMainMenu.startFullscreenEffect()
+    dbg.print("effect restart timer called")
+    sceneMainMenu:fullscreenEffect()
+end
+
+function sceneMainMenu.resumeFxTween(event)
+    dbg.print("resumeFxTween")
+    -- allow previous style to run till tween restarts - allows to fade as much as possible
+    if sceneMainMenu.newDontClear ~= sceneMainMenu.rtDontClear then
+        dbg.print("switching effect style")
+        tween:cancel(sceneMainMenu.screenFx.tween)
+
+        if sceneMainMenu.rtDontClear then
+            sceneMainMenu.screenFx.targX = sceneMainMenu.screenFx.targX*2
+            sceneMainMenu.screenFx.targY = sceneMainMenu.screenFx.targY*2
+            sceneMainMenu.rtDontClear = false
+            sceneMainMenu.screenFx.alpha=1
+        else
+            sceneMainMenu.screenFx.targX = sceneMainMenu.screenFx.targX/2
+            sceneMainMenu.screenFx.targY = sceneMainMenu.screenFx.targY/2
+            sceneMainMenu.rtDontClear = true
+            sceneMainMenu.screenFx.alpha=0.95
+        end
+        
+        sceneMainMenu.screenFx.tween = tween:to(sceneMainMenu.screenFx,
+            {filter={x=sceneMainMenu.screenFx.targX,y=sceneMainMenu.screenFx.targY}, time=1.6, mode="mirror",
+            easing=ease.bounceInOut, onComplete=sceneMainMenu.pauseResumeTween})
+    end
+    
+    event.target:resumeTweens()
+end
+
+function sceneMainMenu.pauseResumeTween(target)
+    dbg.print("effects tween onComplete")
+    if target.tween.numCycles % 2 == 0 then
+        dbg.print("resume effects tween")
+        target:pauseTweens()
+        target:addTimer(sceneMainMenu.resumeFxTween, 4.5, 1)
+    end
 end
 
 function sceneMainMenu:setUp(event)
     --dbg.assert(false, "1")
     dbg.print("sceneMainMenu:setUp")
     
-    system:addEventListener({"suspend", "resume", "update"}, self)
+    system:addEventListener({"suspend", "resume", "update", "orientation"}, self)
+    --system:addEventListener({"suspend", "resume", "update"}, self)
+    
+    math.randomseed(os.time())
     
     virtualResolution:applyToScene(self)
+    self:orientation(nil, not startupFlag)
+    self.rtDontClear = true
+    self.newDontClear = true
+    
+    if showFrameRate and not frameRateOverlay.isShown() then
+        frameRateOverlay.showFrameRate({x = virtualResolution.userWinMinX+5, y = virtualResolution.userWinMinY+5, zOrder = 100, width = 100}) --debugging
+    end
     
     -- loads scores, last user name and achievements from local storage
     -- TODO: integrate these with online services...
@@ -1378,7 +1525,7 @@ function sceneMainMenu:setUp(event)
     sound.xScale = sound.defaultScale
     sound.yScale = sound.defaultScale
     if not gameInfo.soundOn then
-        sound.alpha = 0.5
+        sound.color = {75,85,110}
     end
     self.btns.sound = sound
     self.servicesBtnsOrigin:addChild(sound)
@@ -1387,9 +1534,8 @@ function sceneMainMenu:setUp(event)
     -- start flickering effect but pause until menu is shown
     self:restartFlicker()
     
-    --dbg.assert(false, "4")
-
     if gameInfo.newHighScore then
+        self.newDontClear = false --dont blur the high score controls (looks awful)
         self:setMenuState("highscores")
     else
         if startupFlag then
@@ -1433,7 +1579,6 @@ function sceneMainMenu:setUp(event)
         
         self:titleFlash()
     end
-    --dbg.assert(false, "5")
 end
 
 -- cancels any existing flicker animations, then sets up and pauses new ones,
@@ -1489,6 +1634,16 @@ function sceneMainMenu:enterPostTransition(event)
     -- battlescene's exitPreTransition!
     demoMode = false
     
+    if not startupFlag then
+        self:queueFullscreenEffect()
+    end
+    
+    -- wait till now so isnt wiped instantly by pre scenes hide call!
+    if showFrameRate and not frameRateOverlay.isShown() then
+        dbg.print("showframe rate!")
+        frameRateOverlay.showFrameRate({x = virtualResolution.userWinMinX+5, y = virtualResolution.userWinMinY+5, zOrder = 100, width = 100}) --debugging
+    end
+    
     -- show the sctual scores. menu title and state was set on setup but we wait for
     -- transiation over before showing scores
     if gameInfo.newHighScore then
@@ -1511,12 +1666,20 @@ end
 
 function sceneMainMenu:exitPreTransition(event)
     dbg.print("sceneMainMenu:exitPreTransition")
+    
+    if showFrameRate then
+        frameRateOverlay.hideFrameRate() --debugging
+    end
+    
     sceneMainMenu.sceneShown = false
-    system:removeEventListener({"suspend", "resume", "update"}, self)
+    system:removeEventListener({"suspend", "resume", "update", "orientation"}, self)
+    --system:removeEventListener({"suspend", "resume", "update"}, self)
 end
 
 function sceneMainMenu:exitPostTransition(event)
     dbg.print("sceneMainMenu:exitPostTransition")
+    
+    fullscreenEffectsOff(self)
 
     for k,v in pairs(self.btns) do
         v.touchArea = v.touchArea:removeFromParent()

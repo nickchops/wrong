@@ -4,14 +4,14 @@
 --require("mobdebug").start() -- to debug before dofile(Globals)!
 
 --workaround for asserts causing game to hang on Win Store 8.1 (at least)
-if device:getInfo("platform") == "WS81" then
-    dbg.assert = function(a,b) if b then dbg.print("assert: " .. b) else dbg.print("assert with no comment!") end end
+if device:getInfo("platform") == "WS81" or device:getInfo("platform") == "WINDOWS" then
+    dbg.assert = function(a,b) if not a then if b then dbg.print("assert: " .. b) else dbg.print("assert with no comment!") end end end
     --above must be on one line so will be trimmed out safely if using debug.general = false!
 end
 
 -- turn fullscreen on as early as possible. screen size won't update till bar is gone
 if androidFullscreen == nil then
-    --dbg.assert(false, "androidFullscreen extension not found. rebuild quick binaries with this extension!")
+    dbg.assert(false, "androidFullscreen extension not found. rebuild quick binaries with this extension!")
 else
     if androidFullscreen.isImmersiveSupported() then
         androidFullscreen.turnOn(true, true)
@@ -22,6 +22,10 @@ require("Utility")
 
 dofile("Globals.lua") --globals contains all our sensitive data so def want to precompile for some minimal security!
 require("VirtualResolution")
+
+if showFrameRate then
+    dofile("FrameRate.lua")
+end
 
 -- garbage  defaults are both 200
 collectgarbage("setpause", 200) -- wait between cycles (deafult of 200 = wait for memory use to increase by 2x) 
@@ -47,6 +51,14 @@ virtualResolution:initialise{userSpaceW=appWidth, userSpaceH=appHeight, nearestM
     windowOverrideW=overrideW, windowOverrideH=overrideH, ignoreMultipleIfTooSmall = 0.9, forceScale=0.96, maxScreenW=0.9}
 --virtualResolution:scaleTouchEvents(true) -- not using as not very stable or fast!
 
+-- default values to allow turning off VR for testing
+screenWidth = director.displayWidth
+screenHeight = director.displayHeight
+screenMaxX = screenWidth/2
+screenMinX = -screenMaxX
+screenMaxY = screenHeight/2
+screenMinY = -screenMaxY
+
 -- Re-setup virtual resolution on rotation events
 function adaptToOrientation(event)
     if event then --avoid apply to default scene on startup
@@ -66,7 +78,89 @@ function adaptToOrientation(event)
     screenMinY = -screenMaxY
 end
 adaptToOrientation()
-system:addEventListener("orientation", adaptToOrientation)
+--system:addEventListener("orientation", adaptToOrientation)
+
+
+----------------------------------------------------------
+-- "offscreen" texure for applying effects, can be used by any scene
+
+function fullscreenEffectsReset(self)
+    dbg.print("resetting render texture")
+    if self.screenFx then
+        destroyNode(self.screenFx)
+        dbg.print("ALREADY GOT FX sprite!!!")
+    end
+    if self.rt then
+        self.rt:removeFromParent()
+        dbg.print("ALREADY GOT FX RT!!!")
+    end
+end
+
+clearCol = quick.QColor:new()
+clearCol.r = 1
+clearCol.g = 1
+clearCol.b = 1
+clearCol.a = 255
+--clearCol = color.darkBlue
+
+local fxFrameLock = 0
+
+function visitChildren(obj, scene)
+    for k,v in pairs(obj.children) do
+        v:visit()
+    end
+    visitChildren(v, scene)
+end
+
+function fullscreenEffectsUpdate(self)
+    if not self.rt or self.effectSkipFlag or self.pauseRt then
+        return
+    end
+
+    -- update render texture with whole scene every frame
+    if self.rtWorkaround then
+        --workaround for getSprite texture being in wrong place on fitst frame: make sure first frame is empty!
+        self.rtWorkaround = nil
+    else
+        if self.rtDontClear then
+            self.rt:begin(nil)
+            --pick up the old image.. the screen burn type effect is awesome so keep it!
+        else
+            self.rt:begin(clearCol)
+        end
+        --self.screenFx.isVibile = false
+        self:visit()
+        --visitChildren(self.scalerRootNode, self)
+        --self.screenFx.isVibile = true
+        
+        self.rt:endToLua()
+    end
+end
+
+function fullscreenEffectsStop(self)
+    if self.screenFx then
+        cancelTweensOnNode(self.screenFx)
+        cancelTimersOnNode(self.screenFx)
+        self.pauseRt = true
+    end
+
+    if self.screenFxTimer then
+        self.screenFxTimer:cancel()
+    end
+end
+
+function fullscreenEffectsOff(self)
+    if self.screenFx then
+        self.screenFx = destroyNode(self.screenFx) --cancel tweens etc
+    end
+    if self.rt then
+        self.rt = self.rt:removeFromParent()
+    end
+    
+    self.pauseRt = nil
+end
+
+----------------------------------------------------------
 
 require("MenuScene") -- precompile MenuScene.lua fails for unknown reason with this file, so avoiding with require()
 --dofile("GameScene.lua") -- doing this later to save a little bit of load time on platforms that load slower

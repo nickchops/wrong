@@ -5,7 +5,7 @@
 
 showDebugTouchArea = false
 
---showFrameRate = true
+showFrameRate = true
 
 --require("mobdebug").start() -- ZeroBrain IDE debuger support
                    
@@ -21,11 +21,11 @@ showDebugTouchArea = false
 require("Utility")
 
 DEFAULT_HEALTH_BATTLE = 13
-DEFAULT_HEALTH_SURVIVAL = 8
+DEFAULT_HEALTH_SURVIVAL = 1 --8 (NSMITH temp for demo)
 DEFAULT_BULLETS_BATTLE = 5
 DEFAULT_AMMO_BATTLE = 1
 DEFAULT_AMMO_WAVES = 0
-DEFAULT_AMMO_SURVIVAL = 3
+DEFAULT_AMMO_SURVIVAL = 3 --3 (NSMITH temp for demo)
 
 SECOND_BALL_SPEED = 13 --pixels/second. NB if 5 balls added at start, this ramps quickly up to 15+5*10
 FIRST_BALL_SPEED = 110 --very first ball should be fast to keep play interesting
@@ -48,7 +48,7 @@ INITIAL_WAVE = 1 --use this to debug starting on other wave numbers
 -- Quick global switches ---------------------------------------------
 
 demoMode = false      -- in demo right now
-demoAvailable = true  -- demo is available
+--demoAvailable = true  -- demo is available
 demoModeDebug = false --can still interact ir
 DEMO_TIMEOUT = 10
 
@@ -206,6 +206,8 @@ gameInfo.maxStreak = 0
 gameInfo.mode = "waves"
 gameInfo.soundOn = true
 gameInfo.titleMusicPlaying = false
+
+gameInfo.useFullscreenEffects = true --currently off due to crash bug with GC on RenderTexture nodes
 
 gameInfo.achievementIndex = {
     "wave6",

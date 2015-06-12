@@ -9,10 +9,6 @@ require("NodeUtility")
 dofile("Player.lua")
 dofile("WeaponsMeter.lua")
 
-if showFrameRate then
-    dofile("FrameRate.lua")
-end
-
 function PushCollidablesAwayFromPos(x, y, boostSpeed)
     boostSpeed = boostSpeed or 1
 
@@ -123,7 +119,7 @@ function HeatseekerDestroy(collidable)
     -- have multi-stage animation
     CollidableDestroy(collidable, true)
     collidable:addTimer(HeatseekerImpactFX, 0.1, 7, 0)
-    device:vibrate(500)
+    device:vibrate(400)
 end
 
 --generic effect, used for new ball adds
@@ -1133,6 +1129,8 @@ function AIFire(event)
 end
 
 function sceneBattle:update(event)
+    self.effectSkipFlag = not self.effectSkipFlag
+    
     if pauseflag then
         pauseflag = false
         if self.gamePaused then
@@ -1147,6 +1145,7 @@ function sceneBattle:update(event)
     end
     
     if self.gamePaused then
+        fullscreenEffectsUpdate(self)
         return
     end
     
@@ -1192,6 +1191,7 @@ function sceneBattle:update(event)
     
     -- update loop keeps running when battle/game is ending. skip to avoid dealing with players being recreated etc
     if self.endTimer then
+        fullscreenEffectsUpdate(self)
         return
     end
     
@@ -1298,6 +1298,17 @@ function sceneBattle:update(event)
             -- move
             obj.y = obj.y + obj.vec.y * system.deltaTime --scale by frame rate
             obj.x = obj.x + obj.vec.x * system.deltaTime
+            
+            if obj.objType == "heatseeker" then
+                -- if frame rate drops, heatseeker can get "stuck" bouncing around player and never hit it!
+                if obj.x < Player.xPos then
+                    obj.x = Player.xPos
+                    obj.speed = 0
+                elseif obj.x > -Player.xPos then
+                    obj.x = -Player.xPos
+                    obj.speed = 0
+                end
+            end
 
             if not obj.dontCollide then
                 -- super simplistic bounce function. We put the ball on the screen edge rather than moving exactly
@@ -1376,8 +1387,13 @@ function sceneBattle:update(event)
             -- Therefore, we do this *after* checking for collision with player.
             -- obj.dying flag prevents killing a node twice (likley to crash eventually otherwise)
             if obj.dontBounce and not obj.dying then --check dontBounce to save testing every ball
-                if obj.x < minX or obj.x > maxX then
+                if obj.x < minX - 50 or obj.x > maxX + 50 then
+                    -- +/- 50 is for heatseekers which can overshoot and come back
+                    -- arbitrary but "big enough" number to catch them.
                     obj.dontCollide = true
+                    if obj.objType == "heatseeker" then
+                        dbg.print("!!!!!!HEATSEEKER OFF SCREEN!!!!!")
+                    end
                 end
                 if obj.x > screenMaxX+20 or obj.x < screenMinX-20 or obj.y > screenMaxY+20 or obj.y < screenMinY-50 then
                     CollidableDestroy(obj)
@@ -1478,6 +1494,8 @@ function sceneBattle:update(event)
             player2.deadFlag = 5
         end
     end
+    
+    fullscreenEffectsUpdate(self)
 end
 
 function playerHit(restoreHealth)
@@ -1944,21 +1962,67 @@ function sceneBattle:saveState()
     end
 end
 
+function sceneBattle:fullscreenEffect()
+    if not gameInfo.useFullscreenEffects then
+        return
+    end
+    
+    dbg.print("setting up fullscreen render texture effect")
+    self.rt = director:createRenderTexture(director.displayWidth, director.displayHeight, pixel_format.RGBA8888)
+        
+    self.rt.x = virtualResolution.userWinMinX + screenWidth/2
+    self.rt.y = virtualResolution.userWinMinY + screenHeight/2
+    self.rt.isVisible = false
+
+    -- Bug: sprite from getSprite will be inverted un-transformed version of the rendertexture for first frame
+    -- Workaround: render nothing for first frame
+    self.rtWorkaround = 1
+    self.rt:clear(clearCol)
+    -- Workaround end --
+    
+    -- Only create sprite for rendering once. It has a clone of the renderTexture's texture
+    -- so gets updated with each frame
+    self.screenFx = self.rt:getSprite()
+    self.screenFx.zOrder = -1
+
+    -- have to scale to match VR
+    self.screenFx.xScale = 1/virtualResolution.scale
+    self.screenFx.x = virtualResolution.userWinMinX -- - screenWidth/2 -- 0,0 is centre screen!
+    self.screenFx.yScale = -1/virtualResolution.scale
+    self.screenFx.y = screenHeight + virtualResolution.userWinMinY --  - screenWidth/2
+        --screenHeight is workaround for bug in renderTexture!
+    
+    self.screenFx.alpha=0.7
+    --self.screenFx.filter.name = "blur"
+    --self.screenFx.filter.x = 2
+    --self.screenFx.filter.y = 2
+    
+    --self.screenFx.tween = tween:to(self.screenFx, {filter={x=2,y=2}, time=2, mode="mirror",
+    --        easing=ease.bounceInOut})
+end
+
+function sceneBattle:orientation(event)
+    adaptToOrientation(event)
+    
+    -- (re)setup screen burn filter effect...
+    fullscreenEffectsReset(self)
+    sceneBattle:fullscreenEffect()
+    self.effectSkipFlag = true -- will go false on first update event and set effect, then alternate
+end
+
 function sceneBattle:setUp(event)
     dbg.print("sceneBattle:setUp")
-    
+        
     self.lastFrameTime = {}
     for i=1,10 do
         self.lastFrameTime[i] = system.gameTime
     end
     
-    system:addEventListener({"suspend", "resume"}, sceneBattle)
+    system:addEventListener({"suspend", "resume", "orientation"}, sceneBattle)
     
     virtualResolution:applyToScene(self)
-    
-    if showFrameRate then
-        frameRateOverlay.showFrameRate() --debugging
-    end
+    self:orientation()
+    self.rtDontClear = true
     
     -- root object at screen centre. Adding children to it means their coords will be
     -- relative to this position. Annoyingly Quick provides no way to set the origin; instead,
@@ -1976,7 +2040,7 @@ function sceneBattle:setUp(event)
         xAnchor=0, yAnchor=0,
         w=appWidth, h=appHeight,
         strokeWidth=0,  --strokeColor=color.green, strokeAlpha=1.0,
-        color=color.black, alpha=1.0, zOrder=-10})
+        color=color.black, alpha=0, zOrder=-10})
     origin:addChild(self.background)
 
     -- create random stars on background
@@ -2087,7 +2151,7 @@ function sceneBattle:setUp(event)
 
     self.ballOverrides={}
     
-    if gameInfo.controlType == "onePlayer" then
+    if gameInfo.controlType == "onePlayer" and gameInfo.mode == "waves" then
         self:setBallOverrides(gameInfo.wave, wavePosInSet)
     else
         for n=1, INITIAL_BALL_QUEUE do
@@ -2184,6 +2248,12 @@ end
 function sceneBattle:enterPostTransition(event)
     dbg.print("sceneBattle:enterPostTransition")
     -- start game running after transitions
+
+    -- wait till now so isnt wiped instantly by pre scenes hide call!
+    if showFrameRate then
+        dbg.print("showframe rate!")
+        frameRateOverlay.showFrameRate({x = virtualResolution.userWinMinX+5, y = virtualResolution.userWinMinY+5, zOrder = 100, width = 100}) --debugging
+    end
 
     -- show and animate counters appearing
     player1.health:UpdateDisplay()
@@ -2663,7 +2733,7 @@ function sceneBattle:exitPreTransition(event)
         frameRateOverlay.hideFrameRate() --debugging
     end
     
-    system:removeEventListener({"suspend", "resume", "update"}, self)
+    system:removeEventListener({"suspend", "resume", "update", "orientation"}, self)
     if demoMode and not demoModeDebug then
         system:removeEventListener({"touch"}, cancelBattle)
     else
@@ -2688,6 +2758,8 @@ end
 -- destroy all objects after transition so they are still visible during anim
 function sceneBattle:exitPostTransition(event)
     dbg.print("sceneBattle:exitPostTransition")
+    
+    fullscreenEffectsOff(self)
 
     -- for most nodes, we coul just do destroyNodesInTree(self.origin, true)!
     -- but instead we're explicitly tearing down items in groups. Useful for finding bugs.

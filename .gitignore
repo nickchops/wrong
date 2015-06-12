@@ -1,6 +1,7 @@
 .DS\_Store
 .DS_Store
 *.sw?
+*.bak
 build_temp/**
 resources-ram/**
 resources-precompiled/**

@@ -49,7 +49,7 @@ assets
 	
 	["distribution"] # use precompiled and concatenated files for performance
 	<include common>
-	(resources-concatenated)
+	(resources-precompiled)
 	.
 }
 
@@ -67,9 +67,10 @@ deployments
     name = "Wrong"
     provider = "Nicholas Smith"
     #splashscreen = "splash-768x768.jpg"
-    version-major = "0"
-    version-minor = "1"
-    version-revision = "8"
+    version-major = "1"
+    version-minor = "0"
+    version-revision = "0"
+    app-icf="resources/common.icf,resources/app.icf,resources/win_deploy.icf"
     
     # App ID for Facebook apps
     android-extra-strings='(app_id,fb_app_id)'

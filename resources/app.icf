@@ -33,15 +33,13 @@ WinTitle="W R O N G"
 SplashScreenWidth="384" #0.5x to always look OK when testing :)
 SplashScreenHeight="384"
 
-#WinWidth=960
-#WinHeight=640
 
 #For testing device sizes with scaling...
 #WinWidth=640
 #WinHeight=480
 #-- iPhone retina
-WinWidth=960
-WinHeight=640
+#WinWidth=960
+#WinHeight=640
 #-- iPhone5 retina
 #WinWidth=1136
 #WinHeight=640

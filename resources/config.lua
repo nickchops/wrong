@@ -2,9 +2,9 @@ config =
 {
     debug =
     {
-        general = false,
+        general = true,
         traceGC = false,
-        typeChecking = false,
+        typeChecking = true,
         assertDialogs = true,
         
         makePrecompiledLua = false,

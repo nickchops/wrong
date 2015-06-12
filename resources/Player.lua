@@ -8,6 +8,8 @@ require("Counter")
 Player = {}
 Player.__index = Player -- meta table to implement a "class" in lua (google it!)
 
+Player.xPos = -appWidth/2 + 20
+
 -- we use a table of nodes and re-use once anim is over to save creating and garbage collecting hundreds of these
 -- TODO: turn this into generic code that can be re-used by any node or even generic table
 -- Generic version should have a max size setting - balance memory used vs garbage collection
@@ -103,10 +105,10 @@ function Player.Create(id, health, ammo, ammoDefault, onePlayerMode)
 
     if id == 1 then
         player.mirrorX = 1
-        xPos = -appWidth/2 + 20
+        xPos = Player.xPos
     else
         player.mirrorX = -1
-        xPos = appWidth/2 - 20
+        xPos = -Player.xPos
     end
 
     player.sledColour = gameInfo.playerColours[id]

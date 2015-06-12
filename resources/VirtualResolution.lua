@@ -201,7 +201,22 @@ function virtualResolution:update()
         self.xOffset = self.xOffset + (self.winW - self.userW*self.scale) / 2
     end
     
+    self:getWindowValuesInUserSpace()
+    
     self.setup = true
+end
+
+function virtualResolution:getWindowValuesInUserSpace()
+    -- These are screen/window size and extremes in user coords
+    -- They can help when drawing to full screen area when VR is switched on
+    -- Otherwise, to draw to full screen you would need to detatch from the scaler node
+    dbg.print("setting userWinMinX etc")
+    self.userWinW = self:winToUserSize(director.displayWidth)
+    self.userWinH = self:winToUserSize(director.displayHeight)
+    self.userWinMinX = self.userW/2 - self.userWinW/2
+    self.userWinMaxX = self.userW/2 + self.userWinW/2
+    self.userWinMinY = self.userH/2 - self.userWinH/2
+    self.userWinMaxY = self.userH/2 + self.userWinH/2
 end
 
 -- Set a scene to be scaled and offset. Quality will depend on how well GL
@@ -221,7 +236,7 @@ function virtualResolution:applyToScene(scene, transformActualScene)
     self.scaleTouch = false
     
     -- transforActualScene makes scaling just be applied to scene. May work if you
-    -- dont use transiations. May still have other issues, not well tested.
+    -- dont use transitions. May still have other issues, not well tested.
     if transformActualScene then
         self.transViaScene = true
         scene.xScale = self.scale
@@ -428,6 +443,10 @@ function virtualResolution:getUserY(winY)
     return (winY - self.yOffset) / self.scale
 end
 
+function virtualResolution:getUserPos(winX, winY)
+    return (winX - self.xOffset) / self.scale, (winY - self.yOffset) / self.scale
+end
+
 function virtualResolution:userToWinSize(userSize)
     return userSize * self.scale
 end
@@ -452,3 +471,6 @@ function virtualResolution:getWinY(userY)
     return userY * self.scale + self.yOffset
 end
 
+function virtualResolution:getWinPos(userX, userY)
+    return userX * self.scale + self.xOffset, userY * self.scale + self.yOffset
+end
