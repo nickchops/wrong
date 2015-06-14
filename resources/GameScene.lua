@@ -129,7 +129,7 @@ function RingFX(event)
     local strokeAlpha = timer.strokeAlpha or 1
     local alpha = timer.alpha or 0
     local radiusStart = timer.rStart or 0
-    local radiusEnd = timer.rEnd or screenMaxY
+    local radiusEnd = timer.rEnd or self.screenMaxY
     local time = timer.endTime or 2
     local colour = timer.color or color.white
 
@@ -212,7 +212,7 @@ function SpriteFX(event)
 end
 
 function splitAsteroid(target)
-    local radius = screenMaxX*0.8
+    local radius = self.screenMaxX*0.8
     rotation=target.rotation + 60
     
     for i = 1,3 do
@@ -721,7 +721,7 @@ function AddBall(vals)
         ball.enemy = players[math.random(1,2)]
     end
     
-    RingFX({timer={x=xPos, y=yPos, color=ball.mainColor, strokeAlpha=0.5, rEnd=speed/MAX_BALL_SPEED*screenMaxY}})
+    RingFX({timer={x=xPos, y=yPos, color=ball.mainColor, strokeAlpha=0.5, rEnd=speed/MAX_BALL_SPEED*sceneBattle.screenMaxY}})
 end
 
 -- Collidable callbacks and helper functions --------
@@ -1177,7 +1177,7 @@ function sceneBattle:update(event)
         for kStar,star in pairs(self.background.children) do
             star.x = star.x + star.normVector.x*system.deltaTime*self.starSpeed
             star.y = star.y + star.normVector.y*system.deltaTime*self.starSpeed
-            if star.x > screenMaxX or star.x < screenMinX or star.y > screenMaxY or star.y < screenMinY then
+            if star.x > self.screenMaxX or star.x < self.screenMinX or star.y > self.screenMaxY or star.y < self.screenMinY then
                 star.x = 0
                 star.y = 0
                 if not self.starsDecelerate then --avoid stopping the stroke shrinking to dot effect if decelerating
@@ -1395,7 +1395,7 @@ function sceneBattle:update(event)
                         dbg.print("!!!!!!HEATSEEKER OFF SCREEN!!!!!")
                     end
                 end
-                if obj.x > screenMaxX+20 or obj.x < screenMinX-20 or obj.y > screenMaxY+20 or obj.y < screenMinY-50 then
+                if obj.x > self.screenMaxX+20 or obj.x < self.screenMinX-20 or obj.y > self.screenMaxY+20 or obj.y < self.screenMinY-50 then
                     CollidableDestroy(obj)
                 end
             end
@@ -2004,6 +2004,13 @@ end
 function sceneBattle:orientation(event)
     adaptToOrientation(event)
     
+    -- User space coords for screen edges inc letterboxes
+    -- Game uses 0,0 is centre point (via origin node)
+    self.screenMaxX = screenWidth/2
+    self.screenMinX = -self.screenMaxX
+    self.screenMaxY = screenHeight/2
+    self.screenMinY = -self.screenMaxY
+
     -- (re)setup screen burn filter effect...
     fullscreenEffectsReset(self)
     sceneBattle:fullscreenEffect()
@@ -2023,6 +2030,9 @@ function sceneBattle:setUp(event)
     virtualResolution:applyToScene(self)
     self:orientation()
     self.rtDontClear = true
+    
+    -- add buttons to move play area on long portrait devices (like phones!)
+    --TODO
     
     -- root object at screen centre. Adding children to it means their coords will be
     -- relative to this position. Annoyingly Quick provides no way to set the origin; instead,
@@ -2434,7 +2444,7 @@ function PauseGame(touch)
         
         --sceneBattle.pauseMenu:resumeTweens()
         if not sceneBattle.originMask then
-            sceneBattle.originMask = director:createRectangle({x=screenMinX, y=screenMinY, w=screenWidth, h=screenHeight, zOrder=2, color={0,20,0}, alpha=0, strokeWidth=0, zOrder=-1})
+            sceneBattle.originMask = director:createRectangle({x=self.screenMinX, y=self.screenMinY, w=screenWidth, h=screenHeight, zOrder=2, color={0,20,0}, alpha=0, strokeWidth=0, zOrder=-1})
             sceneBattle.originPause:addChild(sceneBattle.originMask)
         end
         

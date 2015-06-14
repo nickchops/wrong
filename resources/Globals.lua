@@ -7,7 +7,7 @@ showDebugTouchArea = false
 
 showFrameRate = true
 
---require("mobdebug").start() -- ZeroBrain IDE debuger support
+require("mobdebug").start() -- ZeroBrain IDE debuger support
                    
     -- note that you can only use breakpoints in code loaded *after* this, therefor breakpoints
     -- in engine code will be ignored. TODO: check this is true! may have just been issue with

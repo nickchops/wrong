@@ -54,10 +54,6 @@ virtualResolution:initialise{userSpaceW=appWidth, userSpaceH=appHeight, nearestM
 -- default values to allow turning off VR for testing
 screenWidth = director.displayWidth
 screenHeight = director.displayHeight
-screenMaxX = screenWidth/2
-screenMinX = -screenMaxX
-screenMaxY = screenHeight/2
-screenMinY = -screenMaxY
 
 -- Re-setup virtual resolution on rotation events
 function adaptToOrientation(event)
@@ -70,29 +66,23 @@ function adaptToOrientation(event)
     -- Useful for positioning things like the title screen hills just on the screen no matter the resolution
     screenWidth = virtualResolution:winToUserSize(director.displayWidth)
     screenHeight = virtualResolution:winToUserSize(director.displayHeight)
-
-    -- These are for game scene, need coverting for menu
-    screenMaxX = screenWidth/2
-    screenMinX = -screenMaxX
-    screenMaxY = screenHeight/2
-    screenMinY = -screenMaxY
 end
 adaptToOrientation()
---system:addEventListener("orientation", adaptToOrientation)
-
 
 ----------------------------------------------------------
 -- "offscreen" texure for applying effects, can be used by any scene
 
 function fullscreenEffectsReset(self)
     dbg.print("resetting render texture")
+    if self.screenFxTimer then
+        self.screenFxTimer:cancel()
+        self.screenFxTimer = nil
+    end
     if self.screenFx then
-        destroyNode(self.screenFx)
-        dbg.print("ALREADY GOT FX sprite!!!")
+        self.screenFx = destroyNode(self.screenFx)
     end
     if self.rt then
-        self.rt:removeFromParent()
-        dbg.print("ALREADY GOT FX RT!!!")
+        self.rt = self.rt:removeFromParent()
     end
 end
 
@@ -146,6 +136,7 @@ function fullscreenEffectsStop(self)
 
     if self.screenFxTimer then
         self.screenFxTimer:cancel()
+        self.screenFxTimer = nil
     end
 end
 
@@ -159,6 +150,66 @@ function fullscreenEffectsOff(self)
     
     self.pauseRt = nil
 end
+
+----------------------------------------------------------
+
+function addArrowButton(scene, btnType, listener, backKeyListener) --types are "back", "left", "right"
+    local xPos
+    local yPos
+    local rotation
+    local btnName = btnType .. "Btn"
+    if btnType == "left" then
+        xPos = scene.screenMinX + 75
+        yPos = appHeight*0.6
+        rotation = 90
+    elseif btnType == "right" then
+        xPos = scene.screenMaxX - 75
+        yPos = appHeight*0.6
+        rotation = 270
+    elseif btnType == "up" then
+        xPos = appWidth/2
+        yPos = 80
+        rotation = 0
+    elseif btnType == "down" then
+        xPos = appWidth/2
+        yPos = 80
+        rotation = 0
+    else
+        dbg.assert(false, "invalid button type in addArrowButton")
+    end
+    
+    if backKeyListener then
+        sceneMainMenu.backKeyListener = listener
+        system:addEventListener("key", backKeyListener)
+    end
+
+    scene[btnName] = director:createLines({x=xPos, y=yPos, coords={-50,30, 0,0, 50, 30}, strokeColor=menuBlue, strokeWidth=2, alpha=0, rotation=rotation})
+    local infoBack2 = director:createLines({y=-20, coords={-50,30, 0,0, 50, 30}, strokeColor=menuBlue, strokeWidth=2, alpha=0})
+    
+    scene[btnName].button = director:createRectangle({x=-60, y=-30, w=120, h=70, alpha=0, strokeColor=color.blue, zOrder = 10, isVisible=showDebugTouchArea})
+    
+    scene[btnName]:addChild(infoBack2)
+    scene[btnName]:addChild(scene[btnName].button)
+    scene[btnName].button:addEventListener("touch", listener)
+    tween:to(scene[btnName], {strokeAlpha=0.1, xScale=1.5, yScale=1.5, time=1.0, mode="mirror"})
+end
+
+function removeArrowButton(scene, btnType, listener, backKeyListener)
+    local btnName = btnType .. "Btn"
+    if not scene[btnName] then
+        dbg.print("Ignoring request to remove non existing arrow btn: " .. btnName)
+        return
+    end
+    
+    if backKeyListener then
+        system:removeEventListener("key", backKeyListener)
+        sceneMainMenu.backKeyListener = nil
+    end
+    
+    scene[btnName].button:removeEventListener("touch", listener)
+    scene[btnName] = scene[btnName]:removeFromParent()
+end
+
 
 ----------------------------------------------------------
 

@@ -6,11 +6,6 @@ dofile("OnScreenButton.lua")
 
 startupFlag = true -- for initial menu animation
 
--- menu uses 0,0 is bottom left. These are user space coords for screen edges inc letterboxes
-menuScreenMinX = appWidth/2 - screenMaxX
-menuScreenMaxX = appWidth/2 + screenMaxX
-menuScreenMinY = appHeight/2 - screenMaxY
-menuScreenMaxY = appHeight/2 + screenMaxY
 -----------------------------------------------------------
 -- Simple helper to add more text to screen
 
@@ -141,7 +136,7 @@ function menuCloseAbout(event)
             sceneMainMenu.infoButtonUrl:removeEventListener("touch", goToBlog)
             sceneMainMenu.infoButtonUrl = sceneMainMenu.infoButtonUrl:removeFromParent()
         end
-        sceneMainMenu:removeArrowButton("back", menuCloseAbout)
+        removeArrowButton(sceneMainMenu, "down", menuCloseAbout, menuBackKeyListener)
 
         for k,v in pairs(sceneMainMenu.infoText) do
             tween:to(v, {alpha=0, time=0.5})
@@ -151,7 +146,7 @@ function menuCloseAbout(event)
 end
 
 function menuAddAboutBackButton(event)
-    sceneMainMenu:addArrowButton("back", menuCloseAbout)
+    addArrowButton(sceneMainMenu, "down", menuCloseAbout, menuBackKeyListener)
 end
 
 function sceneMainMenu:DestroyInfoText()
@@ -175,9 +170,9 @@ function menuAddScore(event)
     if event.timer.mode ~= sceneMainMenu.scoreMenuState then
         if event.timer.mode == "waves" or
                 (event.timer.mode == "survival" and sceneMainMenu.scoreMenuState == "streak") then
-            labelX = menuScreenMinX - 100
+            labelX = sceneMainMenu.screenMinX - 100
         else
-            labelX = menuScreenMaxX + 100
+            labelX = sceneMainMenu.screenMaxX + 100
         end
     end
     
@@ -200,22 +195,22 @@ function menuAddScore(event)
 end
 
 function sceneMainMenu:activateScoreArrowButtons()
-    self:addArrowButton("back", menuCloseHighScores)
+    addArrowButton(self, "down", menuCloseHighScores, menuBackKeyListener)
     
     if gameInfo.achievements.survival then
         if self.scoreMenuState == "waves" then
-            self:addArrowButton("right", menuShowSurvivalScores)
+            addArrowButton(self, "right", menuShowSurvivalScores)
         elseif self.scoreMenuState == "survival" then
-            self:addArrowButton("left", menuShowWavesScores)
-            self:addArrowButton("right", menuShowStreakScores)
+            addArrowButton(self, "left", menuShowWavesScores)
+            addArrowButton(self, "right", menuShowStreakScores)
         else --streak
-            self:addArrowButton("left", menuShowSurvivalScores)
+            addArrowButton(self, "left", menuShowSurvivalScores)
         end
     else
         if self.scoreMenuState == "waves" then
-            self:addArrowButton("right", menuShowStreakScores)
+            addArrowButton(self, "right", menuShowStreakScores)
         else --streak
-            self:addArrowButton("left", menuShowWavesScores)
+            addArrowButton(self, "left", menuShowWavesScores)
         end
     end
 end
@@ -243,13 +238,13 @@ function sceneMainMenu:showNameEntry()
     setScoreLabel()
     
     -- controls
-    self.joystick = OnScreenDPad.Create{x=menuScreenMinX+90, y=180, padType="joystick", topRadius=45, baseRadius=120, resetOnRelease=true, moveRelative=true, relocate=false, debugCircles=false}
-    self.scoreSaveButton = OnScreenButton.Create{x=menuScreenMaxX-90, y=90, radius=40, topColor={0,200,0}, outline={0,170,0}, baseColor={0,130,0}, scale3d=0.4, depth3d=8, autoRelease=0.35}
+    self.joystick = OnScreenDPad.Create{x=self.screenMinX+90, y=180, padType="joystick", topRadius=45, baseRadius=120, resetOnRelease=true, moveRelative=true, relocate=false, debugCircles=false}
+    self.scoreSaveButton = OnScreenButton.Create{x=self.screenMaxX-90, y=90, radius=40, topColor={0,200,0}, outline={0,170,0}, baseColor={0,130,0}, scale3d=0.4, depth3d=8, autoRelease=0.35}
     
     self.scoreSaveButton:setPressListener(menuSaveScoreName)
     
-    tween:from(self.joystick.origin, {x=menuScreenMinX-100, time=1.5})
-    tween:from(self.scoreSaveButton.origin, {x=menuScreenMaxX+100, onComplete=menuEnterNameForScore, time=1.5})
+    tween:from(self.joystick.origin, {x=self.screenMinX-100, time=1.5})
+    tween:from(self.scoreSaveButton.origin, {x=self.screenMaxX+100, onComplete=menuEnterNameForScore, time=1.5})
 end
 
 function menuEnterNameForScore()
@@ -338,9 +333,9 @@ function menuSaveScoreName(buttonDown)
         sceneMainMenu.scoreSaveButton:deactivate()
         system:removeEventListener("key", menuBackKeyListener)
         sceneMainMenu.backKeyListener = nil
-        tween:to(sceneMainMenu.joystick.origin, {x=menuScreenMinX-100, time=1.0})
+        tween:to(sceneMainMenu.joystick.origin, {x=sceneMainMenu.screenMinX-100, time=1.0})
         sceneMainMenu.newDontClear = true -- flashy effects back on once controls done with
-        tween:to(sceneMainMenu.scoreSaveButton.origin, {x=menuScreenMaxX+100, time=1.0, onComplete=menuRemoveScoreControls})
+        tween:to(sceneMainMenu.scoreSaveButton.origin, {x=sceneMainMenu.screenMaxX+100, time=1.0, onComplete=menuRemoveScoreControls})
         tween:cancel(sceneMainMenu.inputAnim)
         sceneMainMenu.scoreLabels[sceneMainMenu.scoreMenuState][gameInfo.newHighScore].alpha=1
         gameInfo.name = gameInfo.highScore[sceneMainMenu.scoreMenuState][gameInfo.newHighScore].name -- store last name entered
@@ -414,17 +409,17 @@ end
 function menuShowSurvivalScores(event)
     if event.phase == "ended" then
         sceneMainMenu.scoreMenuState = "survival"
-        sceneMainMenu:removeArrowButton("right", menuShowSurvivalScores)
-        sceneMainMenu:removeArrowButton("left", menuShowSurvivalScores)
-        sceneMainMenu:removeArrowButton("back", menuCloseHighScores)
+        removeArrowButton(sceneMainMenu, "right", menuShowSurvivalScores)
+        removeArrowButton(sceneMainMenu, "left", menuShowSurvivalScores)
+        removeArrowButton(sceneMainMenu, "down", menuCloseHighScores, menuBackKeyListener)
         sceneMainMenu.scoreLabels.title.text = "SURVIVAL MODE"
         
         --lazily tween both to allow this funciton to be called from either left or right
         for k, v in pairs(sceneMainMenu.scoreLabels.waves) do
-            tween:to(v, {x=menuScreenMinX - 100})
+            tween:to(v, {x=sceneMainMenu.screenMinX - 100})
         end
         for k, v in pairs(sceneMainMenu.scoreLabels.streak) do
-            tween:to(v, {x=menuScreenMaxX + 100})
+            tween:to(v, {x=sceneMainMenu.screenMaxX + 100})
         end
         
         for k, v in pairs(sceneMainMenu.scoreLabels.survival) do
@@ -438,26 +433,26 @@ function menuShowSurvivalScores(event)
 end
 
 function menuShowSurvivalScoresDone()
-    sceneMainMenu:addArrowButton("back", menuCloseHighScores)
-    sceneMainMenu:addArrowButton("left", menuShowWavesScores)
-    sceneMainMenu:addArrowButton("right", menuShowStreakScores)
+    addArrowButton(sceneMainMenu, "down", menuCloseHighScores, menuBackKeyListener)
+    addArrowButton(sceneMainMenu, "left", menuShowWavesScores)
+    addArrowButton(sceneMainMenu, "right", menuShowStreakScores)
 end
 ------
 
 function menuShowStreakScores(event)
     if event.phase == "ended" then
         sceneMainMenu.scoreMenuState = "streak"
-        sceneMainMenu:removeArrowButton("left", menuShowWavesScores) --safe to try remove this if doesnt exist
-        sceneMainMenu:removeArrowButton("right", menuShowStreakScores)
-        sceneMainMenu:removeArrowButton("back", menuCloseHighScores)
+        removeArrowButton(sceneMainMenu, "left", menuShowWavesScores) --safe to try remove this if doesnt exist
+        removeArrowButton(sceneMainMenu, "right", menuShowStreakScores)
+        removeArrowButton(sceneMainMenu, "down", menuCloseHighScores, menuBackKeyListener)
         sceneMainMenu.scoreLabels.title.text = "LONGEST STREAK"
         
         for k, v in pairs(sceneMainMenu.scoreLabels.waves) do
-            tween:to(v, {x=menuScreenMinX - 100})
+            tween:to(v, {x=sceneMainMenu.screenMinX - 100})
         end
         if gameInfo.achievements.survival then
             for k, v in pairs(sceneMainMenu.scoreLabels.survival) do
-                tween:to(v, {x=menuScreenMinX - 100})
+                tween:to(v, {x=sceneMainMenu.screenMinX - 100})
             end
         end
         for k, v in pairs(sceneMainMenu.scoreLabels.streak) do
@@ -471,11 +466,11 @@ function menuShowStreakScores(event)
 end
 
 function menuShowStreakScoresDone()
-    sceneMainMenu:addArrowButton("back", menuCloseHighScores)
+    addArrowButton(sceneMainMenu, "down", menuCloseHighScores, menuBackKeyListener)
     if gameInfo.achievements.survival then
-        sceneMainMenu:addArrowButton("left", menuShowSurvivalScores)
+        addArrowButton(sceneMainMenu, "left", menuShowSurvivalScores)
     else
-        sceneMainMenu:addArrowButton("left", menuShowWavesScores)
+        addArrowButton(sceneMainMenu, "left", menuShowWavesScores)
     end
 end
 ------
@@ -483,18 +478,18 @@ end
 function menuShowWavesScores(event)
     if event.phase == "ended" then
         sceneMainMenu.scoreMenuState = "waves"
-        sceneMainMenu:removeArrowButton("left", menuShowWavesScores)
-        sceneMainMenu:removeArrowButton("right", menuShowStreakScores)
-        sceneMainMenu:removeArrowButton("back", menuCloseHighScores)
+        removeArrowButton(sceneMainMenu, "left", menuShowWavesScores)
+        removeArrowButton(sceneMainMenu, "right", menuShowStreakScores)
+        removeArrowButton(sceneMainMenu, "down", menuCloseHighScores, menuBackKeyListener)
         sceneMainMenu.scoreLabels.title.text = "HIGH SCORES"
         
         if gameInfo.achievements.survival then
             for k, v in pairs(sceneMainMenu.scoreLabels.survival) do
-                tween:to(v, {x=menuScreenMaxX + 100})
+                tween:to(v, {x=sceneMainMenu.screenMaxX + 100})
             end
         end
         for k, v in pairs(sceneMainMenu.scoreLabels.streak) do
-            tween:to(v, {x=menuScreenMaxX + 100})
+            tween:to(v, {x=sceneMainMenu.screenMaxX + 100})
         end
         for k, v in pairs(sceneMainMenu.scoreLabels.waves) do
             if k == 10 then
@@ -507,11 +502,11 @@ function menuShowWavesScores(event)
 end
 
 function menuShowWavesScoresDone()
-    sceneMainMenu:addArrowButton("back", menuCloseHighScores)
+    addArrowButton(sceneMainMenu, "down", menuCloseHighScores, menuBackKeyListener)
     if gameInfo.achievements.survival then
-        sceneMainMenu:addArrowButton("right", menuShowSurvivalScores)
+        addArrowButton(sceneMainMenu, "right", menuShowSurvivalScores)
     else
-        sceneMainMenu:addArrowButton("right", menuShowStreakScores)
+        addArrowButton(sceneMainMenu, "right", menuShowStreakScores)
     end
 end
 
@@ -527,14 +522,14 @@ function menuCloseHighScores(event)
             end
         end
         sceneMainMenu.scoreLabels = nil
-        sceneMainMenu:removeArrowButton("back", menuCloseHighScores)
+        removeArrowButton(sceneMainMenu, "down", menuCloseHighScores, menuBackKeyListener)
         
         if sceneMainMenu.scoreMenuState == "survival" then
-            sceneMainMenu:removeArrowButton("left", menuShowWavesScores)
-            sceneMainMenu:removeArrowButton("right", menuShowStreakScores)
+            removeArrowButton(sceneMainMenu, "left", menuShowWavesScores)
+            removeArrowButton(sceneMainMenu, "right", menuShowStreakScores)
         else
-            sceneMainMenu:removeArrowButton("left", menuShowSurvivalScores) -- streak screen
-            sceneMainMenu:removeArrowButton("right", menuShowSurvivalScores) -- waves screen
+            removeArrowButton(sceneMainMenu, "left", menuShowSurvivalScores) -- streak screen
+            removeArrowButton(sceneMainMenu, "right", menuShowSurvivalScores) -- waves screen
         end
         
         tween:to(sceneMainMenu.title, {y=sceneMainMenu.titleY, xScale=1, yScale=1, time=1.0, delay=0.3, onComplete=showMainMenu})
@@ -576,7 +571,7 @@ function menuAddAchievement(event)
     end
     
     if event.timer.page > sceneMainMenu.achieveMenuState then
-        labelX = menuScreenMinX + 100
+        labelX = sceneMainMenu.screenMinX + 100
     end
     
     local textCol
@@ -594,24 +589,24 @@ function menuAddAchievement(event)
 end
 
 function sceneMainMenu:activateAchievementArrowButtons()
-    self:addArrowButton("back", menuCloseAchievements)
+    addArrowButton(self, "down", menuCloseAchievements, menuBackKeyListener)
     
     if self.achieveMenuState < gameInfo.achievementPages then
-        self:addArrowButton("right", menuShowNextAchievements)
+        addArrowButton(self, "right", menuShowNextAchievements)
     end
     if self.achieveMenuState > 1 then
-        self:addArrowButton("left", menuShowPrevAchievements)
+        addArrowButton(self, "left", menuShowPrevAchievements)
     end
 end
 
 function removeAchievementArrows()
-    sceneMainMenu:removeArrowButton("back", menuCloseAchievements)
+    removeArrowButton(sceneMainMenu, "down", menuCloseAchievements, menuBackKeyListener)
     
     if sceneMainMenu.achieveMenuState < gameInfo.achievementPages then
-        sceneMainMenu:removeArrowButton("left", menuShowNextAchievements)
+        removeArrowButton(sceneMainMenu, "left", menuShowNextAchievements)
     end
     if sceneMainMenu.achieveMenuState > 0 then
-        sceneMainMenu:removeArrowButton("right", menuShowPrevAchievements)
+        removeArrowButton(sceneMainMenu, "right", menuShowPrevAchievements)
     end
 end
 
@@ -620,7 +615,7 @@ function menuShowNextAchievements()
         removeAchievementArrows()
         
         for k, v in pairs(sceneMainMenu.achieveLabels[sceneMainMenu.achieveMenuState]) do
-            tween:to(v, {x=menuScreenMinX - 100})
+            tween:to(v, {x=sceneMainMenu.screenMinX - 100})
         end
 
         for k, v in pairs(sceneMainMenu.achieveLabels[sceneMainMenu.achieveMenuState+1]) do
@@ -638,7 +633,7 @@ function menuShowPrevAchievements()
         removeAchievementArrows()
         
         for k, v in pairs(sceneMainMenu.achieveLabels[sceneMainMenu.achieveMenuState]) do
-            tween:to(v, {x=menuScreenMaxX + 100})
+            tween:to(v, {x=sceneMainMenu.screenMaxX + 100})
         end
 
         for k, v in pairs(sceneMainMenu.achieveLabels[sceneMainMenu.achieveMenuState-1]) do
@@ -692,17 +687,18 @@ function menuBackKeyListener(event)
     end
 end
 
+--[[
 function sceneMainMenu:addArrowButton(btnType, listener) --types are "back", "left", "right"
     local xPos
     local yPos
     local rotation
     local btnName = btnType .. "Btn"
     if btnType == "left" then
-        xPos = menuScreenMinX + 75
+        xPos = self.screenMinX + 75
         yPos = appHeight*0.6
         rotation = 90
     elseif btnType == "right" then
-        xPos = menuScreenMaxX - 75
+        xPos = self.screenMaxX - 75
         yPos = appHeight*0.6
         rotation = 270
     elseif btnType == "back" then
@@ -742,6 +738,7 @@ function sceneMainMenu:removeArrowButton(btnType, listener)
     self[btnName].button:removeEventListener("touch", listener)
     self[btnName] = self[btnName]:removeFromParent()
 end
+--]]
 
 -------------------------------------------------------------
 
@@ -943,7 +940,7 @@ function sceneMainMenu:setMenuState(touched)
     self.labelHighScore.alpha=0
     
     if touched == "highscores" then
-        sceneMainMenu.title.y=menuScreenMinY-170 --places "WRONG" off-screen, but hills on-screen
+        sceneMainMenu.title.y=self.screenMinY-170 --places "WRONG" off-screen, but hills on-screen
         menuDisplayHighScoreScreen()
     end
 end
@@ -957,7 +954,7 @@ function sceneMainMenu:restoreButtonsAnim()
 end
 
 function sceneMainMenu:animateSceneOut()
-    tween:to(self.title, {y=menuScreenMinY-280, time=0.5, delay=0.3, onComplete=MenuStartGame})
+    tween:to(self.title, {y=self.screenMinY-280, time=0.5, delay=0.3, onComplete=MenuStartGame})
     fullscreenEffectsStop(self)
     tween:to(self.screenFx, {alpha=0, time=0.8})
 end
@@ -1007,14 +1004,14 @@ function touchAbout(self, event)
     if event.phase == "ended" then
         sceneMainMenu:buttonPressedAnim("about")
         analytics:logEvent("showAbout")
-        tween:to(sceneMainMenu.title, {y=menuScreenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayAbout})
+        tween:to(sceneMainMenu.title, {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayAbout})
     end
 end
 
 function touchHighScores(self, event)
     if event.phase == "ended" then
         sceneMainMenu:buttonPressedAnim("highscores")
-        tween:to(sceneMainMenu.title, {y=menuScreenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayHighScoreScreen})
+        tween:to(sceneMainMenu.title, {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayHighScoreScreen})
     end
     --dbg.print("NODE touch listener test - " .. event.phase .. " - x,y=" .. event.x .. "," .. event.y)
 end
@@ -1022,7 +1019,7 @@ end
 function touchAchievements(self, event)
     if event.phase == "ended" then
         sceneMainMenu:buttonPressedAnim("achievements")
-        tween:to(sceneMainMenu.title, {y=menuScreenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayAchievementsScreen})
+        tween:to(sceneMainMenu.title, {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayAchievementsScreen})
     end
 end
 
@@ -1267,8 +1264,15 @@ end
 
 function sceneMainMenu:orientation(event, delayEffects)
     fullscreenEffectsReset(self)
-        
+    
     adaptToOrientation(event)
+    
+    -- User space coords for screen edges inc letterboxes
+    -- Menu uses 0,0 is bottom left
+    self.screenMinX = appWidth/2 - screenWidth/2
+    self.screenMaxX = appWidth/2 + screenWidth/2
+    self.screenMinY = appHeight/2 - screenHeight/2
+    self.screenMaxY = appHeight/2 + screenHeight/2
     
     -- (re)setup screen burn filter effect...
     if not delayEffects then -- dont do when called form setUp() pre transition! Cant start tweens until transition is over.
@@ -1541,10 +1545,10 @@ function sceneMainMenu:setUp(event)
         if startupFlag then
             startupFlag = false
             sceneMainMenu.sceneShown = true
-            tween:from(self.title, {y=menuScreenMinY-500, time=0.4, xScale=3, yScale=2, onComplete=enableMenu})
+            tween:from(self.title, {y=self.screenMinY-500, time=0.4, xScale=3, yScale=2, onComplete=enableMenu})
             system:addTimer(resizeCheck, 2, 1, 0)
         else
-            tween:from(self.title, {y=menuScreenMinY-500, time=0.4, onComplete=enableMenu})
+            tween:from(self.title, {y=self.screenMinY-500, time=0.4, onComplete=enableMenu})
         end
         
         for k,v in pairs(self.btns) do
