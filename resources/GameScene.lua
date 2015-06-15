@@ -1391,9 +1391,6 @@ function sceneBattle:update(event)
                     -- +/- 50 is for heatseekers which can overshoot and come back
                     -- arbitrary but "big enough" number to catch them.
                     obj.dontCollide = true
-                    if obj.objType == "heatseeker" then
-                        dbg.print("!!!!!!HEATSEEKER OFF SCREEN!!!!!")
-                    end
                 end
                 if obj.x > self.screenMaxX+20 or obj.x < self.screenMinX-20 or obj.y > self.screenMaxY+20 or obj.y < self.screenMinY-50 then
                     CollidableDestroy(obj)
@@ -2020,7 +2017,7 @@ function sceneBattle.moveSceneTopOrMiddle(event)
         end
         
         sceneBattle.moveBtn = addArrowButton(sceneBattle, newBtn, sceneBattle.moveSceneTopOrMiddle,
-            nil, nil, sceneBattle.screenMinY*0.3 + 40, 0.5)
+            nil, nil, sceneBattle.screenMinY*0.3, 0.4)
         sceneBattle.moveBtn.xScale = 0.5
         sceneBattle.moveBtn.yScale = 0.5
         sceneBattle.moveBtn.zOrder = 100
@@ -2044,7 +2041,6 @@ function sceneBattle:orientation(event, dontRestartEffects)
     self.screenMinY = -self.screenMaxY
     
     local lockPlayAreaCentred = screenWidth >= screenHeight or (screenHeight - appHeight) / 2 < 100
-    dbg.print("!!!!!!! " .. (screenHeight - appHeight) / 2)
     
     -- origins move tomatch positioning, pause mask is only thing that needs to match screen size
     if self.originMask then
@@ -2060,11 +2056,18 @@ function sceneBattle:orientation(event, dontRestartEffects)
     end
     
     if not lockPlayAreaCentred and gameInfo.portraitTopAlign then
+        local offset
+        if screenHeight / appHeight > 2 then
+            offset = screenHeight/2 - (screenHeight/2 - appHeight)*0.7
+        else
+            offset = screenHeight/2
+        end
+        
         if origin then
-            origin.y = screenHeight/2
+            origin.y = offset
         end
         if self.originPause then
-            self.originPause.y = screenHeight/2
+            self.originPause.y = offset
         end
     else
         if origin then
@@ -2080,7 +2083,7 @@ function sceneBattle:orientation(event, dontRestartEffects)
             self.moveBtn.isVisible = false
         else
             self.moveBtn.isVisible = true
-            self.moveBtn.y = self.screenMinY*0.3 + 40
+            self.moveBtn.y = math.max(virtualResolution.userWinMinY*0.4, virtualResolution.userWinMinY+60)
         end
     end
 
@@ -2264,6 +2267,9 @@ function sceneBattle:setUp(event)
     -- simple top-down type movement so we just move balls per-frame and do collisions manually.
     collidables = {}
     deadCollidables = {} --table to hold objects kept active while they animate death
+    
+    -- re-set position/scaling for any new things added since start of function (like the origin itself!)
+    self:orientation()
 end
 
 --set params for certain balls in the wave. index 1 = first ball added, 6=6th ball, etc
@@ -2330,9 +2336,6 @@ end
 function sceneBattle:enterPostTransition(event)
     dbg.print("sceneBattle:enterPostTransition")
     -- start game running after transitions
-    
-    -- add buttons to move play area on long portrait devices (like phones!)
-    self.moveSceneTopOrMiddle()
     
     -- wait till now so isnt wiped instantly by pre scenes hide call!
     if showFrameRate then
@@ -2481,6 +2484,9 @@ function sceneBattle:enterPostTransition(event)
         tween:to(self.pauseMenu, {time=0.4, yScale=1})
         tween:to(self.pauseMenu, {time=0.25, delay=0.15, xScale=1})
     end
+    
+    -- add buttons to move play area on long portrait devices (like phones!)
+    self.moveSceneTopOrMiddle()
 end
 
 ----------------------------------------------------------------
@@ -2526,6 +2532,8 @@ function PauseGame(touch)
         tween:to(sceneBattle.originMask, {time=0.4, alpha=0.85})
         tween:to(sceneBattle.pauseMenu, {time=0.25, xScale=0})
         tween:to(sceneBattle.pauseMenu, {time=0.4, yScale=0, onComplete=ShowPauseMenu})
+        
+        sceneBattle:orientation(nil, true) --make sure mask is in right place
     end
     return true
 end

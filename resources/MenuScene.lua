@@ -748,7 +748,7 @@ function menuSaveData(clearFlag)
     if not file then
         dbg.print("failed to open save-state file for saving: " .. saveStatePath)
     else
-        file:write(json.encode({scores=gameInfo.highScore, lastName=gameInfo.name, achievements=gameInfo.achievements, soundOn=gameInfo.soundOn}))
+        file:write(json.encode({scores=gameInfo.highScore, lastName=gameInfo.name, achievements=gameInfo.achievements, soundOn=gameInfo.soundOn, portraitTopAlign=gameInfo.portraitTopAlign}))
         file:close()
         dbg.print("user data saved")
     end
@@ -805,8 +805,7 @@ end
 
 function LoadUserData()
     -- load highscore from JSON encoded lua value
-    -- Could switch to sql if more complex.
-    -- Eventually integrate some onlne service (nugetta/scoreloop/google play/game center)
+    -- Eventually integrate some onlne service (google play/game center/amazon/etc)
     local saveStatePath = system:getFilePath("storage", "data.txt")
     local file = io.open(saveStatePath, "r")
     if not file then
@@ -822,6 +821,7 @@ function LoadUserData()
             gameInfo.name = loaded.lastName
             gameInfo.achievements = loaded.achievements
             gameInfo.soundOn = loaded.soundOn
+            gameInfo.portraitTopAlign = loaded.portraitTopAlign
             analytics:logEvent("LoadUserData", {scoreName=gameInfo.name})
             dbg.print("highscore etc loaded")
         end
