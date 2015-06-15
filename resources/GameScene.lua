@@ -1993,15 +1993,47 @@ function sceneBattle:fullscreenEffect()
         --screenHeight is workaround for bug in renderTexture!
     
     self.screenFx.alpha=0.7
-    --self.screenFx.filter.name = "blur"
-    --self.screenFx.filter.x = 2
-    --self.screenFx.filter.y = 2
-    
-    --self.screenFx.tween = tween:to(self.screenFx, {filter={x=2,y=2}, time=2, mode="mirror",
-    --        easing=ease.bounceInOut})
 end
 
-function sceneBattle:orientation(event)
+function sceneBattle.moveSceneTopOrMiddle(event)
+    if not event or event.phase == "ended" then
+        local newBtn, oldBtn
+        
+        if event then
+            if gameInfo.portraitTopAlign then
+                gameInfo.portraitTopAlign = false
+                oldBtn = "down"
+            else
+                gameInfo.portraitTopAlign = true
+                oldBtn = "up"
+            end
+            
+            removeArrowButton(sceneBattle, oldBtn, sceneBattle.moveSceneTopOrMiddle)
+            sceneBattle.moveBtn = nil
+        end
+            -- if not event, then calling from setup -> use current value and just add first button
+        
+        if gameInfo.portraitTopAlign then
+            newBtn = "down"
+        else
+            newBtn = "up"
+        end
+        
+        sceneBattle.moveBtn = addArrowButton(sceneBattle, newBtn, sceneBattle.moveSceneTopOrMiddle,
+            nil, nil, sceneBattle.screenMinY*0.3 + 40, 0.5)
+        sceneBattle.moveBtn.xScale = 0.5
+        sceneBattle.moveBtn.yScale = 0.5
+        sceneBattle.moveBtn.zOrder = 100
+        
+        -- move origins, pause overlay mask and moveBtn
+        -- only restart screen effect if button was pressed (not on first setup)
+        sceneBattle:orientation(nil, not event)
+        
+    end
+    return true
+end
+
+function sceneBattle:orientation(event, dontRestartEffects)
     adaptToOrientation(event)
     
     -- User space coords for screen edges inc letterboxes
@@ -2010,11 +2042,54 @@ function sceneBattle:orientation(event)
     self.screenMinX = -self.screenMaxX
     self.screenMaxY = screenHeight/2
     self.screenMinY = -self.screenMaxY
+    
+    local lockPlayAreaCentred = screenWidth >= screenHeight or (screenHeight - appHeight) / 2 < 100
+    dbg.print("!!!!!!! " .. (screenHeight - appHeight) / 2)
+    
+    -- origins move tomatch positioning, pause mask is only thing that needs to match screen size
+    if self.originMask then
+        self.originMask.x = self.screenMinX
+        self.originMask.w = screenWidth
+        self.originMask.h = screenHeight
+        
+        if not lockPlayAreaCentred and gameInfo.portraitTopAlign then
+            self.originMask.y = self.screenMinY - (screenHeight-appHeight) / 2
+        else
+            self.originMask.y = self.screenMinY
+        end
+    end
+    
+    if not lockPlayAreaCentred and gameInfo.portraitTopAlign then
+        if origin then
+            origin.y = screenHeight/2
+        end
+        if self.originPause then
+            self.originPause.y = screenHeight/2
+        end
+    else
+        if origin then
+            origin.y = appHeight/2
+        end
+        if self.originPause then
+            self.originPause.y = appHeight/2
+        end
+    end
+    
+    if self.moveBtn then
+        if lockPlayAreaCentred then
+            self.moveBtn.isVisible = false
+        else
+            self.moveBtn.isVisible = true
+            self.moveBtn.y = self.screenMinY*0.3 + 40
+        end
+    end
 
     -- (re)setup screen burn filter effect...
-    fullscreenEffectsReset(self)
-    sceneBattle:fullscreenEffect()
-    self.effectSkipFlag = true -- will go false on first update event and set effect, then alternate
+    if not dontRestartEffects then
+        fullscreenEffectsReset(self)
+        sceneBattle:fullscreenEffect()
+        self.effectSkipFlag = true -- will go false on first update event and set effect, then alternate
+    end
 end
 
 function sceneBattle:setUp(event)
@@ -2030,9 +2105,6 @@ function sceneBattle:setUp(event)
     virtualResolution:applyToScene(self)
     self:orientation()
     self.rtDontClear = true
-    
-    -- add buttons to move play area on long portrait devices (like phones!)
-    --TODO
     
     -- root object at screen centre. Adding children to it means their coords will be
     -- relative to this position. Annoyingly Quick provides no way to set the origin; instead,
@@ -2258,7 +2330,10 @@ end
 function sceneBattle:enterPostTransition(event)
     dbg.print("sceneBattle:enterPostTransition")
     -- start game running after transitions
-
+    
+    -- add buttons to move play area on long portrait devices (like phones!)
+    self.moveSceneTopOrMiddle()
+    
     -- wait till now so isnt wiped instantly by pre scenes hide call!
     if showFrameRate then
         dbg.print("showframe rate!")
@@ -2444,7 +2519,7 @@ function PauseGame(touch)
         
         --sceneBattle.pauseMenu:resumeTweens()
         if not sceneBattle.originMask then
-            sceneBattle.originMask = director:createRectangle({x=self.screenMinX, y=self.screenMinY, w=screenWidth, h=screenHeight, zOrder=2, color={0,20,0}, alpha=0, strokeWidth=0, zOrder=-1})
+            sceneBattle.originMask = director:createRectangle({x=sceneBattle.screenMinX, y=sceneBattle.screenMinY, w=screenWidth, h=screenHeight, zOrder=2, color={0,20,0}, alpha=0, strokeWidth=0, zOrder=-1})
             sceneBattle.originPause:addChild(sceneBattle.originMask)
         end
         
@@ -2742,6 +2817,14 @@ function sceneBattle:exitPreTransition(event)
     if showFrameRate then
         frameRateOverlay.hideFrameRate() --debugging
     end
+    
+    if gameInfo.portraitTopAlign then
+        oldBtn = "down"
+    else
+        oldBtn = "up"
+    end
+    removeArrowButton(sceneBattle, oldBtn, sceneBattle.moveSceneTopOrMiddle)
+    sceneBattle.moveBtn = nil
     
     system:removeEventListener({"suspend", "resume", "update", "orientation"}, self)
     if demoMode and not demoModeDebug then

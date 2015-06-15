@@ -956,7 +956,9 @@ end
 function sceneMainMenu:animateSceneOut()
     tween:to(self.title, {y=self.screenMinY-280, time=0.5, delay=0.3, onComplete=MenuStartGame})
     fullscreenEffectsStop(self)
-    tween:to(self.screenFx, {alpha=0, time=0.8})
+    if self.screenFx then --may never have started
+        tween:to(self.screenFx, {alpha=0, time=0.8})
+    end
 end
 
 function touchContinue(self, event)

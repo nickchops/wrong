@@ -153,26 +153,26 @@ end
 
 ----------------------------------------------------------
 
-function addArrowButton(scene, btnType, listener, backKeyListener) --types are "back", "left", "right"
+function addArrowButton(scene, btnType, listener, backKeyListener, x, y, startAlpha) --types are "back", "left", "right"
     local xPos
     local yPos
     local rotation
     local btnName = btnType .. "Btn"
     if btnType == "left" then
-        xPos = scene.screenMinX + 75
-        yPos = appHeight*0.6
+        xPos = x or scene.screenMinX + 75
+        yPos = y or appHeight*0.6
         rotation = 90
     elseif btnType == "right" then
-        xPos = scene.screenMaxX - 75
-        yPos = appHeight*0.6
+        xPos = x or scene.screenMaxX - 75
+        yPos = y or appHeight*0.6
         rotation = 270
     elseif btnType == "up" then
-        xPos = appWidth/2
-        yPos = 80
-        rotation = 0
+        xPos = x or appWidth/2
+        yPos = y or 80
+        rotation = 180
     elseif btnType == "down" then
-        xPos = appWidth/2
-        yPos = 80
+        xPos = x or appWidth/2
+        yPos = y or 80
         rotation = 0
     else
         dbg.assert(false, "invalid button type in addArrowButton")
@@ -183,7 +183,7 @@ function addArrowButton(scene, btnType, listener, backKeyListener) --types are "
         system:addEventListener("key", backKeyListener)
     end
 
-    scene[btnName] = director:createLines({x=xPos, y=yPos, coords={-50,30, 0,0, 50, 30}, strokeColor=menuBlue, strokeWidth=2, alpha=0, rotation=rotation})
+    scene[btnName] = director:createLines({x=xPos, y=yPos, coords={-50,30, 0,0, 50, 30}, strokeColor=menuBlue, strokeWidth=2, alpha=0, rotation=rotation, strokeAlpha=startAlpha or 1})
     local infoBack2 = director:createLines({y=-20, coords={-50,30, 0,0, 50, 30}, strokeColor=menuBlue, strokeWidth=2, alpha=0})
     
     scene[btnName].button = director:createRectangle({x=-60, y=-30, w=120, h=70, alpha=0, strokeColor=color.blue, zOrder = 10, isVisible=showDebugTouchArea})
@@ -192,6 +192,8 @@ function addArrowButton(scene, btnType, listener, backKeyListener) --types are "
     scene[btnName]:addChild(scene[btnName].button)
     scene[btnName].button:addEventListener("touch", listener)
     tween:to(scene[btnName], {strokeAlpha=0.1, xScale=1.5, yScale=1.5, time=1.0, mode="mirror"})
+    
+    return scene[btnName]
 end
 
 function removeArrowButton(scene, btnType, listener, backKeyListener)

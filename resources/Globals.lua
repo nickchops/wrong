@@ -7,7 +7,7 @@ showDebugTouchArea = false
 
 showFrameRate = true
 
-require("mobdebug").start() -- ZeroBrain IDE debuger support
+--require("mobdebug").start() -- ZeroBrain IDE debuger support
                    
     -- note that you can only use breakpoints in code loaded *after* this, therefor breakpoints
     -- in engine code will be ignored. TODO: check this is true! may have just been issue with
@@ -21,11 +21,11 @@ require("mobdebug").start() -- ZeroBrain IDE debuger support
 require("Utility")
 
 DEFAULT_HEALTH_BATTLE = 13
-DEFAULT_HEALTH_SURVIVAL = 1 --8 (NSMITH temp for demo)
+DEFAULT_HEALTH_SURVIVAL = 8
 DEFAULT_BULLETS_BATTLE = 5
 DEFAULT_AMMO_BATTLE = 1
 DEFAULT_AMMO_WAVES = 0
-DEFAULT_AMMO_SURVIVAL = 3 --3 (NSMITH temp for demo)
+DEFAULT_AMMO_SURVIVAL = 3
 
 SECOND_BALL_SPEED = 13 --pixels/second. NB if 5 balls added at start, this ramps quickly up to 15+5*10
 FIRST_BALL_SPEED = 110 --very first ball should be fast to keep play interesting
