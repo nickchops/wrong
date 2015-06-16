@@ -126,12 +126,15 @@ function sceneMainMenu:DisplayInfoText()
 end
 
 function menuDisplayAbout()
+    sceneMainMenu.title.nextMenu = nil
+    sceneMainMenu.title.menuTween = nil
     sceneMainMenu:restartFlicker()
     sceneMainMenu:DisplayInfoText()
 end
 
 function menuCloseAbout(event)
     if event.phase == "ended" then
+        sceneMainMenu.subMenu = nil
         if sceneMainMenu.infoButtonUrl then
             sceneMainMenu.infoButtonUrl:removeEventListener("touch", goToBlog)
             sceneMainMenu.infoButtonUrl = sceneMainMenu.infoButtonUrl:removeFromParent()
@@ -357,6 +360,9 @@ function menuRemoveScoreControls()
 end
 
 function menuDisplayHighScoreScreen(target)
+    sceneMainMenu.title.nextMenu = nil
+    sceneMainMenu.title.menuTween = nil
+    
     if not sceneMainMenu.scoreMenuState then
         sceneMainMenu.scoreMenuState = gameInfo.mode
     end
@@ -512,6 +518,7 @@ end
 
 function menuCloseHighScores(event)
     if event.phase == "ended" then
+        sceneMainMenu.subMenu = nil
         for kL, vL in pairs(sceneMainMenu.scoreLabels) do
             if kL == "title" then
                 vL:removeFromParent()
@@ -541,6 +548,9 @@ end
 -- name entry and "modes" are just numbered pages so code is more generic.
 
 function menuDisplayAchievementsScreen()
+    sceneMainMenu.title.nextMenu = nil
+    sceneMainMenu.title.menuTween = nil
+    
     -- simplified version of menuDisplayHighScoreScreen mixed with sceneMainMenu:displayHighScores
     sceneMainMenu.achieveLabels = {}
     local i = gameInfo.achievementPages
@@ -648,6 +658,7 @@ end
 
 function menuCloseAchievements(event)
     if event.phase == "ended" then
+        sceneMainMenu.subMenu = nil
         for kL, vL in pairs(sceneMainMenu.achieveLabels) do
             if kL == "title" then
                 vL:removeFromParent()
@@ -953,12 +964,19 @@ function sceneMainMenu:restoreButtonsAnim()
     tween:to(self.labelHighScore, {alpha=1, time=0.3})
 end
 
-function sceneMainMenu:animateSceneOut()
-    tween:to(self.title, {y=self.screenMinY-280, time=0.5, delay=0.3, onComplete=MenuStartGame})
+function sceneMainMenu:animateSceneOut()    
+    if self.screenFxTimer then
+        self.screenFxTimer:cancel()
+        self.screenFxTimer = nil
+    end
     fullscreenEffectsStop(self)
+    --fullscreenEffectsOff(self)
+    
     if self.screenFx then --may never have started
+        self.screenFx:resumeTweens()
         tween:to(self.screenFx, {alpha=0, time=0.8})
     end
+    tween:to(self.title, {y=self.screenMinY-280, time=0.5, delay=0.3, onComplete=MenuStartGame})
 end
 
 function touchContinue(self, event)
@@ -1006,14 +1024,19 @@ function touchAbout(self, event)
     if event.phase == "ended" then
         sceneMainMenu:buttonPressedAnim("about")
         analytics:logEvent("showAbout")
-        tween:to(sceneMainMenu.title, {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayAbout})
+        sceneMainMenu.title.menuTween = tween:to(sceneMainMenu.title,
+            {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayAbout})
+        sceneMainMenu.title.nextMenu = menuDisplayAbout
+        sceneMainMenu.subMenu = "about"
     end
 end
 
 function touchHighScores(self, event)
     if event.phase == "ended" then
         sceneMainMenu:buttonPressedAnim("highscores")
-        tween:to(sceneMainMenu.title, {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayHighScoreScreen})
+        sceneMainMenu.title.menuTween = tween:to(sceneMainMenu.title, {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayHighScoreScreen})
+        sceneMainMenu.title.nextMenu = menuDisplayHighScoreScreen
+        sceneMainMenu.subMenu = "highscores"
     end
     --dbg.print("NODE touch listener test - " .. event.phase .. " - x,y=" .. event.x .. "," .. event.y)
 end
@@ -1021,7 +1044,9 @@ end
 function touchAchievements(self, event)
     if event.phase == "ended" then
         sceneMainMenu:buttonPressedAnim("achievements")
-        tween:to(sceneMainMenu.title, {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayAchievementsScreen})
+        sceneMainMenu.title.menuTween = tween:to(sceneMainMenu.title, {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayAchievementsScreen})
+        sceneMainMenu.title.nextMenu = menuDisplayAchievementsScreen
+        sceneMainMenu.subMenu = "achievements"
     end
 end
 
@@ -1257,7 +1282,7 @@ function sceneMainMenu:fullscreenEffect()
     
     dbg.print("tweening!")
     self.screenFx.tween = tween:to(self.screenFx, {filter={x=x,y=y}, time=2, mode="mirror",
-            easing=ease.bounceInOut, onComplete=self.pauseResumeTween})
+        easing=ease.bounceInOut, onComplete=self.pauseResumeTween})
     
     self.screenFx.targX = x
     self.screenFx.targY = y
@@ -1276,6 +1301,71 @@ function sceneMainMenu:orientation(event, delayEffects)
     self.screenMinY = appHeight/2 - screenHeight/2
     self.screenMaxY = appHeight/2 + screenHeight/2
     
+    --realign UI that clamps to screen rather than virtual resolution
+    if self.leftBtn then
+        self.leftBtn.x = self.screenMinX + 75
+    end
+    if self.rightBtn then
+        self.rightBtn.x = self.screenMaxX - 75
+    end
+    if self.downBtn then
+        self.downBtn.y = (self.screenMinY+100 + 80) / 2
+    end
+    if self.upBtn then
+        self.upBtn.y = (self.screenMinY+100 + 80) / 2
+    end
+    
+    if sceneMainMenu.scoreLabels then
+        local left, right
+        if sceneMainMenu.scoreMenuState == "streak" then
+            left = {"survival", "waves"}
+        elseif sceneMainMenu.scoreMenuState == "survival" then
+            left = {"waves"}
+            right = {"streak"}
+        else --waves
+            right = {"survival", "streak"}
+        end
+        
+        if left then
+            for j, labels in pairs(left) do
+                if self.scoreLabels[labels] then
+                    for k, v in pairs(self.scoreLabels[labels]) do
+                        cancelTweensOnNode(v)
+                        v.x=self.screenMinX - 100
+                    end
+                end
+            end
+        end
+        if right then
+            for j, labels in pairs(right) do
+                if self.scoreLabels[labels] then
+                    for k, v in pairs(self.scoreLabels[labels]) do
+                        cancelTweensOnNode(v)
+                        v.x=self.screenMaxX + 100
+                    end
+                end
+            end
+        end
+        -- note: middle/current item uses vr space position (centre!) not screen
+    end
+    
+    -- jump to submenu if interrupting existing tween
+    if sceneMainMenu.title and sceneMainMenu.title.nextMenu then
+        if sceneMainMenu.title.menuTween then
+            tween:cancel(sceneMainMenu.title.menuTween)
+            sceneMainMenu.title.menuTween = nil
+        end
+        sceneMainMenu.title.nextMenu()
+        sceneMainMenu.title.nextMenu = nil
+    end
+    
+    -- fit WRONG title to bottom of screen
+    if sceneMainMenu.subMenu then
+        self.title.y = self.screenMinY-350
+        self.title.xScale=3
+        self.title.yScale=2
+    end
+    
     -- (re)setup screen burn filter effect...
     if not delayEffects then -- dont do when called form setUp() pre transition! Cant start tweens until transition is over.
         self:queueFullscreenEffect()
@@ -1287,11 +1377,16 @@ function sceneMainMenu:queueFullscreenEffect()
 end
 
 function sceneMainMenu.startFullscreenEffect()
-    dbg.print("effect restart timer called")
+    sceneMainMenu.screenFxTimer = nil
+    dbg.print("effect startFullscreenEffect timer called")
     sceneMainMenu:fullscreenEffect()
 end
 
 function sceneMainMenu.resumeFxTween(event)
+    if sceneMainMenu.pauseRt then
+        return
+    end
+    
     dbg.print("resumeFxTween")
     -- allow previous style to run till tween restarts - allows to fade as much as possible
     if sceneMainMenu.newDontClear ~= sceneMainMenu.rtDontClear then
@@ -1322,8 +1417,10 @@ function sceneMainMenu.pauseResumeTween(target)
     dbg.print("effects tween onComplete")
     if target.tween.numCycles % 2 == 0 then
         dbg.print("resume effects tween")
-        target:pauseTweens()
-        target:addTimer(sceneMainMenu.resumeFxTween, 4.5, 1)
+        if not sceneMainMenu.pauseRt then
+            target:pauseTweens()
+            target:addTimer(sceneMainMenu.resumeFxTween, 4.5, 1)
+        end
     end
 end
 
@@ -1686,6 +1783,7 @@ function sceneMainMenu:exitPostTransition(event)
     dbg.print("sceneMainMenu:exitPostTransition")
     
     fullscreenEffectsOff(self)
+    self.screenFxTimer = nil
 
     for k,v in pairs(self.btns) do
         v.touchArea = v.touchArea:removeFromParent()

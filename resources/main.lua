@@ -129,12 +129,14 @@ end
 
 function fullscreenEffectsStop(self)
     if self.screenFx then
+        print("cancel fx tween and timer")
         cancelTweensOnNode(self.screenFx)
         cancelTimersOnNode(self.screenFx)
         self.pauseRt = true
     end
 
     if self.screenFxTimer then
+        print("cancel screenFxTimer")
         self.screenFxTimer:cancel()
         self.screenFxTimer = nil
     end
@@ -168,11 +170,11 @@ function addArrowButton(scene, btnType, listener, backKeyListener, x, y, startAl
         rotation = 270
     elseif btnType == "up" then
         xPos = x or appWidth/2
-        yPos = y or 80
+        yPos = y or (scene.screenMinY+100 + 80) / 2 --average of good screen pos and vr pos
         rotation = 180
     elseif btnType == "down" then
         xPos = x or appWidth/2
-        yPos = y or 80
+        yPos = y or (scene.screenMinY+100 + 80) / 2
         rotation = 0
     else
         dbg.assert(false, "invalid button type in addArrowButton")

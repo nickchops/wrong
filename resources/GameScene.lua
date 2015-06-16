@@ -1459,7 +1459,8 @@ function sceneBattle:update(event)
                         player.weaponsMeter.origin.isVisible=true
                     end
                     
-                    self.endTimer = system:addTimer(GameOver, 2.5, 1)
+                    self:beginGameOver(2.5)
+
                     player.deadFlag = 5
                 end
             end
@@ -1485,7 +1486,7 @@ function sceneBattle:update(event)
                 message = director:createLabel({x=0, y=0, hAlignment="centre", vAlignment="centre", text="BATTLE DRAWN", color=menuBlue, font=fontMainLarge})
             end
             origin:addChild(message)
-            self.endTimer = system:addTimer(GameOver, 2.5, 1)
+            self:beginGameOver(2.5)
             DisablePauseMenu()
             player1.deadFlag = 5
             player2.deadFlag = 5
@@ -1493,6 +1494,13 @@ function sceneBattle:update(event)
     end
     
     fullscreenEffectsUpdate(self)
+end
+
+function sceneBattle:beginGameOver(duration)
+    self.endTimer = system:addTimer(GameOver, duration, 1)
+    if self.screenFx then
+        tween:to(self.screenFx, {alpha=0, time=duration*0.7})
+    end
 end
 
 function playerHit(restoreHealth)
@@ -1989,7 +1997,11 @@ function sceneBattle:fullscreenEffect()
     self.screenFx.y = screenHeight + virtualResolution.userWinMinY --  - screenWidth/2
         --screenHeight is workaround for bug in renderTexture!
     
-    self.screenFx.alpha=0.7
+    self.screenFx.alpha=0.65
+    
+    if self.gamePaused then
+        self:startPauseEffects()
+    end
 end
 
 function sceneBattle.moveSceneTopOrMiddle(event)
@@ -2017,7 +2029,7 @@ function sceneBattle.moveSceneTopOrMiddle(event)
         end
         
         sceneBattle.moveBtn = addArrowButton(sceneBattle, newBtn, sceneBattle.moveSceneTopOrMiddle,
-            nil, nil, sceneBattle.screenMinY*0.3, 0.4)
+            nil, nil, sceneBattle.screenMinY*0.3, 0.35)
         sceneBattle.moveBtn.xScale = 0.5
         sceneBattle.moveBtn.yScale = 0.5
         sceneBattle.moveBtn.zOrder = 100
@@ -2042,32 +2054,23 @@ function sceneBattle:orientation(event, dontRestartEffects)
     
     local lockPlayAreaCentred = screenWidth >= screenHeight or (screenHeight - appHeight) / 2 < 100
     
-    -- origins move tomatch positioning, pause mask is only thing that needs to match screen size
-    if self.originMask then
-        self.originMask.x = self.screenMinX
-        self.originMask.w = screenWidth
-        self.originMask.h = screenHeight
-        
-        if not lockPlayAreaCentred and gameInfo.portraitTopAlign then
-            self.originMask.y = self.screenMinY - (screenHeight-appHeight) / 2
-        else
-            self.originMask.y = self.screenMinY
-        end
+    -- origins move to match positioning, pause mask is only thing that needs to match screen size
+    local offset, maskOffset
+    if screenHeight / appHeight > 2 then
+        offset = screenHeight/2 - (screenHeight/2 - appHeight)*0.7
+        maskOffset = (screenHeight-appHeight) / 2 - (screenHeight/2 - appHeight) * 0.7
+    else
+        offset = screenHeight/2
+        maskOffset = (screenHeight-appHeight) / 2
     end
     
-    if not lockPlayAreaCentred and gameInfo.portraitTopAlign then
-        local offset
-        if screenHeight / appHeight > 2 then
-            offset = screenHeight/2 - (screenHeight/2 - appHeight)*0.7
-        else
-            offset = screenHeight/2
-        end
-        
+    if not lockPlayAreaCentred and gameInfo.portraitTopAlign then        
         if origin then
             origin.y = offset
         end
         if self.originPause then
             self.originPause.y = offset
+            self.originMaskAnchor.y = offset
         end
     else
         if origin then
@@ -2075,6 +2078,19 @@ function sceneBattle:orientation(event, dontRestartEffects)
         end
         if self.originPause then
             self.originPause.y = appHeight/2
+            self.originMaskAnchor.y = appHeight/2
+        end
+    end
+    
+    if self.originMask then
+        self.originMask.x = self.screenMinX
+        self.originMask.w = screenWidth
+        self.originMask.h = screenHeight
+        
+        if not lockPlayAreaCentred and gameInfo.portraitTopAlign then
+            self.originMask.y = self.screenMinY - maskOffset
+        else
+            self.originMask.y = self.screenMinY
         end
     end
     
@@ -2459,7 +2475,8 @@ function sceneBattle:enterPostTransition(event)
     self.gamePaused = false
     -- pause menu
     if not demoMode then
-        self.originPause = director:createNode({x=appWidth/2, y=appHeight/2, zOrder=2})
+        self.originPause = director:createNode({x=appWidth/2, y=appHeight/2, zOrder=4})
+        self.originMaskAnchor = director:createNode({x=appWidth/2, y=appHeight/2, zOrder=2})
         
         local pauseX = maxX-130 --easy to stretch thumb to for single player and avoids wave counter
         if gameInfo.controlType == "p1LocalVsP2Local" then
@@ -2525,8 +2542,9 @@ function PauseGame(touch)
         
         --sceneBattle.pauseMenu:resumeTweens()
         if not sceneBattle.originMask then
-            sceneBattle.originMask = director:createRectangle({x=sceneBattle.screenMinX, y=sceneBattle.screenMinY, w=screenWidth, h=screenHeight, zOrder=2, color={0,20,0}, alpha=0, strokeWidth=0, zOrder=-1})
-            sceneBattle.originPause:addChild(sceneBattle.originMask)
+            sceneBattle.originMask = director:createRectangle({x=sceneBattle.screenMinX, y=sceneBattle.screenMinY,
+                    w=screenWidth, h=screenHeight, zOrder=2, color={0,20,0}, alpha=0, strokeWidth=0, zOrder=-1})
+            sceneBattle.originMaskAnchor:addChild(sceneBattle.originMask)
         end
         
         tween:to(sceneBattle.originMask, {time=0.4, alpha=0.85})
@@ -2534,8 +2552,26 @@ function PauseGame(touch)
         tween:to(sceneBattle.pauseMenu, {time=0.4, yScale=0, onComplete=ShowPauseMenu})
         
         sceneBattle:orientation(nil, true) --make sure mask is in right place
+        
+        sceneBattle:startPauseEffects()
     end
     return true
+end
+
+function sceneBattle:startPauseEffects()
+    if self.screenFx then
+        self.screenFx.filter.name = "blur"
+        self.screenFx.filter.x = 0
+        self.screenFx.filter.y = 0
+        self.screenFx.zOrder = 3
+        self.screenFx.alpha = 1
+        
+        self.screenFx.tween = tween:to(self.screenFx, {filter={x=3,y=3}, time=2, mode="mirror",
+            easing=ease.bounceInOut})
+        
+        self.pauseMenu.tween = tween:to(self.pauseMenu, {color={r=255,g=255,b=255}, time=2, mode="mirror",
+            easing=ease.bounceInOut})
+    end
 end
 
 function ShowPauseMenu()
@@ -2700,6 +2736,16 @@ function ExitFromQuitConfirmMenu(touch)
         tween:to(sceneBattle.pauseMenu.yes, {time=0.4, x=sceneBattle.pauseMenu.x, y=sceneBattle.pauseMenu.y, yScale=0, onComplete=ExitFromQuitConfirmMenu2})
         tween:to(sceneBattle.pauseMenu.no, {time=0.25, xScale=0})
         tween:to(sceneBattle.pauseMenu.no, {time=0.4, x=sceneBattle.pauseMenu.x, y=sceneBattle.pauseMenu.y, yScale=0})
+        if sceneBattle.screenFx then
+            if sceneBattle.screenFx.tween then
+                tween:cancel(sceneBattle.screenFx.tween)
+                sceneBattle.screenFx.tween = nil
+            end
+            sceneBattle.screenFx.filter.name = nil
+            sceneBattle.screenFx.zOrder = -1
+            sceneBattle.screenFx.alpha = 0.65
+            tween:to(sceneBattle.screenFx, {alpha=0, time=0.3})
+        end
         
         system:removeEventListener("key", gameBackKeyListener)
     end
@@ -2726,6 +2772,20 @@ function ResumeGame()
     system:resumeTimers()
     resumeNodesInTree(origin)
     sceneBattle.gamePaused = false
+    
+    --stop filter and clear texture so pause menu doesn't overpower screen!
+    if sceneBattle.screenFx then --checks not really needed but let's stay safe in case logic changes
+        if sceneBattle.screenFx.tween then
+            tween:cancel(sceneBattle.screenFx.tween)
+            sceneBattle.screenFx.tween = nil
+        end
+        sceneBattle.screenFx.filter.name = nil
+        sceneBattle.screenFx.zOrder = -1
+    end
+    if sceneBattle.rt then
+        sceneBattle.rt:clear(clearCol)
+    end
+    sceneBattle:orientation()
     
     tween:to(sceneBattle.pauseMenu, {time=0.4, yScale=1})
     tween:to(sceneBattle.pauseMenu, {time=0.25, delay=0.15, xScale=1})
@@ -2903,8 +2963,13 @@ function sceneBattle:exitPostTransition(event)
     
     -- Kill any left over effects etc not tracked above
     dbg.print("full origin tree node destroy...")
-    destroyNodesInTree(origin, true)
-    origin = nil
+    origin = destroyNodesInTree(origin, true)
+    self.originPause = destroyNodesInTree(self.originPause, true)
+    self.originMaskAnchor = destroyNodesInTree(self.originMaskAnchor, true)
+    
+    self.pauseMenu = nil
+    self.originMask = nil
+    
     dbg.print("..full origin tree node destroy done")
     
     dbg.print("scene Nodes destroyed")
