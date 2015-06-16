@@ -93,12 +93,7 @@ SplashScreenHeight="384"
 #above sadly doesnt work... not sure how to control asserts for extensions...
 {}
 
-#Using screenResolutionScaler instead of ICF Virtual Res settings
-#[GL]
-#VirtualWidth=640
-#VirtualHeight=480
-#VirtualLetterbox=1
 
 [QUICK]
 mainFileName="main.lua"
-#configFileName="config.lua"
+DeferRenderingOnStart=1

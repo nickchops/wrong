@@ -119,7 +119,7 @@ function HeatseekerDestroy(collidable)
     -- have multi-stage animation
     CollidableDestroy(collidable, true)
     collidable:addTimer(HeatseekerImpactFX, 0.1, 7, 0)
-    device:vibrate(400)
+    device:vibrate(100)
 end
 
 --generic effect, used for new ball adds

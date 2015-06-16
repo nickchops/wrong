@@ -37,6 +37,8 @@ local nearestMultiple = true
 local overrideW = nil
 local overrideH = nil
 
+director:startRendering()
+
 -- Using virtual resolution with nearestMultiple (only use 1x, 2x, 3x, etc scaling)
 -- Using ignoreMultipleIfTooSmall when upscaled height is < 0.9 of the screen width - in
 -- that case, we just stretch and we go to 0.96 of the screen to leave a little

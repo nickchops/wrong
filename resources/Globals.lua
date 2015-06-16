@@ -5,7 +5,7 @@
 
 showDebugTouchArea = false
 
-showFrameRate = true
+--showFrameRate = true
 
 --require("mobdebug").start() -- ZeroBrain IDE debuger support
                    
@@ -226,8 +226,8 @@ for k,v in ipairs(gameInfo.achievementIndex) do
     gameInfo.achievements[v] = false
 end
 -- uncomment to debug locked modes:
-gameInfo.achievements.survival=true
-gameInfo.achievements.battle=true
+--gameInfo.achievements.survival=true
+--gameInfo.achievements.battle=true
 
 gameInfo.achievementPages = 0
 local achCount = table.getn(gameInfo.achievementIndex) --NB, cant use .achievements as .tablegetn only works on arrays!

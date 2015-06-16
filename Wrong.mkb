@@ -56,7 +56,9 @@ assets
 subprojects
 {
     s3eAndroidFullscreen
+    dpi/PixelDensity
     IwGameController
+    s3eFlurry
 }
 
 deployments
@@ -71,6 +73,8 @@ deployments
     version-minor = "0"
     version-revision = "0"
     app-icf="resources/common.icf,resources/app.icf,resources/win_deploy.icf"
+    
+    #win32-pref-processtitle="W R O N G"
     
     # App ID for Facebook apps
     android-extra-strings='(app_id,fb_app_id)'

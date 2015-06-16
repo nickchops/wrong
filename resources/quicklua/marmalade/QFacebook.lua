@@ -28,9 +28,21 @@ facebook = quick.QFacebook:new()
 --------------------------------------------------------------------------------
 -- Public API
 --------------------------------------------------------------------------------
-
+loginBehaviour = {
+                "WithFallbackToWebView",     -- Attempt Facebook Login, ask user for credentials if necessary. Used by default.
+                "WithNoFallbackToWebView",   -- Attempt Facebook Login, no direct request for credentials will be made.
+                "ForcingWebView",            -- Only attempt WebView Login, ask user for credentials.
+                "UseSystemAccountIfPresent", -- Attempt Facebook Login, preferring system account and falling back to fast app switch if necessary.
+                "UseWebView"                 -- Similar to ForcingWebView but don't clear any token before opening.
+                }
+closeBehaviour = {
+                "Simple",                   -- Merely close the session. Used by default
+                "ClearToken"                -- On close, additionally clear any persisted token cache related to the session.
+                }
 --[[
 /*!
+*Shows facebook dialog with action and params
+*
 */
 ]]
 function facebook:showDialog(action, params)
@@ -62,24 +74,19 @@ end
 
 --[[
 /*!
+* Sends request
 */
 ]]
-function facebook:request(methodorgraph, paramsorhttpmethod, params)
+function facebook:request(methodorgraph, httpMethod, params)
     dbg.assertFuncVarType("string", methodorgraph)
-    dbg.assertFuncVarTypes({"string", "table"}, paramsorhttpmethod)
     dbg.assertFuncVarTypes({"table", "nil"}, params)
 
     local retval
-
-    -- Initialise the request
-    if type(paramsorhttpmethod) == "string" then
-        -- Method call
-        retval = facebook:_InitMethodRequest(methodorgraph, paramsorhttpmethod)
-    else
-        -- Graph call
-        retval = facebook:_InitGraphRequest(methodorgraph)
-        params = paramsorhttpmethod
+    if httpMethod == nil then
+        httpMethod = "GET"
     end
+    -- Initialise the request
+    retval = facebook:_InitGraphRequest(methodorgraph, httpMethod)
 
     if not retval then
         return false

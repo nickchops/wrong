@@ -91,10 +91,10 @@ function sceneMainMenu:DisplayInfoText()
           
         if stage == 1 then
             txtStrings = {
-                "WRONG: it's Weaponified Reverse pONG, of course!",
-                "Marvel at the state of the art 1970s vector graphics, while playing pong against yourself, in reverse, with guns... Wrong!",
+                "WRONG: it's Weaponised Reverse xONG, of course!",
+                "Marvel at the state of the art 1970s vector graphics, while playing (something that looks like but legally isn't) pong, against yourself, in reverse, with guns... Wrong!",
                 "How to play: Don't try and bounce those explosive balls; score points by avoiding them. Build your ammo level over 5 for one weapon to unlock the next one. Unlock achievements to get new modes.",
-                "This game was built by one guy in his spare time using Marmalade Quick, a 2D Lua-based game dev kit.  And it's free, 'cause I'm nice like that. For dev info on building this game:"}
+                "This game was built by one guy in his spare time using Marmalade Quick, a 2D Lua-based engin. And it's free, 'cause I'm nice like that:"}
             
         elseif stage == 2 then
             txtColour = menuBlue
@@ -759,7 +759,7 @@ function menuSaveData(clearFlag)
     if not file then
         dbg.print("failed to open save-state file for saving: " .. saveStatePath)
     else
-        file:write(json.encode({scores=gameInfo.highScore, lastName=gameInfo.name, achievements=gameInfo.achievements, soundOn=gameInfo.soundOn, portraitTopAlign=gameInfo.portraitTopAlign}))
+        file:write(json.encode({scores=gameInfo.highScore, lastName=gameInfo.name, achievements=gameInfo.achievements, soundOn=gameInfo.soundOn, vibrateOn=gameInfo.vibrateOn, portraitTopAlign=gameInfo.portraitTopAlign}))
         file:close()
         dbg.print("user data saved")
     end
@@ -832,6 +832,7 @@ function LoadUserData()
             gameInfo.name = loaded.lastName
             gameInfo.achievements = loaded.achievements
             gameInfo.soundOn = loaded.soundOn
+            gameInfo.vibrateOn = loaded.vibrateOn
             gameInfo.portraitTopAlign = loaded.portraitTopAlign
             analytics:logEvent("LoadUserData", {scoreName=gameInfo.name})
             dbg.print("highscore etc loaded")
@@ -1078,13 +1079,28 @@ function touchSound(self, event)
             audio:stopStream()
             gameInfo.titleMusicPlaying = false
             gameInfo.soundOn = false
-            sceneMainMenu.btns.sound.color = {75,75,128}
+            sceneMainMenu.btns.sound.color = {75,85,110}
         else
             analytics:logEvent("turnOnSound")
             audio:playStreamWithLoop("sounds/iron-suit.mp3", true)
             gameInfo.titleMusicPlaying = true
             gameInfo.soundOn = true
             sceneMainMenu.btns.sound.color = color.white
+        end
+    end
+end
+
+function touchVibrate(self, event)
+    if event.phase == "ended" then
+        if gameInfo.vibrateOn then
+            device:disableVibration()
+            gameInfo.vibrateOn = false
+            sceneMainMenu.btns.vibrate.color = {75,85,110}
+        else
+            device:enableVibration()
+            device:vibrate(100, 0.2)
+            gameInfo.vibrateOn = true
+            sceneMainMenu.btns.vibrate.color = color.white
         end
     end
 end
@@ -1103,9 +1119,35 @@ function createLabelTouchBox(label, touchEvent)
     label.touchArea.touch = touchEvent
 end
 
-function createServicesButtonTouch(sprite, touchEvent)
-    sprite.touchArea = sprite --match label style to reusue same code
-    sprite.touchArea.touch = touchEvent
+
+function sceneMainMenu:createServicesButtonTouch(name, image, touchEvent, column)
+    if not self.btnY then self.btnY = {} end
+    local x = 0
+    
+    if column then -- columns start at and default to 1
+        x = self.btnSize * (column-1) * 1.4
+    else
+        column = 1
+    end
+    
+    if not self.btnY[column] then self.btnY[column] = 0 end
+    
+    local btn = director:createSprite({x=x, y=self.btnY[column], source="textures/" .. image .. "_button.png"})
+    
+    --note: we cant set size in pixels directly for sprites, but can scale
+    btn.defaultScale = self.btnSize/btn.w --store in separate value to cache for anims
+    btn.xScale = btn.defaultScale
+    btn.yScale = btn.defaultScale
+    
+    self.btns[name] = btn
+    self.servicesBtnsOrigin:addChild(btn)
+
+    btn.touchArea = btn --match label style to reusue same code
+    btn.touchArea.touch = touchEvent
+    
+    self.btnY[column] = self.btnY[column] - self.btnSize*1.4
+    
+    return btn
 end
 
 -------------------------------------------------------
@@ -1268,12 +1310,12 @@ function sceneMainMenu:fullscreenEffect()
     local fxType = math.random(1,5)
     local x,y = 0,0
     if fxType == 1 then
-        x = math.random(2,7)
+        x = math.random(2,6)
     elseif fxType == 2 then
-        y = math.random(2,7)
+        y = math.random(2,6)
     else
-        x = math.random(2,5)
-        y = math.random(2,5)
+        x = math.random(2,4)
+        y = math.random(2,4)
     end
     
     --debugging
@@ -1461,6 +1503,7 @@ function sceneMainMenu:setUp(event)
     local titlePartsY = 80
     self.titleY = 0
     
+    --[[
     if gameInfo.achievements.survival then
         self.titleY = self.titleY - 35
     end
@@ -1468,6 +1511,7 @@ function sceneMainMenu:setUp(event)
     if gameInfo.achievements.battle then
         self.titleY = self.titleY - 35
     end
+    ]]--
     
     --dbg.assert(false, "2")
 
@@ -1531,6 +1575,7 @@ function sceneMainMenu:setUp(event)
     self.btnsOrigin = director:createNode({x=appWidth/2-20, y=appHeight/2+120})
     local labelW = 250
     local labelY = 0
+    local extraBtnCount = 0
     
     -- main menu buttons
     
@@ -1539,6 +1584,7 @@ function sceneMainMenu:setUp(event)
         createLabelTouchBox(self.btns["continue"], touchContinue)
         self.btnsOrigin:addChild(self.btns["continue"])
         labelY = labelY-40
+        extraBtnCount = extraBtnCount + 1
     end
     
     self.btns["1pSurvival"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Start Game", color=menuBlue, font=fontMainLarge})
@@ -1550,6 +1596,7 @@ function sceneMainMenu:setUp(event)
         self.btns["survival"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Survival Mode", color=menuBlue, font=fontMainLarge})
         createLabelTouchBox(self.btns["survival"], touchSurvival)
         self.btnsOrigin:addChild(self.btns["survival"])
+        extraBtnCount = extraBtnCount + 1
     end
 
     if gameInfo.achievements.battle then
@@ -1557,23 +1604,26 @@ function sceneMainMenu:setUp(event)
         self.btns["2pLocal"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Battle", color=menuBlue, font=fontMainLarge})
         createLabelTouchBox(self.btns["2pLocal"], touch2pLocal)
         self.btnsOrigin:addChild(self.btns["2pLocal"])
+        extraBtnCount = extraBtnCount + 1
+    end
+    
+    if extraBtnCount < 2 then
+        labelY = labelY-40
+        self.btns["highscores"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="High Scores", color=menuBlue, font=fontMainLarge})
+        createLabelTouchBox(self.btns["highscores"], touchHighScores)
+        self.btnsOrigin:addChild(self.btns["highscores"])
+        
+        labelY = labelY-40
+        self.btns["achievements"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Achievements", color=menuBlue, font=fontMainLarge})
+        createLabelTouchBox(self.btns["achievements"], touchAchievements)
+        self.btnsOrigin:addChild(self.btns["achievements"])
     end
     
     labelY = labelY-40
-    self.btns["highscores"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="High Scores", color=menuBlue, font=fontMainLarge})
-    createLabelTouchBox(self.btns["highscores"], touchHighScores)
-    self.btnsOrigin:addChild(self.btns["highscores"])
-    
-    labelY = labelY-40
-    self.btns["achievements"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Achievements", color=menuBlue, font=fontMainLarge})
-    createLabelTouchBox(self.btns["achievements"], touchAchievements)
-    self.btnsOrigin:addChild(self.btns["achievements"])
-    
-    labelY = labelY-40
-    self.btns["about"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="[about]", color=menuBlue, font=fontMainLarge})
+    self.btns["about"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="[hack me]", color=menuBlue, font=fontMainLarge})
     createLabelTouchBox(self.btns["about"], touchAbout)
     self.btnsOrigin:addChild(self.btns["about"])
-
+    
     -- score labels
     -- currently just show score and high scroe from last mode played. May want to show multiple modes.
     -- maybe have then on a rolling anim switching between modes
@@ -1587,52 +1637,59 @@ function sceneMainMenu:setUp(event)
     ]]--
     
     -- buttons for facebook twitter etc
-    local btnY = 0
-    local btnSize = 32
-    self.servicesBtnsOrigin = director:createNode({x=20, y=appHeight-20-btnSize})
+    self.btnSize = 38
+    self.servicesBtnsOrigin = director:createNode({x=20, y=appHeight-14-self.btnSize})
     
-    local facebook = director:createSprite({x=0, y=btnY, source="textures/facebook_button.png"})
-    --note: we cant set size in pixels directly for sprites, but can scale
-    facebook.defaultScale = btnSize/facebook.w --store in separate value to cache for anims
-    facebook.xScale = facebook.defaultScale
-    facebook.yScale = facebook.defaultScale
-    
-    self.btns.facebook = facebook
-    self.servicesBtnsOrigin:addChild(facebook)
-    createServicesButtonTouch(facebook, touchFacebook)
-    
-    
-    btnY = btnY - btnSize*1.5
-    local twitter = director:createSprite({x=0, y=btnY, source="textures/twitter_button.png"})
-    twitter.defaultScale = btnSize/twitter.w
-    twitter.xScale = twitter.defaultScale
-    twitter.yScale = twitter.defaultScale
-    self.btns.twitter = twitter
-    self.servicesBtnsOrigin:addChild(twitter)
-    createServicesButtonTouch(twitter, touchTwitter)
+    self:createServicesButtonTouch("facebook", "facebook", touchFacebook)
+    self:createServicesButtonTouch("twitter", "twitter", touchTwitter)
+    local extraServiceBtns = 0
+    local column = 1
     
     if storeName then
-        btnY = btnY - btnSize*1.5
-        local rate = director:createSprite({x=0, y=btnY, source="textures/rate_button_" .. storeName .. ".png"})
-        rate.defaultScale = btnSize/rate.w
-        rate.xScale = rate.defaultScale
-        rate.yScale = rate.defaultScale
-        self.btns.rate = rate
-        self.servicesBtnsOrigin:addChild(rate)
-        createServicesButtonTouch(rate, touchRate)
+        self:createServicesButtonTouch("rate", "rate_" .. storeName, touchRate)
+        extraServiceBtns = extraServiceBtns + 1
     end
     
-    btnY = btnY - btnSize*1.5
-    local sound = director:createSprite({x=0, y=btnY, source="textures/sound_button.png"})
-    sound.defaultScale = btnSize/sound.w
-    sound.xScale = sound.defaultScale
-    sound.yScale = sound.defaultScale
-    if not gameInfo.soundOn then
-        sound.color = {75,85,110}
+    if extraBtnCount >= 2 then
+        -- _icon - need different names as self.btn contains both icon and text buttons
+        -- and dont want to ovverwrite selb.btn.highscores, etc
+        self:createServicesButtonTouch("highscores_icon", "highscores", touchHighScores)
+        self:createServicesButtonTouch("achievements_icon", "achievements", touchAchievements)
+        extraServiceBtns = extraServiceBtns + 2
     end
-    self.btns.sound = sound
-    self.servicesBtnsOrigin:addChild(sound)
-    createServicesButtonTouch(sound, touchSound)
+    
+    if extraServiceBtns > 1 then
+        column = 2
+    end
+    
+    local soundBtn = self:createServicesButtonTouch("sound", "sound", touchSound, column)
+    if not gameInfo.soundOn then
+        soundBtn.color = {75,85,110}
+    end
+    
+    if column == 2 then
+        column = 3
+    end
+    
+    if device:isVibrationAvailable() then
+        local vibrateBtn = self:createServicesButtonTouch("vibrate", "vibrate", touchVibrate, column)
+        if gameInfo.vibrateOn == nil then
+            gameInfo.vibrateOn = true
+        end
+        if gameInfo.vibrateOn then
+            device:enableVibration()
+        else
+            device:disableVibration()
+            vibrateBtn.color = {75,85,110}
+        end
+    end
+    
+    -- position title to avoid buttons
+    self.titleY = math.min(labelY + 110, self.btnY[1] + 240)
+    self.title.y = self.titleY
+    
+    self.btnY = nil
+    self.btnSize = nil
     
     -- start flickering effect but pause until menu is shown
     self:restartFlicker()
@@ -1666,8 +1723,12 @@ function sceneMainMenu:setUp(event)
         if self.btns["2pLocal"] then
             tween:to(self.btns["2pLocal"], {yScale=1, time=0.1, delay=btnDelay}) btnDelay=btnDelay+0.05
         end
-        tween:to(self.btns["highscores"], {yScale=1, time=0.1, delay=btnDelay}) btnDelay=btnDelay+0.05
-        tween:to(self.btns["achievements"], {yScale=1, time=0.1, delay=btnDelay}) btnDelay=btnDelay+0.05
+        if self.btns["highscores"] then
+            tween:to(self.btns["highscores"], {yScale=1, time=0.1, delay=btnDelay}) btnDelay=btnDelay+0.05
+        end
+        if self.btns["achievements"] then
+            tween:to(self.btns["achievements"], {yScale=1, time=0.1, delay=btnDelay}) btnDelay=btnDelay+0.05
+        end
         tween:to(self.btns["about"], {yScale=1, time=0.1, delay=btnDelay})
         
         tween:from(self.labelScore, {alpha=0, time=0.3})
@@ -1675,10 +1736,24 @@ function sceneMainMenu:setUp(event)
         
         tween:to(self.btns.facebook, {yScale=self.btns.facebook.defaultScale, time=0.1, delay=btnDelay})
         tween:to(self.btns.twitter, {yScale=self.btns.twitter.defaultScale, time=0.1, delay=btnDelay})
+        
         if self.btns.rate then
             tween:to(self.btns.rate, {yScale=self.btns.rate.defaultScale, time=0.1, delay=btnDelay})
         end
+        
         tween:to(self.btns.sound, {yScale=self.btns.sound.defaultScale, time=0.1, delay=btnDelay})
+        
+        if self.btns.vibrate then
+            tween:to(self.btns.vibrate, {yScale=self.btns.vibrate.defaultScale, time=0.1, delay=btnDelay})
+        end
+        
+        if self.btns.highscores_icon then
+            tween:to(self.btns.highscores_icon, {yScale=self.btns.highscores_icon.defaultScale, time=0.1, delay=btnDelay})
+        end
+        
+        if self.btns.achievements_icon then
+            tween:to(self.btns.achievements_icon, {yScale=self.btns.achievements_icon.defaultScale, time=0.1, delay=btnDelay})
+        end
         
         self:titleFlash()
     end
