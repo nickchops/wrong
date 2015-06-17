@@ -886,6 +886,11 @@ function checkWaveIsOver()
                 obj.replaceOnLeaveScreen = false
                 PushCollidableAwayFromPos(obj, 0, 0, 2)
             end
+            
+            if sceneBattle.rt then
+                sceneBattle.rt:clear(clearCol)
+            end
+            
             sceneBattle.waveLeft:SetValue(INIT_WAVE_SIZE+gameInfo.wave+1)
             --increase by 2 on 2nd wave (go from super easy intro to real difficulty!)
             gameInfo.wave = gameInfo.wave + 1
@@ -1014,6 +1019,10 @@ function AddNewBall(event)
     if event.timer.ballDelay then --re-queue, with new duration on new wave
         sceneBattle.ballTimer = system:addTimer(AddNewBall, event.timer.ballDelay, 1)
         sceneBattle.ballTimer.ballDelay = event.timer.ballDelay
+    end
+    
+    if sceneBattle.rt then
+        sceneBattle.rt:clear(clearCol)
     end
     
     AddBall(vals)
@@ -1997,7 +2006,7 @@ function sceneBattle:fullscreenEffect()
     self.screenFx.y = screenHeight + virtualResolution.userWinMinY --  - screenWidth/2
         --screenHeight is workaround for bug in renderTexture!
     
-    self.screenFx.alpha=0.65
+    self.screenFx.alpha=0.6
     
     if self.gamePaused then
         self:startPauseEffects()
@@ -2290,10 +2299,17 @@ end
 
 --set params for certain balls in the wave. index 1 = first ball added, 6=6th ball, etc
 function sceneBattle:setBallOverrides(wave, wavePosInSet)
+    -- these keep the first round especially from being too dull!
+    self.ballOverrides[1]={angle=95, objType="ball", speed=FIRST_BALL_SPEED}
+    self.ballOverrides[2]={angle=275, objType="ball", speed=FIRST_BALL_SPEED}
+    self.ballOverrides[3]={objType="ball", speed=FIRST_BALL_SPEED}
+    self.ballOverrides[4]={objType="ball", speed=FIRST_BALL_SPEED}
+    
+    for i = 5,7 do
+        self.ballOverrides[i] = {}
+    end
+    
     if wave == 1 then
-        -- these keep the first round from being too dull!
-        self.ballOverrides[1]={angle=95, objType="ball", speed=FIRST_BALL_SPEED}
-        self.ballOverrides[2]={angle=275, objType="ball", speed=FIRST_BALL_SPEED}
         self.ballOverrides[3]={objType="ball", speed=FIRST_BALL_SPEED}
         self.ballOverrides[4]={objType="ball", speed=FIRST_BALL_SPEED}
         if gameInfo.mode ~= "survival" then
@@ -2407,7 +2423,7 @@ function sceneBattle:enterPostTransition(event)
         if gameInfo.continue.canContinue then
             startDelay = 4
             self.continuePause = system.gameTime + startDelay
-            ShowMessage("COONTINUING", 0.5, false, "up")
+            ShowMessage("CONTINUING", 0.5, false, "up")
             ShowMessage("ABANDONED GAME", 1.5, false, "down")
             if gameInfo.mode == "survival" then
                 ShowMessage("survival mode", 2.5, false, "down", 60)

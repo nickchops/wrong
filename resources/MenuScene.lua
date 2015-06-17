@@ -92,9 +92,9 @@ function sceneMainMenu:DisplayInfoText()
         if stage == 1 then
             txtStrings = {
                 "WRONG: it's Weaponised Reverse xONG, of course!",
-                "Marvel at the state of the art 1970s vector graphics, while playing (something that looks like but legally isn't) pong, against yourself, in reverse, with guns... Wrong!",
+                "Marvel at the state of the art 1970s vector graphics, while playing (something that looks coincidentally a little like, but legally isn't) pong, against yourself, in reverse, with guns... Wrong!",
                 "How to play: Don't try and bounce those explosive balls; score points by avoiding them. Build your ammo level over 5 for one weapon to unlock the next one. Unlock achievements to get new modes.",
-                "This game was built by one guy in his spare time using Marmalade Quick, a 2D Lua-based engin. And it's free, 'cause I'm nice like that:"}
+                "This game was built by one guy in his spare time using Marmalade Quick, a 2D Lua-based engine. And it's free, 'cause I'm nice like that:"}
             
         elseif stage == 2 then
             txtColour = menuBlue
@@ -1288,7 +1288,7 @@ function sceneMainMenu:fullscreenEffect()
     -- so gets updated with each frame
     self.screenFx = self.rt:getSprite()
     self.screenFx.zOrder = -1
-    --self.screenFx.alpha=0.95
+    self.screenFx.alpha=0.94
     
     -- have to scale to match VR
     self.screenFx.xScale = 1/virtualResolution.scale
@@ -1444,7 +1444,7 @@ function sceneMainMenu.resumeFxTween(event)
             sceneMainMenu.screenFx.targX = sceneMainMenu.screenFx.targX/2
             sceneMainMenu.screenFx.targY = sceneMainMenu.screenFx.targY/2
             sceneMainMenu.rtDontClear = true
-            sceneMainMenu.screenFx.alpha=0.95
+            sceneMainMenu.screenFx.alpha=0.94
         end
         
         sceneMainMenu.screenFx.tween = tween:to(sceneMainMenu.screenFx,
