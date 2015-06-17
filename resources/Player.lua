@@ -312,7 +312,7 @@ function Player:TakeHit()
         return
     end
     
-    device:vibrate(20)
+    device:vibrate(20, 0.3)
 
     --dbg.print("HIT! player=" .. self.id)
     self.health:Increment(-1)
@@ -558,9 +558,9 @@ ExplodeFX = function(event)
         fx.completeFunc = timer.completeFunc
         fx.completeTarget = timer.completeTarget
         onCompleteFunc = ExplodeFinalFunc
-        device:vibrate(150)
+        device:vibrate(150, 1)
     else
-        device:vibrate(20)
+        device:vibrate(20, 0.3)
     end
     tween:to(fx, {radius=timer.blastRadius, time=timer.duration, onComplete=onCompleteFunc})
 end

@@ -119,7 +119,7 @@ function HeatseekerDestroy(collidable)
     -- have multi-stage animation
     CollidableDestroy(collidable, true)
     collidable:addTimer(HeatseekerImpactFX, 0.1, 7, 0)
-    device:vibrate(100)
+    device:vibrate(100, 0.5)
 end
 
 --generic effect, used for new ball adds
@@ -153,7 +153,7 @@ function SpriteFX(event)
     local freqMin = event.timer.freqMin
     local freqMax = event.timer.freqMax
     local timerId = event.timer.id
-    local radius = screenMaxX*1.35 -- well off screen in any direction
+    local radius = sceneBattle.screenMaxX*1.35 -- well off screen in any direction
     local fxType = event.timer.fxType
     local fx
     
@@ -319,7 +319,7 @@ HeatseekerImpactFX = function(event)
         local ring = table.remove(bomb.rings)
         local fx = director:createCircle({xAnchor=0.5,yAnchor=0.5, x=bomb.x, y=bomb.y, radius=ring.radius, strokeColor=color.red, color=color.orange, strokeWidth=1, strokeAlpha=0, alpha=0.5})
         origin:addChild(fx)
-        tween:to(fx, {radius=(phase-4)*100, strokeAlpha=1, alpha=0, time=0.3, onComplete=destroyNode})
+        tween:to(fx, {radius=(phase-4)*100, strokeAlpha=1, strokeColor={r=255,g=255,b=255}, alpha=0, time=0.3, onComplete=destroyNode})
 
         destroyNode(ring)
     else
@@ -367,7 +367,25 @@ function VectorFromAngle(angle, size)
     return {x = (math.sin(angle) * size), y = (math.cos(angle) * size)}
 end
 
-function ShowMessage(message, delay, shrink, expandDir, vDisplacement, xPos, yPos, color)
+function sceneBattle:clearScreenFx()
+    if self.rt then
+        self.rt:clear(clearCol)
+    end
+end
+
+function sceneBattle:reshowScreenFx(time)
+    if self.screenFx then
+        cancelTweensOnNode(self.screenFx)
+        self.screenFx.alpha = 0.7
+        
+        if self.ballTimer then
+            tween:to(self.screenFx,
+                {alpha=0.05, time=time or self.ballTimer.period + self.ballTimer.delay - self.ballTimer.elapsed, easing=ease.powIn})
+        end
+    end
+end
+    
+function ShowMessage(message, delay, shrink, expandDir, vDisplacement, xPos, yPos, color)    
     x = xPos or 0
     y = yPos or 0
     local vAlign
@@ -416,7 +434,7 @@ end
 
 function ShowAchievement(achievementId)
     gameInfo.achievements[achievementId] = true
-    
+    sceneBattle:reshowScreenFx()
     ShowMessage("NEW ACHIEVEMENT:", 2.0, false, "up", nil, nil, nil, achieveCol)
     
     --local offset = -40
@@ -436,6 +454,7 @@ function ShowAchievement(achievementId)
             dir = "down"
         end
     end
+
     analytics:logEvent("achievement", {name=achievementId})
 end
 ---------------------------------------------------------------------------
@@ -554,6 +573,7 @@ function CollidableCreate(objType, xPos, yPos, startVector, startSpeed, objectOn
             
             if gameInfo.controlType == "onePlayer" and gameInfo.mode ~= "survival" and gameInfo.wave == 1 then
                 ShowMessage("heatseeker", 0.5, false)
+                sceneBattle:reshowScreenFx()
             end
         end
     else
@@ -692,6 +712,7 @@ function AddBall(vals)
             end
             sceneBattle:queueReplacementBall(1.5)--dont want instant replacement
             ShowMessage("reverse")
+            sceneBattle:reshowScreenFx()
         end
         return
     elseif objType == "freezer" then
@@ -706,6 +727,7 @@ function AddBall(vals)
             fxTimer.y = 0
             fxTimer.initAlpha = 1
             ShowMessage("freeze")
+            sceneBattle:reshowScreenFx()
             sceneBattle:queueReplacementBall(1.5)
         end
         return
@@ -805,7 +827,7 @@ function setBgAnimations(wavePosInSet)
     -- first of 6 wave set has static twinkling stars.
     -- then they move, accelerate and eventually reset to static
     setStarAnimation((gameInfo.wave-1) % 6) --0->5, not 1->6
-            
+    
     --animate flying sprites
     for kT,vT in pairs(sceneBattle.spriteFxTimer) do
         vT:cancel()
@@ -887,9 +909,12 @@ function checkWaveIsOver()
                 PushCollidableAwayFromPos(obj, 0, 0, 2)
             end
             
-            if sceneBattle.rt then
-                sceneBattle.rt:clear(clearCol)
-            end
+            --if sceneBattle.rt then
+            --    sceneBattle.rt:clear(clearCol)
+            --    cancelTweensOnNode(sceneBattle.screenFx)
+            --    sceneBattle.screenFx.alpha = 0.7
+            --end
+            -- Note that mnessage display will clear screenFx and set its alpha back on
             
             sceneBattle.waveLeft:SetValue(INIT_WAVE_SIZE+gameInfo.wave+1)
             --increase by 2 on 2nd wave (go from super easy intro to real difficulty!)
@@ -911,6 +936,10 @@ function checkWaveIsOver()
             if gameInfo.wave == SURVIVAL_UNLOCKED_WAVE and not gameInfo.achievements.survival then
                 ShowAchievement("survival")
             end
+            
+            --ensure message text is emphasised
+            sceneBattle:clearScreenFx()
+            sceneBattle:reshowScreenFx()
             
             analytics:logEvent("waveStarted", {waveNum=tostring(gameInfo.wave), score=tostring(sceneBattle.score.value)})
             -- restart ball adding timers
@@ -1021,8 +1050,16 @@ function AddNewBall(event)
         sceneBattle.ballTimer.ballDelay = event.timer.ballDelay
     end
     
+    -- reset burn effect on new balls to prevent screen getting too messy
+    -- ignore initial volley of balls or will reset too fast
     if sceneBattle.rt then
-        sceneBattle.rt:clear(clearCol)
+        if not event.timer.isInit then
+            sceneBattle:clearScreenFx()
+        end
+        
+        if not event.timer.isInit or (event.timer.isInit and event.doneIterations == INITIAL_BALL_QUEUE) then
+            sceneBattle:reshowScreenFx()
+        end
     end
     
     AddBall(vals)
@@ -1086,6 +1123,7 @@ end
 -- As this is a static function that takes a Quick Node as 1st param
 -- it can be passed to things like tween's onComplete.
 function CollidableDestroy(collidable, killLater, keepTimersRunning, keepTweensRunning)
+    
     local uniqueId = collidable.name
 
     --dbg.print("remove collidable with id: " .. collidable.name)
@@ -1117,7 +1155,7 @@ function CollidableDestroy(collidable, killLater, keepTimersRunning, keepTweensR
         deadCollidables[uniqueId] = collidable -- store by shape name as table can't be an array
                                                -- NB this would be simpler if we had collidables=nodes!
     else
-        if collidable.replaceOnLeaveScreen then 
+        if collidable.replaceOnLeaveScreen then
             sceneBattle:queueReplacementBall()
         end
         -- clean up any children, e.g. heatseeker rings etc if they weren't exploded (e.g. battle abandoned)
@@ -1326,12 +1364,18 @@ function sceneBattle:update(event)
                         obj.x = maxX
                         obj.vec.x = -obj.vec.x
                         -- bullets bounce once
-                        if obj.objType == "bullet" then obj.dontBounce = true end
+                        if obj.objType == "bullet" then
+                            obj.dontBounce = true
+                            obj.strokeColor = {105,0,105}
+                        end
                     end
                     if obj.x < minX then
                         obj.x = minX
                         obj.vec.x = -obj.vec.x
-                        if obj.objType == "bullet" then obj.dontBounce = true end
+                        if obj.objType == "bullet" then
+                            obj.dontBounce = true
+                            obj.strokeColor = {105,0,105}
+                        end
                     end
                     if obj.y > maxY then
                         obj.y = maxY
@@ -1374,6 +1418,7 @@ function sceneBattle:update(event)
                                 if not gameInfo.firstCloak then
                                     gameInfo.firstCloak = true
                                     ShowMessage("power surge!")
+                                    sceneBattle:reshowScreenFx()
                                 end
                                 player:AddAmmo(1) -- cloak balls also provide powerups
                                 player:Cloak()
@@ -1507,6 +1552,7 @@ end
 
 function sceneBattle:beginGameOver(duration)
     self.endTimer = system:addTimer(GameOver, duration, 1)
+    cancelTweensOnNode(self.screenFx)
     if self.screenFx then
         tween:to(self.screenFx, {alpha=0, time=duration*0.7})
     end
@@ -1521,6 +1567,7 @@ function playerHit(restoreHealth)
             end
             if gameInfo.streak > gameInfo.streakMax or gameInfo.streak > 2 then
                 ShowMessage(gameInfo.streak .. " bomb streak", 0, false, "up", nil, 0, minY+20, color.red)
+                sceneBattle:reshowScreenFx()
             end
             gameInfo.streak = 0
         end
@@ -2006,10 +2053,12 @@ function sceneBattle:fullscreenEffect()
     self.screenFx.y = screenHeight + virtualResolution.userWinMinY --  - screenWidth/2
         --screenHeight is workaround for bug in renderTexture!
     
-    self.screenFx.alpha=0.6
+    self.screenFx.alpha=0.7
     
     if self.gamePaused then
         self:startPauseEffects()
+    else
+        self:reshowScreenFx()
     end
 end
 
@@ -2073,7 +2122,7 @@ function sceneBattle:orientation(event, dontRestartEffects)
         maskOffset = (screenHeight-appHeight) / 2
     end
     
-    if not lockPlayAreaCentred and gameInfo.portraitTopAlign then        
+    if not demoMode and (not lockPlayAreaCentred and gameInfo.portraitTopAlign) then
         if origin then
             origin.y = offset
         end
@@ -2096,7 +2145,7 @@ function sceneBattle:orientation(event, dontRestartEffects)
         self.originMask.w = screenWidth
         self.originMask.h = screenHeight
         
-        if not lockPlayAreaCentred and gameInfo.portraitTopAlign then
+        if not demoMode and not lockPlayAreaCentred and gameInfo.portraitTopAlign then
             self.originMask.y = self.screenMinY - maskOffset
         else
             self.originMask.y = self.screenMinY
@@ -2518,8 +2567,10 @@ function sceneBattle:enterPostTransition(event)
         tween:to(self.pauseMenu, {time=0.25, delay=0.15, xScale=1})
     end
     
-    -- add buttons to move play area on long portrait devices (like phones!)
-    self.moveSceneTopOrMiddle()
+    if not demoMode then
+        -- add button to move play area on long portrait devices (like phones!)
+        self.moveSceneTopOrMiddle()
+    end
 end
 
 ----------------------------------------------------------------
@@ -2576,10 +2627,12 @@ end
 
 function sceneBattle:startPauseEffects()
     if self.screenFx then
+        cancelTweensOnNode(self.screenFx)
         self.screenFx.filter.name = "blur"
         self.screenFx.filter.x = 0
         self.screenFx.filter.y = 0
         self.screenFx.zOrder = 3
+        self:clearScreenFx()
         self.screenFx.alpha = 1
         
         self.screenFx.tween = tween:to(self.screenFx, {filter={x=3,y=3}, time=2, mode="mirror",
@@ -2759,7 +2812,7 @@ function ExitFromQuitConfirmMenu(touch)
             end
             sceneBattle.screenFx.filter.name = nil
             sceneBattle.screenFx.zOrder = -1
-            sceneBattle.screenFx.alpha = 0.65
+            sceneBattle.screenFx.alpha = 0.7
             tween:to(sceneBattle.screenFx, {alpha=0, time=0.3})
         end
         
@@ -2798,9 +2851,10 @@ function ResumeGame()
         sceneBattle.screenFx.filter.name = nil
         sceneBattle.screenFx.zOrder = -1
     end
-    if sceneBattle.rt then
-        sceneBattle.rt:clear(clearCol)
-    end
+    
+    sceneBattle:clearScreenFx()
+    sceneBattle:reshowScreenFx()
+    
     sceneBattle:orientation()
     
     tween:to(sceneBattle.pauseMenu, {time=0.4, yScale=1})
@@ -2902,13 +2956,15 @@ function sceneBattle:exitPreTransition(event)
         frameRateOverlay.hideFrameRate() --debugging
     end
     
-    if gameInfo.portraitTopAlign then
-        oldBtn = "down"
-    else
-        oldBtn = "up"
+    if sceneBattle.moveBtn then
+        if gameInfo.portraitTopAlign then
+            oldBtn = "down"
+        else
+            oldBtn = "up"
+        end
+        removeArrowButton(sceneBattle, oldBtn, sceneBattle.moveSceneTopOrMiddle)
+        sceneBattle.moveBtn = nil
     end
-    removeArrowButton(sceneBattle, oldBtn, sceneBattle.moveSceneTopOrMiddle)
-    sceneBattle.moveBtn = nil
     
     system:removeEventListener({"suspend", "resume", "update", "orientation"}, self)
     if demoMode and not demoModeDebug then
@@ -2980,8 +3036,12 @@ function sceneBattle:exitPostTransition(event)
     -- Kill any left over effects etc not tracked above
     dbg.print("full origin tree node destroy...")
     origin = destroyNodesInTree(origin, true)
-    self.originPause = destroyNodesInTree(self.originPause, true)
-    self.originMaskAnchor = destroyNodesInTree(self.originMaskAnchor, true)
+    if self.originPause then
+        self.originPause = destroyNodesInTree(self.originPause, true)
+    end
+    if self.originMaskAnchor then
+        self.originMaskAnchor = destroyNodesInTree(self.originMaskAnchor, true)
+    end
     
     self.pauseMenu = nil
     self.originMask = nil

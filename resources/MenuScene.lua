@@ -1186,6 +1186,8 @@ function sceneMainMenu:removeMainMenuListeners()
         system:removeEventListener("key", menuBackKeyListener)
         sceneMainMenu.backKeyListener = nil
     end
+    
+    self:showRotateInfo(false)
 end
 
 function sceneMainMenu:addMainMenuListeners()
@@ -1205,6 +1207,8 @@ function sceneMainMenu:addMainMenuListeners()
      --TODO: reuse in-game pause menu exit icons for user to confirm quit
     sceneMainMenu.backKeyListener = quitGameOnBackKey
     system:addEventListener("key", menuBackKeyListener)
+    
+    self:showRotateInfo(true)
 end
 
 function quitGameOnBackKey(event)
@@ -1357,11 +1361,11 @@ function sceneMainMenu:orientation(event, delayEffects)
         self.upBtn.y = (self.screenMinY+100 + 80) / 2
     end
     
-    if sceneMainMenu.scoreLabels then
+    if self.scoreLabels then
         local left, right
-        if sceneMainMenu.scoreMenuState == "streak" then
+        if self.scoreMenuState == "streak" then
             left = {"survival", "waves"}
-        elseif sceneMainMenu.scoreMenuState == "survival" then
+        elseif self.scoreMenuState == "survival" then
             left = {"waves"}
             right = {"streak"}
         else --waves
@@ -1392,17 +1396,21 @@ function sceneMainMenu:orientation(event, delayEffects)
     end
     
     -- jump to submenu if interrupting existing tween
-    if sceneMainMenu.title and sceneMainMenu.title.nextMenu then
-        if sceneMainMenu.title.menuTween then
-            tween:cancel(sceneMainMenu.title.menuTween)
-            sceneMainMenu.title.menuTween = nil
+    if self.title and self.title.nextMenu then
+        if self.title.menuTween then
+            tween:cancel(self.title.menuTween)
+            self.title.menuTween = nil
         end
-        sceneMainMenu.title.nextMenu()
-        sceneMainMenu.title.nextMenu = nil
+        self.title.nextMenu()
+        self.title.nextMenu = nil
+    end
+    
+    if self.rotateInfo then
+        self:showRotateInfo()
     end
     
     -- fit WRONG title to bottom of screen
-    if sceneMainMenu.subMenu then
+    if self.subMenu then
         self.title.y = self.screenMinY-350
         self.title.xScale=3
         self.title.yScale=2
@@ -1411,6 +1419,23 @@ function sceneMainMenu:orientation(event, delayEffects)
     -- (re)setup screen burn filter effect...
     if not delayEffects then -- dont do when called form setUp() pre transition! Cant start tweens until transition is over.
         self:queueFullscreenEffect()
+    end
+end
+
+function sceneMainMenu:showRotateInfo(show)
+    cancelTweensOnNode(self.rotateInfo)
+    self.rotateInfo.y = self.screenMinY*0.6
+    self.rotateInfo.alpha = 0
+    
+    if show ~= nil then
+        self.rotateInfo.willShow = show
+    end
+    
+    if self.rotateInfo.willShow and screenWidth < screenHeight then
+        
+        self.rotateInfo.color = color.black
+        tween:to(self.rotateInfo, {color={r=200,g=200,b=50}, time=2, delay=1.5, mode="mirror", easing=ease.powIn, easingValue = 4})
+        tween:to(self.rotateInfo, {alpha=1, time=1.5})
     end
 end
 
@@ -1694,6 +1719,8 @@ function sceneMainMenu:setUp(event)
     -- start flickering effect but pause until menu is shown
     self:restartFlicker()
     
+    self.rotateInfo = director:createLabel({x=appWidth/2, y=self.screenMinY*0.6, xAnchor=0.5, w=appWidth, h=50, hAlignment="center", vAlignment="center", text="ROTATE FOR LARGER VIEW", color=color.black, font=fontMainLarge, alpha=0, xScale=0.6, yScale=0.6})
+    
     if gameInfo.newHighScore then
         self.newDontClear = false --dont blur the high score controls (looks awful)
         self:setMenuState("highscores")
@@ -1756,6 +1783,8 @@ function sceneMainMenu:setUp(event)
         end
         
         self:titleFlash()
+        
+        self:showRotateInfo(true)
     end
 end
 
@@ -1845,6 +1874,8 @@ end
 function sceneMainMenu:exitPreTransition(event)
     dbg.print("sceneMainMenu:exitPreTransition")
     
+    self:showRotateInfo(false)
+    
     if showFrameRate then
         frameRateOverlay.hideFrameRate() --debugging
     end
@@ -1859,6 +1890,8 @@ function sceneMainMenu:exitPostTransition(event)
     
     fullscreenEffectsOff(self)
     self.screenFxTimer = nil
+    
+    self.rotateInfo = destroyNode(self.rotateInfo)
 
     for k,v in pairs(self.btns) do
         v.touchArea = v.touchArea:removeFromParent()

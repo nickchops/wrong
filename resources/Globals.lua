@@ -48,7 +48,7 @@ INITIAL_WAVE = 1 --use this to debug starting on other wave numbers
 -- Quick global switches ---------------------------------------------
 
 demoMode = false      -- in demo right now
---demoAvailable = true  -- demo is available
+demoAvailable = true  -- demo is available
 demoModeDebug = false --can still interact ir
 DEMO_TIMEOUT = 10
 
@@ -116,7 +116,7 @@ maxSledHalfHeight = initSledHalfHeight + sledExpandSize*maxSledExpand
 -----------------
 
 weapons = {"bullet", "ball", "air", "expander", "freezer", "heatseeker", "reverser"}
-collidableColours = {powerup=color.green, cloak=color.yellow, health=color.red, bullet=color.purple, ball={180,180,255}, air=color.red, expander=color.green, freezer=color.aqua, heatseeker=color.grey, reverser=color.yellow}
+collidableColours = {powerup=color.green, cloak=color.yellow, health=color.red, bullet={188,60,188}, ball={180,180,255}, air=color.red, expander=color.green, freezer=color.aqua, heatseeker=color.grey, reverser=color.yellow}
 collidableColours["expander-up"]=color.green
 collidableColours["expander-down"]=color.green
     --including all variations of "expander" for easy look up in dfferent functions
