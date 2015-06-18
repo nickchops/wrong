@@ -975,7 +975,7 @@ function sceneMainMenu:animateSceneOut()
     
     if self.screenFx then --may never have started
         self.screenFx:resumeTweens()
-        tween:to(self.screenFx, {alpha=0, time=0.8})
+        tween:to(self.screenFx, {alpha=0, time=0.7})
     end
     tween:to(self.title, {y=self.screenMinY-280, time=0.5, delay=0.3, onComplete=MenuStartGame})
 end

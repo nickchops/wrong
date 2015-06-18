@@ -21,6 +21,14 @@ function PushCollidablesAwayFromPos(x, y, boostSpeed)
             vecToY = vecToY / length
             obj.vec.x = vecToX * obj.speed * boostSpeed
             obj.vec.y = vecToY * obj.speed * boostSpeed
+            
+            if obj.xMirror then
+                if obj.vec.x > 0 then
+                    obj.xMirror = 1
+                else
+                    obj.xMirror = -1
+                end
+            end
         end
     end
 end
@@ -182,7 +190,7 @@ function SpriteFX(event)
         fx = director:createSprite({x=originX, y=originY, xAnchor=0.5, yAnchor=0.5, source="textures/asteroid1.png", xScale=size, yScale=size, rotation=originAngle, alpha=size/2, zOrder=-2})
         
         local completeFn
-        if event.timer.canExplode and (math.random(1,event.timer.canExplode) == 1) then
+        if event.timer.canExplode and (math.random(1,10) <= event.timer.canExplode) then
             completeFn = splitAsteroid
             local explodePoint = math.random(30,65)/100
             destX = destX*explodePoint
@@ -192,7 +200,8 @@ function SpriteFX(event)
             completeFn = destroyNode
         end
         
-        tween:to(fx, {time=time, x=destX, y=destY, onComplete=completeFn, rotation=math.random(-359,359)})
+        local targetAngle = math.random(originAngle+90,originAngle+350) % 360 -- at least 90 deg rotation or looks too static
+        tween:to(fx, {time=time, x=destX, y=destY, onComplete=completeFn, rotation=targetAngle})
     else
         dbg.assert("SpriteFX has invalid type")
         return
@@ -212,7 +221,7 @@ function SpriteFX(event)
 end
 
 function splitAsteroid(target)
-    local radius = self.screenMaxX*0.8
+    local radius = sceneBattle.screenMaxX*0.8
     rotation=target.rotation + 60
     
     for i = 1,3 do
@@ -243,8 +252,8 @@ AirFX = function(event)
         strokeWidth=1, strokeAlpha=0, alpha=0, color=color.black}) --set colour to avoid white circle on creation bug...
 
     origin:addChild(fx)
-    tween:to(fx, {radius=100, time=0.5})
-    tween:to(fx, {radius=300, time=1.5, delay=0.5})
+    tween:to(fx, {radius=100, time=0.5, strokeColor={g=110,b=60}})
+    tween:to(fx, {radius=300, time=1.5, delay=0.5, strokeColor={g=0,b=0}})
     tween:to(fx, {strokeAlpha=timer.initAlpha, time=0.5})
     tween:to(fx, {strokeAlpha=0, time=1.2, delay=0.8, onComplete=destroyNode})
     timer.initAlpha = timer.initAlpha - 0.3
@@ -868,7 +877,7 @@ function setBgAnimations(wavePosInSet)
             else
                 t.freqMin = 20
                 t.freqMax = 40
-                t.canExplode = 3 --1 in 3 explode
+                t.canExplode = 4 --4 in 10 explode
             end
             
             if wavePosInSet == 3 then
@@ -1501,6 +1510,7 @@ function sceneBattle:update(event)
             -- Opponent must survive until both these events happen!
             if not player.deadFlag and player.enemy.deadFlag == 4 then
                 DisablePauseMenu()
+                self:removeSceneMoveButton()
                 if gameInfo.controlType == "onePlayer" then
                     player.health:SetValue(0)
                 else
@@ -1542,6 +1552,7 @@ function sceneBattle:update(event)
             origin:addChild(message)
             self:beginGameOver(2.5)
             DisablePauseMenu()
+            self:removeSceneMoveButton()
             player1.deadFlag = 5
             player2.deadFlag = 5
         end
@@ -2947,6 +2958,18 @@ function sceneBattle:cancelTimers()
     self.ballCreateQueue = 0
 end
 
+function sceneBattle:removeSceneMoveButton()
+    if self.moveBtn then
+        if gameInfo.portraitTopAlign then
+            oldBtn = "down"
+        else
+            oldBtn = "up"
+        end
+        removeArrowButton(self, oldBtn, self.moveSceneTopOrMiddle)
+        self.moveBtn = nil
+    end
+end
+
 -- stop controls pre-transition
 -- also cancelling timers (looked a bit nicer this way)
 function sceneBattle:exitPreTransition(event)
@@ -2956,15 +2979,7 @@ function sceneBattle:exitPreTransition(event)
         frameRateOverlay.hideFrameRate() --debugging
     end
     
-    if sceneBattle.moveBtn then
-        if gameInfo.portraitTopAlign then
-            oldBtn = "down"
-        else
-            oldBtn = "up"
-        end
-        removeArrowButton(sceneBattle, oldBtn, sceneBattle.moveSceneTopOrMiddle)
-        sceneBattle.moveBtn = nil
-    end
+    self:removeSceneMoveButton()
     
     system:removeEventListener({"suspend", "resume", "update", "orientation"}, self)
     if demoMode and not demoModeDebug then
