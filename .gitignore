@@ -12,4 +12,5 @@ project.ini
 **development.icf
 **iwtrace.txt
 resources-source/**
+builds-and-backup/**
 builds/**

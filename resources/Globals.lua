@@ -24,6 +24,7 @@ DEFAULT_HEALTH_BATTLE = 13
 DEFAULT_HEALTH_SURVIVAL = 8
 DEFAULT_BULLETS_BATTLE = 5
 DEFAULT_AMMO_BATTLE = 1
+DEFAULT_AMMO_BATTLE_DEMO = 5
 DEFAULT_AMMO_WAVES = 0
 DEFAULT_AMMO_SURVIVAL = 3
 
@@ -135,8 +136,9 @@ numColors = table.getn(colorIndex)
 --Prototyped game on Nexus 7 1st gen (216 DPI), so using that as dpiScale = 1
 local dpiScale = nil
 
-local dpiScaler = dofile("PixelDensity.lua")
+dpiScaler = dofile("PixelDensity.lua")
 dpiScaler:setReferenceDpi(216)
+--dpiScaler:setReferenceDpi(326)
 
 --Gating factors for touch control. Must move faster than this for touch to cause movement
 --In screen pixels, not user space, which makes sense as this shouldnt relate to visuals

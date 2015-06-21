@@ -35,8 +35,9 @@ SplashScreenHeight="384"
 
 
 #For testing device sizes with scaling...
-#WinWidth=640
-#WinHeight=480
+#WinWidth=720
+#WinHeight=1280
+
 #-- iPhone retina
 #WinWidth=960
 #WinHeight=640

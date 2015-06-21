@@ -2171,6 +2171,8 @@ function sceneBattle:orientation(event, dontRestartEffects)
             self.moveBtn.y = math.max(virtualResolution.userWinMinY*0.4, virtualResolution.userWinMinY+60)
         end
     end
+    
+    self:scalePauseBtns()
 
     -- (re)setup screen burn filter effect...
     if not dontRestartEffects then
@@ -2187,6 +2189,9 @@ function sceneBattle:setUp(event)
     for i=1,10 do
         self.lastFrameTime[i] = system.gameTime
     end
+    
+    -- onePlayerMode mode: p1 controls both sleds and score records survival time in amount of balls added
+    local onePlayerMode = gameInfo.controlType == "onePlayer"
     
     system:addEventListener({"suspend", "resume", "orientation"}, sceneBattle)
     
@@ -2229,9 +2234,6 @@ function sceneBattle:setUp(event)
     self.recycler = {ball={},fx={}}
     -- manually count add/remove of reference to avoid getn
     self.recyclerCount = {ball=0,fx=0}
-    
-    local onePlayerMode = gameInfo.controlType == "onePlayer"
-    -- onePlayerMode mode: p1 controls both sleds and score records survival time in amount of balls added
     
     self.unFreezeTimer = nil
     self.frameCounter = 0
@@ -2277,7 +2279,13 @@ function sceneBattle:setUp(event)
         gameInfo.playerColours[2] = {255,50,50}
         health = DEFAULT_HEALTH_BATTLE
         ammo = {bullets = DEFAULT_BULLETS_BATTLE}
-        ammoDefault = DEFAULT_AMMO_BATTLE
+        
+        if demoMode then
+            ammoDefault = DEFAULT_AMMO_BATTLE_DEMO --less dull!
+        else
+            ammoDefault = DEFAULT_AMMO_BATTLE
+        end
+        
         setStarAnimation(1)
     end
     
@@ -2558,24 +2566,34 @@ function sceneBattle:enterPostTransition(event)
         if gameInfo.controlType == "p1LocalVsP2Local" then
             pauseX = 0 --fairer for 2 player, plus otherwise its easier to accidentally hit when holding from side
          end
-         
-        self.pauseMenu = director:createNode({x=pauseX, y=minY+20, zOrder=3, xScale=0})
+        
+        --.pauseMenu holds all menus (puase, resume, exit, etc)        
+        self.pauseMenu = director:createNode({x=pauseX, y=minY+20, zOrder=3})
+        self.originPause:addChild(self.pauseMenu)
+        
+        self:scalePauseBtns() -- btns try to scale to be size of a finger!
+        
+        --.pause is the initial pause symbol
+        self.pauseMenu.pause = director:createNode({x=0, y=0, xScale=0})
+        self.pauseMenu:addChild(self.pauseMenu.pause)
+        
+        
         --y=20 offset put origin at bottom of circle for shrink/expand anims
         self.pauseMenu.touchCircle = director:createCircle({x=0, y=20, xAnchor=0.5, yAnchor=0.5, radius=20, alpha=0, strokeWidth=1, strokeColor=menuBlue})
         self.pauseMenu.pause1 = director:createRectangle({x=-7, y=20, xAnchor=0.5, yAnchor=0.5, w=7, h=25, alpha=0, strokeWidth=1, strokeColor=menuGreen})
         self.pauseMenu.pause2 = director:createRectangle({x=7, y=20, xAnchor=0.5, yAnchor=0.5, w=7, h=25, alpha=0, strokeWidth=1, strokeColor=menuGreen})
-        self.pauseMenu:addChild(self.pauseMenu.touchCircle)
-        self.pauseMenu:addChild(self.pauseMenu.pause1)
-        self.pauseMenu:addChild(self.pauseMenu.pause2)
-        --origin:addChild(self.pauseMenu)
-        self.originPause:addChild(self.pauseMenu)
+        
+        self.pauseMenu.pause:addChild(self.pauseMenu.touchCircle)
+        self.pauseMenu.pause:addChild(self.pauseMenu.pause1)
+        self.pauseMenu.pause:addChild(self.pauseMenu.pause2)
         
         self.pauseMenu.touchCircle:addEventListener("touch", PauseGame)
         self.backKeyListener = PauseGame
         system:addEventListener("key", gameBackKeyListener)
         
-        tween:to(self.pauseMenu, {time=0.4, yScale=1})
-        tween:to(self.pauseMenu, {time=0.25, delay=0.15, xScale=1})
+        --tween:to(self.pauseMenu.pause, {time=0.4, yScale=1})
+        --tween:to(self.pauseMenu.pause, {time=0.25, delay=0.15, xScale=1})
+        tween:to(self.pauseMenu.pause, {time=0.4, xScale=1})
     end
     
     if not demoMode then
@@ -2588,14 +2606,38 @@ end
 -- Pause Menu
 
 -- TODO: should move this out to its own file and pass in origin and originPause
-
 -- Cleaner to use sceneBattle.pauseMenu.touchCircle:touch() etc for functions?
+
+function sceneBattle:scalePauseBtns()
+    if not self.pauseMenu then return end
+    
+    -- want 0.5 inch button... get 0.5 inches in user (VR) space coords
+    local btnSizeInches = 0.4
+    local screenWidthInches = director.displayWidth / dpiScaler.dpi
+    local btnSizeInScreenPix = director.displayWidth / (screenWidthInches / btnSizeInches)
+    
+    -- constrain by vr coord size - for small devices so button doesnt take up too much of screen
+    local btnSize = math.min(virtualResolution:winToUserSize(btnSizeInScreenPix), 60)
+
+    -- When I wrote the code originally, 20 pixels was the radius of the buttons..
+    -- scale central node to 40 circumference -> whatever 1 inch is in pixels
+    local scaleButtons = btnSize/40
+
+    self.pauseMenu.xScale=scaleButtons
+    self.pauseMenu.yScale=scaleButtons
+    
+    if (screenHeight - appHeight)/2 > btnSize then
+        self.pauseMenu.y = minY-btnSize
+    else
+        self.pauseMenu.y = self.screenMinY+20--minY+20
+    end
+end
 
 function DisablePauseMenu()
     if sceneBattle.pauseMenu then
         sceneBattle.pauseMenu.disabled = true
         sceneBattle.pauseMenu.touchCircle:removeEventListener({"touch"}, PauseGame)
-        tween:to(sceneBattle.pauseMenu, {time=0.4, xScale=0})
+        tween:to(sceneBattle.pauseMenu.pause, {time=0.4, xScale=0})
        
        system:removeEventListener("key", gameBackKeyListener)
     end
@@ -2626,8 +2668,8 @@ function PauseGame(touch)
         end
         
         tween:to(sceneBattle.originMask, {time=0.4, alpha=0.85})
-        tween:to(sceneBattle.pauseMenu, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu, {time=0.4, yScale=0, onComplete=ShowPauseMenu})
+        tween:to(sceneBattle.pauseMenu.pause, {time=0.25, xScale=0})
+        tween:to(sceneBattle.pauseMenu.pause, {time=0.4, yScale=0, onComplete=ShowPauseMenu})
         
         sceneBattle:orientation(nil, true) --make sure mask is in right place
         
@@ -2657,25 +2699,25 @@ end
 function ShowPauseMenu()
     local resume = sceneBattle.pauseMenu.resume
     if not resume then
-        resume = director:createNode({x=sceneBattle.pauseMenu.x, y=sceneBattle.pauseMenu.y, xScale=0, yScale=0, zOrder=3})
+        resume = director:createNode({x=0, y=0, xScale=0, yScale=0, zOrder=3})
         resume.touchCircle = director:createCircle({x=0, y=20, xAnchor=0.5, yAnchor=0.5, radius=20, color=color.black, strokeWidth=1, strokeColor=menuBlue})
         resume.play = director:createLines({x=0, y=20, coords={-8,-12, -8,12, 14,0, -8,-12}, alpha=0, strokeWidth=1, strokeColor=menuGreen})
         resume:addChild(resume.touchCircle)
         resume:addChild(resume.play)
-        sceneBattle.originPause:addChild(resume)
+        sceneBattle.pauseMenu:addChild(resume)
         sceneBattle.pauseMenu.resume = resume
     end
     
     local quit = sceneBattle.pauseMenu.quit
     if not quit then
-        quit = director:createNode({x=sceneBattle.pauseMenu.x, y=sceneBattle.pauseMenu.y, xScale=0, yScale=0, zOrder=3})
+        quit = director:createNode({x=0, y=0, xScale=0, yScale=0, zOrder=3})
         quit.touchCircle = director:createCircle({x=0, y=20, xAnchor=0.5, yAnchor=0.5, radius=20, color=color.black, strokeWidth=1, strokeColor=menuBlue})
         quit.door = director:createLines({x=0, y=20, coords={7,-12, -9,-12, -9,12, 7,12}, alpha=0, strokeWidth=1, strokeColor=menuGreen})
         quit.arrow = director:createLines({x=0, y=20, coords={-5,0, 2,8, 2,3, 12,3, 12,-3, 2,-3, 2,-8, -5,0}, alpha=0, strokeWidth=1, strokeColor=menuGreen})
         quit:addChild(quit.touchCircle)
         quit:addChild(quit.door)
         quit:addChild(quit.arrow)
-        sceneBattle.originPause:addChild(quit)
+        sceneBattle.pauseMenu:addChild(quit)
         sceneBattle.pauseMenu.quit = quit
     end
     
@@ -2685,10 +2727,10 @@ function ShowPauseMenu()
     end
     sceneBattle.pauseMenu.pauseLabel.isVisible = true
     
-    tween:to(sceneBattle.pauseMenu.resume, {time=0.4, x=sceneBattle.pauseMenu.x+15, y=sceneBattle.pauseMenu.y+55, yScale=1, onComplete=ActivatePauseMenu})
+    tween:to(sceneBattle.pauseMenu.resume, {time=0.4, x=15, y=55, yScale=1, onComplete=ActivatePauseMenu})
     tween:to(sceneBattle.pauseMenu.resume, {time=0.25, delay=0.15, xScale=1})
     
-    tween:to(sceneBattle.pauseMenu.quit, {time=0.4, x=sceneBattle.pauseMenu.x+50, y=sceneBattle.pauseMenu.y+110, yScale=1})
+    tween:to(sceneBattle.pauseMenu.quit, {time=0.4, x=50, y=110, yScale=1})
     tween:to(sceneBattle.pauseMenu.quit, {time=0.25, delay=0.15, xScale=1})
 end
 
@@ -2717,9 +2759,9 @@ function HidePauseMenu(touch)
         
         tween:to(sceneBattle.originMask, {time=0.2, alpha=0})
         tween:to(sceneBattle.pauseMenu.resume, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu.resume, {time=0.4, x=sceneBattle.pauseMenu.x, y=sceneBattle.pauseMenu.y, yScale=0, onComplete=ResumeGame})
+        tween:to(sceneBattle.pauseMenu.resume, {time=0.4, x=0, y=0, yScale=0, onComplete=ResumeGame})
         tween:to(sceneBattle.pauseMenu.quit, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu.quit, {time=0.4, x=sceneBattle.pauseMenu.x, y=sceneBattle.pauseMenu.y, yScale=0})
+        tween:to(sceneBattle.pauseMenu.quit, {time=0.4, x=0, y=0, yScale=0})
         
         system:removeEventListener("key", gameBackKeyListener)
     end
@@ -2734,9 +2776,9 @@ function QuitFromPauseMenu(touch)
         sceneBattle.pauseMenu.pauseLabel.isVisible = false
         
         tween:to(sceneBattle.pauseMenu.resume, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu.resume, {time=0.4, x=sceneBattle.pauseMenu.x, y=sceneBattle.pauseMenu.y, yScale=0, onComplete=ShowQuitConfirmMenu})
+        tween:to(sceneBattle.pauseMenu.resume, {time=0.4, x=0, y=0, yScale=0, onComplete=ShowQuitConfirmMenu})
         tween:to(sceneBattle.pauseMenu.quit, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu.quit, {time=0.4, x=sceneBattle.pauseMenu.x, y=sceneBattle.pauseMenu.y, yScale=0})
+        tween:to(sceneBattle.pauseMenu.quit, {time=0.4, x=0, y=0, yScale=0})
         
         system:removeEventListener("key", gameBackKeyListener)
     end
@@ -2746,23 +2788,23 @@ end
 function ShowQuitConfirmMenu()
     local yes = sceneBattle.pauseMenu.yes
     if not yes then
-        yes = director:createNode({x=sceneBattle.pauseMenu.x, y=sceneBattle.pauseMenu.y, xScale=0, yScale=0, zOrder=3})
+        yes = director:createNode({x=0, y=0, xScale=0, yScale=0, zOrder=3})
         yes.touchCircle = director:createCircle({x=0, y=20, xAnchor=0.5, yAnchor=0.5, radius=20, color=color.black, strokeWidth=1, strokeColor=menuBlue})
         yes.tick = director:createLines({x=0, y=20, coords={-5,-12, -14,2, -5,-3, 11,10, -5,-12}, alpha=0, strokeWidth=1, strokeColor=menuGreen})
         yes:addChild(yes.touchCircle)
         yes:addChild(yes.tick)
-        sceneBattle.originPause:addChild(yes)
+        sceneBattle.pauseMenu:addChild(yes)
         sceneBattle.pauseMenu.yes = yes
     end
     
     local no = sceneBattle.pauseMenu.no
     if not no then
-        no = director:createNode({x=sceneBattle.pauseMenu.x, y=sceneBattle.pauseMenu.y, xScale=0, yScale=0, zOrder=3})
+        no = director:createNode({x=0, y=0, xScale=0, yScale=0, zOrder=3})
         no.touchCircle = director:createCircle({x=0, y=20, xAnchor=0.5, yAnchor=0.5, radius=20, color=color.black, strokeWidth=1, strokeColor=menuBlue})
         no.cross = director:createLines({x=0, y=20, coords={-3,0, -12,9, -9,12, 0,3, 9,12, 12,9, 3,0, 12,-9, 9,-12, 0,-3, -9,-12, -12,-9, -3,0}, alpha=0, strokeWidth=1, strokeColor=menuGreen})
         no:addChild(no.touchCircle)
         no:addChild(no.cross)
-        sceneBattle.originPause:addChild(no)
+        sceneBattle.pauseMenu:addChild(no)
         sceneBattle.pauseMenu.no = no
     end
     
@@ -2772,10 +2814,10 @@ function ShowQuitConfirmMenu()
     end
     sceneBattle.pauseMenu.quitLabel.isVisible = true
     
-    tween:to(sceneBattle.pauseMenu.yes, {time=0.4, x=sceneBattle.pauseMenu.x+15, y=sceneBattle.pauseMenu.y+55, yScale=1, onComplete=ActivateQuitConfirmMenu})
+    tween:to(sceneBattle.pauseMenu.yes, {time=0.4, x=15, y=55, yScale=1, onComplete=ActivateQuitConfirmMenu})
     tween:to(sceneBattle.pauseMenu.yes, {time=0.25, delay=0.15, xScale=1})
     
-    tween:to(sceneBattle.pauseMenu.no, {time=0.4, x=sceneBattle.pauseMenu.x+50, y=sceneBattle.pauseMenu.y+110, yScale=1})
+    tween:to(sceneBattle.pauseMenu.no, {time=0.4, x=50, y=110, yScale=1})
     tween:to(sceneBattle.pauseMenu.no, {time=0.25, delay=0.15, xScale=1})
 end
 
@@ -2795,9 +2837,9 @@ function BackToPauseMenu(touch)
         sceneBattle.pauseMenu.quitLabel.isVisible = false
         
         tween:to(sceneBattle.pauseMenu.yes, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu.yes, {time=0.4, x=sceneBattle.pauseMenu.x, y=sceneBattle.pauseMenu.y, yScale=0, onComplete=ShowPauseMenu})
+        tween:to(sceneBattle.pauseMenu.yes, {time=0.4, x=0, y=0, yScale=0, onComplete=ShowPauseMenu})
         tween:to(sceneBattle.pauseMenu.no, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu.no, {time=0.4, x=sceneBattle.pauseMenu.x, y=sceneBattle.pauseMenu.y, yScale=0})
+        tween:to(sceneBattle.pauseMenu.no, {time=0.4, x=0, y=0, yScale=0})
         
         system:removeEventListener("key", gameBackKeyListener)
     end
@@ -2813,9 +2855,9 @@ function ExitFromQuitConfirmMenu(touch)
         
         tween:to(sceneBattle.originMask, {time=0.2, alpha=0})
         tween:to(sceneBattle.pauseMenu.yes, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu.yes, {time=0.4, x=sceneBattle.pauseMenu.x, y=sceneBattle.pauseMenu.y, yScale=0, onComplete=ExitFromQuitConfirmMenu2})
+        tween:to(sceneBattle.pauseMenu.yes, {time=0.4, x=0, y=0, yScale=0, onComplete=ExitFromQuitConfirmMenu2})
         tween:to(sceneBattle.pauseMenu.no, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu.no, {time=0.4, x=sceneBattle.pauseMenu.x, y=sceneBattle.pauseMenu.y, yScale=0})
+        tween:to(sceneBattle.pauseMenu.no, {time=0.4, x=0, y=0, yScale=0})
         if sceneBattle.screenFx then
             if sceneBattle.screenFx.tween then
                 tween:cancel(sceneBattle.screenFx.tween)
@@ -2868,8 +2910,8 @@ function ResumeGame()
     
     sceneBattle:orientation()
     
-    tween:to(sceneBattle.pauseMenu, {time=0.4, yScale=1})
-    tween:to(sceneBattle.pauseMenu, {time=0.25, delay=0.15, xScale=1})
+    tween:to(sceneBattle.pauseMenu.pause, {time=0.4, yScale=1})
+    tween:to(sceneBattle.pauseMenu.pause, {time=0.25, delay=0.15, xScale=1})
     
     --in case somethin's gone wrong and bar re-showed itself, now is a good time
     --to force re-hide

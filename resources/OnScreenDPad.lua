@@ -203,9 +203,9 @@ function OnScreenDPad.Create(vals)
                 w=pad.topRadius*0.4, h=pad.topRadius*2-pad.topRadius*0.85, strokeWidth=0, color=pad.baseColor, zOrder=0})
         pad.joystick:addChild(pad.joystick.stick)
         pad.joystick:addChild(director:createCircle({xAnchor=0.5, yAnchor=0.5, x=0, y=0,
-                    radius=pad.topRadius*0.16, yScale=0.5, strokeWidth=0, color=pad.baseColor, zOrder=0}))
+                    radius=pad.topRadius*0.2, yScale=0.5, strokeWidth=0, color=pad.baseColor, zOrder=0}))
         pad.joystick.sticktop = director:createCircle({xAnchor=0.5, yAnchor=0.5, x=0, y=pad.joystick.stick.h,
-                    radius=pad.topRadius*0.16, yScale=0.4, strokeWidth=0, color=pad.baseColor, zOrder=0})
+                    radius=pad.topRadius*0.2, yScale=0.4, strokeWidth=0, color=pad.baseColor, zOrder=0})
         pad.joystick:addChild(pad.joystick.sticktop)
 
         -- arrows at bottom

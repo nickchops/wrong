@@ -257,6 +257,15 @@ function menuEnterNameForScore()
     sceneMainMenu.backKeyListener = menuSaveOnBackKey --alow android etc back key to press save button
     system:addEventListener("key", menuBackKeyListener)
     
+    -- these values are from the text label positioning
+    local x = appWidth/2 - 52
+    local y = appHeight/2+165-33 - gameInfo.newHighScore*20
+    sceneMainMenu.nameCursor = director:createLines({x=x,y=y, coords={0,0, 8,0, 4,4, 0,0},
+            color=menuBlue, strokeWidth=0})
+    local topCursor = director:createLines({x=0,y=23, coords={0,0, 4,-4, 8,0, 0,0},
+            color=menuBlue, strokeWidth=0})
+    sceneMainMenu.nameCursor:addChild(topCursor)
+    
     -- poll at intervals so stick position slowly changes selected character
     sceneMainMenu.joyTimer = system:addTimer(menuCheckNameInput, 0.25, 0)
 end
@@ -301,8 +310,8 @@ function menuCheckNameInput(event)
         end
         local newCharId =
             circularIncrement(sceneMainMenu.nameInput[sceneMainMenu.nameIndex], sceneMainMenu.nameChars.size, incr)
-        dbg.print("Cycle char at (" .. tostring(sceneMainMenu.nameIndex) .. ") to: #" .. newCharId ..
-                " = '" .. sceneMainMenu.nameChars[newCharId] .."'")
+        --dbg.print("Cycle char at (" .. tostring(sceneMainMenu.nameIndex) .. ") to: #" .. newCharId ..
+        --        " = '" .. sceneMainMenu.nameChars[newCharId] .."'")
         sceneMainMenu.nameInput[sceneMainMenu.nameIndex] = newCharId
         
     elseif xChange ~= 0 then --switch which character to change
@@ -312,10 +321,15 @@ function menuCheckNameInput(event)
         end
         sceneMainMenu.nameIndex = sceneMainMenu.nameIndex + incr
         dbg.print("Switch to char index: " .. tostring(sceneMainMenu.nameIndex))
+        
+        --[[ --old logic, replaced with cursor below for ease of use...
         sceneMainMenu.nameInput[sceneMainMenu.nameIndex] = 2 -- reset to indicate column was selected
         for n=sceneMainMenu.nameIndex+1, sceneMainMenu.nameInput.size do
             sceneMainMenu.nameInput[n] = 1
         end
+        ]]--
+        
+        sceneMainMenu.nameCursor.x = appWidth/2 - 52 + (sceneMainMenu.nameIndex-1)*8
     end
     
     if xChange ~= 0 or yChange ~= 0 then
@@ -330,16 +344,22 @@ end
 function menuSaveScoreName(buttonDown)
     if not buttonDown then
         dbg.print("score save button released!")
+        sceneMainMenu.newHighScoreDisplayFlag = "postInput" --allow controls to tween out on orientation
+        sceneMainMenu.nameCursor = sceneMainMenu.nameCursor:removeFromParent()
+        
         sceneMainMenu.joyTimer:cancel()
         sceneMainMenu.joyTimer=nil
         sceneMainMenu.joystick:deactivate()
         sceneMainMenu.scoreSaveButton:deactivate()
         system:removeEventListener("key", menuBackKeyListener)
         sceneMainMenu.backKeyListener = nil
-        tween:to(sceneMainMenu.joystick.origin, {x=sceneMainMenu.screenMinX-100, time=1.0})
+        
+        --tween to max bounds cause too lay for adaptive target if screen rotates!
+        tween:to(sceneMainMenu.joystick.origin, {x=math.min(sceneMainMenu.screenMinX, sceneMainMenu.screenMinY)-100, time=1.2})
         sceneMainMenu.newDontClear = true -- flashy effects back on once controls done with
-        tween:to(sceneMainMenu.scoreSaveButton.origin, {x=sceneMainMenu.screenMaxX+100, time=1.0, onComplete=menuRemoveScoreControls})
+        tween:to(sceneMainMenu.scoreSaveButton.origin, {x=math.max(sceneMainMenu.screenMaxX, sceneMainMenu.screenMaxY)+100, time=1.2, onComplete=menuRemoveScoreControls})
         tween:cancel(sceneMainMenu.inputAnim)
+        
         sceneMainMenu.scoreLabels[sceneMainMenu.scoreMenuState][gameInfo.newHighScore].alpha=1
         gameInfo.name = gameInfo.highScore[sceneMainMenu.scoreMenuState][gameInfo.newHighScore].name -- store last name entered
         
@@ -357,6 +377,7 @@ function menuRemoveScoreControls()
     sceneMainMenu.scoreSaveButton:destroy()
     sceneMainMenu.joystick = nil
     sceneMainMenu.scoreSaveButton = nil
+    sceneMainMenu:fullscreenEffect()
 end
 
 function menuDisplayHighScoreScreen(target)
@@ -519,6 +540,8 @@ end
 function menuCloseHighScores(event)
     if event.phase == "ended" then
         sceneMainMenu.subMenu = nil
+        sceneMainMenu.newHighScoreDisplayFlag = nil
+        
         for kL, vL in pairs(sceneMainMenu.scoreLabels) do
             if kL == "title" then
                 vL:removeFromParent()
@@ -856,7 +879,7 @@ function LoadUserData()
         end
     end
     
-    if not gameInfo.name then gameInfo.name = "_P1" end --records last name entered to save re-entering
+    if not gameInfo.name then gameInfo.name = " P1" end --records last name entered to save re-entering
 end
 
 -- as above for restoring last game if game was killed before user explicitly exited
@@ -938,6 +961,7 @@ function sceneMainMenu:buttonPressedAnim(touched)
 end
 
 -- set as if menu was acessed already
+-- only works fully for highscores atm
 function sceneMainMenu:setMenuState(touched)
     for k,v in pairs(self.btns) do
         if k == touched then
@@ -950,6 +974,7 @@ function sceneMainMenu:setMenuState(touched)
     end 
     self.labelScore.alpha=0
     self.labelHighScore.alpha=0
+    self.subMenu = touched
     
     if touched == "highscores" then
         sceneMainMenu.title.y=self.screenMinY-170 --places "WRONG" off-screen, but hills on-screen
@@ -977,6 +1002,11 @@ function sceneMainMenu:animateSceneOut()
         self.screenFx:resumeTweens()
         tween:to(self.screenFx, {alpha=0, time=0.7})
     end
+    
+    if gameInfo.controlType == "p1LocalVsP2Local" and not demoMode then
+        device:setOrientation("landscapeFixed")
+    end
+    
     tween:to(self.title, {y=self.screenMinY-280, time=0.5, delay=0.3, onComplete=MenuStartGame})
 end
 
@@ -1168,7 +1198,6 @@ end
 function sceneMainMenu:removeMainMenuListeners()
     if self.screenFx then
         -- swap effect each time we open a menu
-        dbg.print("!!!!")
         self.newDontClear = not self.newDontClear
     end
     if demoAvailable then
@@ -1411,9 +1440,23 @@ function sceneMainMenu:orientation(event, delayEffects)
     
     -- fit WRONG title to bottom of screen
     if self.subMenu then
-        self.title.y = self.screenMinY-350
-        self.title.xScale=3
-        self.title.yScale=2
+        if self.newHighScoreDisplayFlag then
+            sceneMainMenu.title.y=self.screenMinY-170 --alt pos to avoid name entry controls
+            delayEffects = true
+            
+            if self.newHighScoreDisplayFlag == "input" then
+                if self.joystick then
+                    self.joystick.origin.x=self.screenMinX+90
+                end
+                if self.scoreSaveButton then
+                    self.scoreSaveButton.origin.x=self.screenMaxX-90
+                end
+            end
+        else
+            self.title.y = self.screenMinY-350
+            self.title.xScale=3
+            self.title.yScale=2
+        end
     end
     
     -- (re)setup screen burn filter effect...
@@ -1512,6 +1555,8 @@ function sceneMainMenu:setUp(event)
     -- loads scores, last user name and achievements from local storage
     -- TODO: integrate these with online services...
     if not gameInfo.highScore then LoadUserData() end
+    
+    --if not startupFlag and not gameInfo.newHighScore then gameInfo.newHighScore = 3 end --for debugging nsmith
     
     self.readyToContinue = LoadContinueData()
     gameInfo.continue = {} --needed for demo mode to not try to do continue logic
@@ -1722,7 +1767,8 @@ function sceneMainMenu:setUp(event)
     self.rotateInfo = director:createLabel({x=appWidth/2, y=self.screenMinY*0.6, xAnchor=0.5, w=appWidth, h=50, hAlignment="center", vAlignment="center", text="ROTATE FOR LARGER VIEW", color=color.black, font=fontMainLarge, alpha=0, xScale=0.6, yScale=0.6})
     
     if gameInfo.newHighScore then
-        self.newDontClear = false --dont blur the high score controls (looks awful)
+        --self.newDontClear = false --dont blur the high score controls (looks awful)
+        self.newHighScoreDisplayFlag = "input"
         self:setMenuState("highscores")
     else
         if startupFlag then
@@ -1841,7 +1887,10 @@ function sceneMainMenu:enterPostTransition(event)
     -- battlescene's exitPreTransition!
     demoMode = false
     
-    if not startupFlag then
+    device:setOrientation("free")
+    
+    if not startupFlag and not gameInfo.newHighScore then
+        -- blur on joystick looks awkward, plus it's not conceptually "on screen", so delay effect for highscores
         self:queueFullscreenEffect()
     end
     

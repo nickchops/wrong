@@ -2,3 +2,5 @@
 {OS=WINDOWS}
 WinWidth=1600
 WinHeight=1000
+
+WinResizable=1
