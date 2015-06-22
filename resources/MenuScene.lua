@@ -1005,6 +1005,14 @@ function sceneMainMenu:animateSceneOut()
     
     if gameInfo.controlType == "p1LocalVsP2Local" and not demoMode then
         device:setOrientation("landscapeFixed")
+    else
+        -- Lock rotation during transition or else values are broken on game scene start.
+        -- Prob should fix this in SDK...
+        if screenWidth > screenHeight then
+            device:setOrientation("landscape") --screen can still flip safely, only dimensions are an issue
+        elseif screenWidth < screenHeight then
+            device:setOrientation("portrait")
+        end -- square screen (unlikely but exists!) doesnt need any locking
     end
     
     tween:to(self.title, {y=self.screenMinY-280, time=0.5, delay=0.3, onComplete=MenuStartGame})
@@ -1887,7 +1895,9 @@ function sceneMainMenu:enterPostTransition(event)
     -- battlescene's exitPreTransition!
     demoMode = false
     
+    -- restore rotation (locked during transitions; always locked in battle)
     device:setOrientation("free")
+    self:orientation(true) -- force resolution check for desktop (or anything that doesn't support locking resolution) 
     
     if not startupFlag and not gameInfo.newHighScore then
         -- blur on joystick looks awkward, plus it's not conceptually "on screen", so delay effect for highscores

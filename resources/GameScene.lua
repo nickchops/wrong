@@ -1215,6 +1215,7 @@ function sceneBattle:update(event)
     
     -- freeze during intro messages on resuming suspended games
     if self.continuePause and system.gameTime < self.continuePause then
+        fullscreenEffectsUpdate(self)
         return
     end
     
@@ -1870,8 +1871,8 @@ end
 function cancelBattle(event)
     if event.phase == "ended" then -- guard or else will try to transition twice!
         sceneBattle.ignoreEvents = true -- stop balls regenerating etc
-        sceneMainMenu:wipeContinueFile()
-        director:moveToScene(sceneMainMenu, {transitionType="slideInB", transitionTime=1.5})
+        --sceneMainMenu:wipeContinueFile()
+        sceneBattle:goToMenu()
         --objects will all be destroyed in post transition event
     end
 end
@@ -1885,8 +1886,22 @@ end]]--
 function GameOver(event)
     sceneBattle.endTimer = nil
     sceneMainMenu:wipeContinueFile()
-    director:moveToScene(sceneMainMenu, {transitionType="slideInB", transitionTime=1.5})
+    sceneBattle:goToMenu()
     -- all effects must have finished by this point :)
+end
+
+function sceneBattle:goToMenu()
+    if gameInfo.controlType ~= "p1LocalVsP2Local" or demoMode then --already locked in battle mode
+        -- Lock rotation during transition or else values are broken next scene start.
+        -- Prob should fix this in SDK...
+        if screenWidth > screenHeight then
+            device:setOrientation("landscape") --screen can still flip safely, only dimensions are an issue
+        elseif screenWidth < screenHeight then
+            device:setOrientation("portrait")
+        end -- square screen (unlikely but exists!) doesnt need any locking
+    end
+    
+    director:moveToScene(sceneMainMenu, {transitionType="slideInB", transitionTime=1.5})
 end
 
 function ShowGameOverAd(event)
@@ -2437,6 +2452,12 @@ function sceneBattle:enterPostTransition(event)
     dbg.print("sceneBattle:enterPostTransition")
     -- start game running after transitions
     
+    --diable screen lock for non-battle games once the transition is over
+    if gameInfo.controlType ~= "p1LocalVsP2Local" or demoMode then
+        device:setOrientation("free")
+        self:orientation(true) -- also re-check orientation for dekstop or anything else where locking isn't supported
+    end
+    
     -- wait till now so isnt wiped instantly by pre scenes hide call!
     if showFrameRate then
         dbg.print("showframe rate!")
@@ -2535,7 +2556,7 @@ function sceneBattle:enterPostTransition(event)
         origin:addChild(scoreHelper)
         scoreHelper:addTimer(ScoreHelperLabels, startDelay+2, 1)
     else
-        startDelay = 0
+        startDelay = 2
         ShowMessage("FIGHT", startDelay, false, "up")
         self.ballTimer = system:addTimer(AddNewBall, gameInfo.continue.ballDelay or FIGHT_NEW_BALL_DELAY, 0, startDelay)
     end
@@ -2660,6 +2681,13 @@ function PauseGame(touch)
         system:pauseTimers()
         pauseNodesInTree(origin)
         
+        -- Now saving data on pause. Device might die without ever suspending app.
+        -- Windows store tries to freeze and do auto resume rather than suspending. Would
+        -- rather save in case that doesn't work!
+        if not demoMode then
+            sceneBattle:saveState()
+        end
+        
         --sceneBattle.pauseMenu:resumeTweens()
         if not sceneBattle.originMask then
             sceneBattle.originMask = director:createRectangle({x=sceneBattle.screenMinX, y=sceneBattle.screenMinY,
@@ -2722,7 +2750,11 @@ function ShowPauseMenu()
     end
     
     if not sceneBattle.pauseMenu.pauseLabel then
-        sceneBattle.pauseMenu.pauseLabel = director:createLabel({x=0, y=0, hAlignment="centre", vAlignment="centre", text="PAUSED", color=menuBlue, font=fontMainLarge, zOrder=20})
+        local labelY = 0
+        if gameInfo.controlType == "p1LocalVsP2Local" then
+            labelY = 80 --avoid buttons when they are in centre of screen
+        end
+        sceneBattle.pauseMenu.pauseLabel = director:createLabel({x=0, y=labelY, hAlignment="centre", vAlignment="centre", text="PAUSED", color=menuBlue, font=fontMainLarge, zOrder=20})
         sceneBattle.originPause:addChild(sceneBattle.pauseMenu.pauseLabel)
     end
     sceneBattle.pauseMenu.pauseLabel.isVisible = true
@@ -2809,7 +2841,11 @@ function ShowQuitConfirmMenu()
     end
     
     if not sceneBattle.pauseMenu.quitLabel then
-        sceneBattle.pauseMenu.quitLabel = director:createLabel({x=0, y=0, hAlignment="centre", vAlignment="centre", text="QUIT GAME?", color=menuBlue, font=fontMainLarge, zOrder=20})
+        local labelY = 0
+        if gameInfo.controlType == "p1LocalVsP2Local" then
+            labelY = 80 --avoid buttons when they are in centre of screen
+        end
+        sceneBattle.pauseMenu.quitLabel = director:createLabel({x=0, y=labelY, hAlignment="centre", vAlignment="centre", text="QUIT GAME?", color=menuBlue, font=fontMainLarge, zOrder=20})
         sceneBattle.originPause:addChild(sceneBattle.pauseMenu.quitLabel)
     end
     sceneBattle.pauseMenu.quitLabel.isVisible = true
