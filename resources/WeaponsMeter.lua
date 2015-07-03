@@ -250,7 +250,7 @@ function WeaponsMeter:AddAmmo(amount)
         if gameInfo.powerupLevel == 1 and self.ammo.air == POWERUP_FOR_NEXT_WEAPON-2 then
             gameInfo.powerupLevel = 2
             ShowMessage("get weapon", 0, false, "up", 100)
-            ShowMessage("ammo over " .. POWERUP_FOR_NEXT_WEAPON, 0.5, false, "up", 40)
+            ShowMessage("ammo to " .. POWERUP_FOR_NEXT_WEAPON-1, 0.5, false, "up", 40)
             ShowMessage("to unlock the", 1.5, false, "down", -40)
             ShowMessage("next weapon...", 2.0, false, "down", -100)
         end

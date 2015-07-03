@@ -11,6 +11,11 @@ mkb-quick.txt
 project.ini
 **development.icf
 **iwtrace.txt
-resources-source/**
-builds-and-backup/**
 builds/**
+*.mobileprovision
+*.keystore
+*.mp4
+*.mov
+readme_private.txt
+private_nsmith/**
+Globals_pvt.lua

@@ -1,13 +1,42 @@
 W R O N G
 =========
 
-Wrong (Weaponified Reverse pONG)
+Weaponised Reverse xONG. Battle yourself. In reverse. With guns. WRONG!
 
 This is an open source game written by Nick Smith using Marmalade Quick.
 
+##Builds
+
+- Google Play: https://play.google.com/store/apps/details?id=com.nickchops.wrong
+- Apple App Store: https://itunes.apple.com/us/app/wrong!/id897361366
+
 
 ------------------------------------------------------------------------------------------
-(C) 2013-2014 Nick Smith.
+
+The Game
+--------
+
+A bit like a certain vintage arcade game. But in reverse. Against yourself. With guns... WRONG!
+
+Retro arcade fun for one or two players! State of the art 1970s vector graphics!
+
+Twitchy multitouch gameplay with endless waves, head hurting visuals, multiple modes, high scores and achievements. Fits all screen sizes but most fun on a tablet or big-assed phone.
+
+This game is free. Like free speech or free beer. No in app payments. No adverts. It's just for fun.
+
+If you're a coder, this game was originally built as a demo for the Marmalade Quick engine. Development info and source code can be found via the "hack me" menu.
+
+
+Source code and assets
+----------------------
+
+Feel free to learn from and reuse code. The license below is super permissive,
+but please don't just clone the game. There's no real value in that anyway!
+
+
+------------------------------------------------------------------------------------------
+
+(C) 2013-2015 Nick Smith.
 
 All code is provided under the MIT license unless stated otherwise:
 

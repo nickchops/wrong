@@ -463,6 +463,12 @@ function ShowAchievement(achievementId)
             dir = "down"
         end
     end
+    
+    if googlePlayServices and sceneMainMenu.gotPlayServices then
+        googlePlayServices.unlockAchievement(achievementServiceIds[achievementId].googlePlay, true)
+        dbg.print("Google Play Services: unlocking achievement: " .. achievementId ..
+            "(" .. achievementServiceIds[achievementId].googlePlay .. ")")
+    end
 
     analytics:logEvent("achievement", {name=achievementId})
 end
@@ -689,7 +695,7 @@ function AddBall(vals)
             end
         end
         if defaultProbability and not vals.dontDefaultTypeToBall then
-            typesCount = typesCount*2 -- 2:1 ratio of balls to other types
+            typesCount = typesCount*2 -- 1:1 ratio of balls to other types
         end
         
         objType = math.random(1, typesCount)
@@ -2393,41 +2399,27 @@ function sceneBattle:setBallOverrides(wave, wavePosInSet)
     end
     
     if wave == 1 then
-        self.ballOverrides[3]={objType="ball", speed=FIRST_BALL_SPEED}
-        self.ballOverrides[4]={objType="ball", speed=FIRST_BALL_SPEED}
-        if gameInfo.mode ~= "survival" then
-            self.ballOverrides[5]={}
-            self.ballOverrides[6]={objType="heatseeker"} -- run the flashiest powerup early on to peek user interest
-            self.ballOverrides[7]={}
-        end
+         -- run flashiest powerup early on to peek user interest
+        self.ballOverrides[6]={objType="heatseeker", speed=FIRST_BALL_SPEED/2}
     elseif wave == 2 then
-         -- dont lock type as gives too high probability to balls
-        self.ballOverrides[3]["objType"]="health"
+        self.ballOverrides[3]["objType"]="health" -- guarantee introduce powerups
         self.ballOverrides[4]["objType"]="powerup"
     elseif wave == 3 then
-        self.ballOverrides[4]["objType"]="cloak"
-        self.ballOverrides[6] = nil
-    elseif wave == 5 or wave == 7 then
-        self.ballOverrides[1]["objType"]=nil
-        self.ballOverrides[2]["objType"]=nil
-        self.ballOverrides[3]["objType"]=nil
-        self.ballOverrides[4]["objType"]=nil
-        self.ballOverrides[5]["objType"]=nil
-        self.ballOverrides[6]["objType"]=nil
-        self.ballOverrides[7]["objType"]=nil
+        self.ballOverrides[5]["objType"]="cloak" -- new powerup
     elseif wave == 4 or wave == 6 then
-        self.ballOverrides[1]["objType"]="bullet"
-        self.ballOverrides[2]["objType"]="bullet"
-        self.ballOverrides[3]["objType"]="bullet"
-        self.ballOverrides[4]["objType"]="bullet"
-        self.ballOverrides[5]["objType"]="bullet"
-        self.ballOverrides[6]={objType="bullet"}
+        for i = 1,6 do
+            self.ballOverrides[i]["objType"]="bullet"
+        end
         if wave == 6 then
             self.ballOverrides[7]["objType"]="freezer"
         end
+    elseif wave == 5 or wave == 7 then
+        for i = 1,7 do
+            self.ballOverrides[i]["objType"]=nil --keep init ball speeds but rest is random
+        end
     end
     
-    if wave > 1 and wavePosInSet == 1 then
+    if wave > 1 and wavePosInSet == 1 then --7,13,19, etc
         -- waves afer star speed resets - give player help since they survived!
         self.ballOverrides[1]["objType"]="health"
         self.ballOverrides[2]["objType"]="powerup"

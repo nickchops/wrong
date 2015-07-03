@@ -28,8 +28,8 @@ DEFAULT_AMMO_BATTLE_DEMO = 5
 DEFAULT_AMMO_WAVES = 0
 DEFAULT_AMMO_SURVIVAL = 3
 
-SECOND_BALL_SPEED = 13 --pixels/second. NB if 5 balls added at start, this ramps quickly up to 15+5*10
-FIRST_BALL_SPEED = 110 --very first ball should be fast to keep play interesting
+SECOND_BALL_SPEED = 14 --pixels/second - subsequent balls increase by NEW_BALL_SPEED_INCREASE --was 13
+FIRST_BALL_SPEED = 110 --first few balls should be fast to keep play interesting
 INITIAL_BALL_QUEUE = 4
 INITIAL_BALL_DELAY = 0.6
 MAX_INIT_BALLS = 7
@@ -37,14 +37,14 @@ INTIAL_NEW_BALL_DELAY = 7 --seconds between adding balls
 MAX_NEW_BALL_DELAY = 12
 FIGHT_NEW_BALL_DELAY = 12
 REPLACE_BALL_DELAY = 0.3 -- seconds between replacing destroyed balls
-NEW_BALL_SPEED_INCREASE = 4
+NEW_BALL_SPEED_INCREASE = 4.5 --was 4
 REPLACE_BALL_SPEED_INCREASE = 1
 MAX_BALL_WAVE_START_SPEED = 60
 MAX_BALL_SPEED = 150
-POWERUP_FOR_NEXT_WEAPON = 5
+POWERUP_FOR_NEXT_WEAPON = 4
 
 INIT_WAVE_SIZE = 7
-INITIAL_WAVE = 1 --use this to debug starting on other wave numbers
+INITIAL_WAVE = 1 --use to debug starting on other wave numbers
 
 -- Quick global switches ---------------------------------------------
 
@@ -156,12 +156,13 @@ WEAPON_MOVE_AMOUNT_X = dpiScaler:getSize(90)
 -- want relatively fast on all devices...
 
 ---------------------------------------------------------------------
--- Control which powerups appear in which waves and how often
+-- Control which ball types appear in which waves and how often
 
+--non-bomb/blue types allowed
 ALLOWED_BALLS_IN_WAVE = {
     {}, --1
-    {"powerup", "health"}, --2
-    {"health", "cloak", "cloak", "heatseeker", "heatseeker"}, --3
+    {"powerup", "powerup", "powerup", "health"}, --2
+    {"health", "cloak", "cloak", "heatseeker", "heatseeker", "heatseeker"}, --3
     {"bullet", "bullet", "bullet", "bullet", "bullet", "bullet", "bullet", "bullet"}, --4
     {"powerup", "cloak", "heatseeker", "heatseeker"}, --5
     {"powerup", "health", "freezer"}, --6
@@ -175,13 +176,15 @@ ALLOWED_BALLS_IN_WAVE = {
 
 MAX_MANAGED_WAVE = table.getn(ALLOWED_BALLS_IN_WAVE)
 
+--also check sceneBattle:setBallOverrides() where specific types are set for exact obj instances!
+
 SURVIVAL_UNLOCKED_WAVE = MAX_MANAGED_WAVE + 1
 BATTLE_UNLOCKED_STREAK = 25
 
-BALL_PROBABILITY_IN_WAVE = { --effectively inserts this number of "ball" types into the tables above
+BALL_PROBABILITY_IN_WAVE = { --effectively inserts this number of blue "ball" types into the tables above
     1, --1
-    2, --2
-    3, --3
+    4, --2
+    5, --3
     1, --4
     4, --5
     3, --6
@@ -208,8 +211,14 @@ gameInfo.maxStreak = 0
 gameInfo.mode = "waves"
 gameInfo.soundOn = true
 gameInfo.titleMusicPlaying = false
+gameInfo.shouldLogIntoGameServices = true
 
-gameInfo.useFullscreenEffects = true --currently off due to crash bug with GC on RenderTexture nodes
+gameInfo.useFullscreenEffects = true
+
+gameInfo.leaderboardsServiceIds = {
+    waves =    {googlePlay = "CgkI37a3vLQYEAIQDA"},
+    survival = {googlePlay = "CgkI37a3vLQYEAIQDQ"},
+    streak =   {googlePlay = "CgkI37a3vLQYEAIQDg"} }
 
 gameInfo.achievementIndex = {
     "wave6",
@@ -222,6 +231,18 @@ gameInfo.achievementIndex = {
     "streak50",
     "survival40",
     "survival50"}
+
+gameInfo.achievementServiceIds = {
+    wave6 =      {googlePlay = "CgkI37a3vLQYEAIQAg"},
+    survival =   {googlePlay = "CgkI37a3vLQYEAIQAw"},
+    wave15 =     {googlePlay = "CgkI37a3vLQYEAIQBA"},
+    wave20 =     {googlePlay = "CgkI37a3vLQYEAIQBQ"},
+    streak20 =   {googlePlay = "CgkI37a3vLQYEAIQBg"},
+    battle =     {googlePlay = "CgkI37a3vLQYEAIQBw"},
+    streak40 =   {googlePlay = "CgkI37a3vLQYEAIQCA"},
+    streak50 =   {googlePlay = "CgkI37a3vLQYEAIQCQ"},
+    survival40 = {googlePlay = "CgkI37a3vLQYEAIQCg"},
+    survival50 = {googlePlay = "CgkI37a3vLQYEAIQCw"}}
 
 gameInfo.achievements = {}
 for k,v in ipairs(gameInfo.achievementIndex) do
@@ -293,25 +314,23 @@ effectSpriteCount = table.getn(effectSprites)
 
 useAdverts = nil
 
---if ads:isAvailable() or platform == "WINDOWS" then
---    useAdverts="leadbolt"
---    advertType = "banner"
---    advertId = "832221981"
-----    If using native OS SDKs then would use these, but QAds uses pure HTML "webapp" ads
-----    if platform == "ANDROID" then
-----        advertId = "316253506"
-----    elseif platform == "IPHONE" then
-----        advertId ="283301009"
-----    end
---end
+--------
+
+flurryApiKeyAndroid = "12345678"
+flurryApiKeyIos =     "12345678"
 
 --------
-flurryApiKeyAndroid = "QHYQHZ65GJB448TSJCG3"
-flurryApiKeyIos = "R94C95YB7FSY4VRHQ9PD"
---------
---
-facebookAppId = "236640686544406"
-facebookScret = "49f2a9700f5511daa111250a4166b088"
+
+facebookAppId =  "12345678" --not used yet
+facebookSecret = "12345678" --not used yet
+
+-- Private keys/secrets for services are overriden (this file is not in github!)
+local pvt_keys = io.open(name,"r")
+if pvt_keys~=nil then
+    io.close(f)
+    dofile("Globals_pvt.lua")
+end
+
 facebookUrl = "http://www.facebook.com/wrongapp"
 --
 twitterUrl = "http://twitter.com/nick_chops"
@@ -319,7 +338,7 @@ twitterUrl = "http://twitter.com/nick_chops"
 appId = "com.nickchops.wrong"
 storeUrl = nil
 storeName = nil
-if platform == "ANDROID" then
+if true then --platform == "ANDROID" then
     storeUrl = "market://details?id=" .. appId
     storeName = "google"
     -- else storeName = "amazon" etc

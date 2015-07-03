@@ -834,6 +834,11 @@ function menuCheckNewHighScoreAndSave()
         menuSaveData()
     end
     
+    if googlePlayServices and sceneMainMenu.gotPlayServices then
+        googlePlayServices.submitScore(leaderboardsServiceIds[gameInfo.mode].googlePlay, gameInfo.score, true)
+        googlePlayServices.submitScore(leaderboardsServiceIds.streak.googlePlay, gameInfo.streakMax, true)
+    end
+    
     return gameInfo.newHighScore -- allow quick checking if a score was set
 end
 
@@ -1030,11 +1035,11 @@ function touchContinue(self, event)
     end
 end
 
-function touch1pSurvival(self, event)
+function touchWaves(self, event)
     if event.phase == "ended" then
         gameInfo.controlType = "onePlayer"
         gameInfo.mode = "waves"
-        sceneMainMenu:buttonPressedAnim("1pSurvival")
+        sceneMainMenu:buttonPressedAnim("waves")
         analytics:logEvent("startMain")
         sceneMainMenu:animateSceneOut()
     end
@@ -1143,6 +1148,27 @@ function touchVibrate(self, event)
     end
 end
 
+function touchPlayServices(self, event)
+    if event.phase == "ended" then
+        cancelTweensOnNode(self)
+        if self.gameServicesTimer then
+            self.gameServicesTimer:cancel()
+        end
+        
+        if sceneMainMenu.gotPlayServices or sceneMainMenu.loggingServicesIn then
+            sceneMainMenu.gotPlayServices = false
+            sceneMainMenu.loggingServicesIn = false
+            gameInfo.shouldLogIntoGameServices = false --dont try again until user chooses
+            self.color = {75,85,110}
+            dbg.print("Signing out of google play services")
+            googlePlayServices.signOut()
+        else
+            gameInfo.shouldLogIntoGameServices = true
+            sceneMainMenu.gameServicesLogin()
+        end
+    end
+end
+
 function goToBlog(event)
     if event.phase == "ended" then
         analytics:logEvent("goToBlog")
@@ -1199,6 +1225,33 @@ end
 
 function enableMenu()
     sceneMainMenu:addMainMenuListeners()
+end
+
+function sceneMainMenu.gameServicesInit()
+    dbg.assert(googlePlayServices, "! Google Play Services wrapper not found !")
+    
+    if googlePlayServices then
+        if googlePlayServices.isAvailable() then
+            dbg.print("initialising google play services")
+            if googlePlayServices.init() then
+                system:addEventListener("googlePlayServices", sceneMainMenu.playServicesListener)
+            else
+                googlePlayServices = nil --abandon it completely!
+                dbg.assert(false, "! Google Play Services failed to init !")
+            end
+        else
+            dbg.assert(false, "! Google Play Services not available !")
+        end
+    else
+        dbg.assert(false, "! Google Play Services wrapper not found !")
+    end
+end
+    
+function sceneMainMenu.gameServicesLogin()
+    sceneMainMenu.loggingServicesIn = true
+    sceneMainMenu.btns.playServices.color = {75,85,110}
+    tween:to(sceneMainMenu.btns.playServices, {color={r=255,g=255,b=255}, time=2, mode="mirror"})
+    googlePlayServices.signIn()
 end
 
 -- demo timers and touch listener are added/removed on enabling/disabling main menu
@@ -1665,9 +1718,9 @@ function sceneMainMenu:setUp(event)
         extraBtnCount = extraBtnCount + 1
     end
     
-    self.btns["1pSurvival"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Start Game", color=menuBlue, font=fontMainLarge})
-    createLabelTouchBox(self.btns["1pSurvival"], touch1pSurvival)
-    self.btnsOrigin:addChild(self.btns["1pSurvival"])
+    self.btns["waves"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Start Game", color=menuBlue, font=fontMainLarge})
+    createLabelTouchBox(self.btns["waves"], touchWaves)
+    self.btnsOrigin:addChild(self.btns["waves"])
     
     if gameInfo.achievements.survival then
         labelY = labelY-40
@@ -1760,6 +1813,15 @@ function sceneMainMenu:setUp(event)
             device:disableVibration()
             vibrateBtn.color = {75,85,110}
         end
+        
+        column = column + 1
+    end
+    
+    if googlePlayServices and true then --googlePlayServices.isAvailable() then
+        local playServicesBtn = self:createServicesButtonTouch("playServices", "google_play_services", touchPlayServices, column)
+        if not sceneMainMenu.gotPlayServices then
+            playServicesBtn.color = {75,85,110}
+        end
     end
     
     -- position title to avoid buttons
@@ -1783,7 +1845,21 @@ function sceneMainMenu:setUp(event)
             startupFlag = false
             sceneMainMenu.sceneShown = true
             tween:from(self.title, {y=self.screenMinY-500, time=0.4, xScale=3, yScale=2, onComplete=enableMenu})
-            system:addTimer(resizeCheck, 2, 1, 0)
+            system:addTimer(resizeCheck, 2, 1)
+            
+            sceneMainMenu.gameServicesInit()
+            
+            if googlePlayServices and gameInfo.shouldLogIntoGameServices then
+                dbg.print("Auto-login to google play services")
+                --do animation even though login will be delayed. User can cancel timer by pressing button
+                self.loggingServicesIn = true
+                tween:to(sceneMainMenu.btns.playServices, {color={r=255,g=255,b=255}, time=2, mode="mirror"})
+                self.gameServicesTimer = system:addTimer(self.gameServicesLogin, 4, 1)
+            else
+                dbg.assert(false, "No auto-login to google play services - user cancelled in past")
+            end
+            
+            --todo: should cancel timer and force login on any menu press (inc demo start)
         else
             tween:from(self.title, {y=self.screenMinY-500, time=0.4, onComplete=enableMenu})
         end
@@ -1797,7 +1873,7 @@ function sceneMainMenu:setUp(event)
         if self.btns["continue"] then
             tween:to(self.btns["continue"], {yScale=1, time=0.1, delay=btnDelay}) btnDelay=btnDelay+0.05
         end
-        tween:to(self.btns["1pSurvival"], {yScale=1, time=0.1, delay=btnDelay}) btnDelay=btnDelay+0.05
+        tween:to(self.btns["waves"], {yScale=1, time=0.1, delay=btnDelay}) btnDelay=btnDelay+0.05
         if self.btns["survival"] then
             tween:to(self.btns["survival"], {yScale=1, time=0.1, delay=btnDelay}) btnDelay=btnDelay+0.05
         end
@@ -1834,6 +1910,10 @@ function sceneMainMenu:setUp(event)
         
         if self.btns.achievements_icon then
             tween:to(self.btns.achievements_icon, {yScale=self.btns.achievements_icon.defaultScale, time=0.1, delay=btnDelay})
+        end
+        
+        if self.btns.vibrate then
+            tween:to(self.btns.playServices, {yScale=self.btns.playServices.defaultScale, time=0.1, delay=btnDelay})
         end
         
         self:titleFlash()
@@ -1889,6 +1969,27 @@ function sceneMainMenu:flashEffect(arrayOfNodes, color, delay)
     return delay
 end
 
+function sceneMainMenu.playServicesListener(event)
+    if event.type == "status" then
+        cancelTweensOnNode(sceneMainMenu.btns.playServices)
+        sceneMainMenu.loggingServicesIn = false
+        if event.signedIn then
+            sceneMainMenu.gotPlayServices = true
+            sceneMainMenu.btns.playServices.color = color.white
+            dbg.print("Google Play Services: user logged in, loading achievements...")
+            googlePlayServices.loadAchievements()
+            --TODO: want to load scores here too so we can update local scores
+            --Might want a little minimal in-game GUI for that...
+        else
+            sceneMainMenu.gotPlayServices = false
+            sceneMainMenu.btns.playServices.color = {75,85,110}
+            dbg.print("Google Play Services: user logged out or failed to log in")
+        end
+    --elseif event.type == "???" then
+        -- flag loading of achievements here so we can show GPS achievements button
+    end
+end
+
 function sceneMainMenu:enterPostTransition(event)
     dbg.print("sceneMainMenu:enterPostTransition")
     -- if we rest this in startUp or enterPreTransition, it would happen *before*
@@ -1917,7 +2018,7 @@ function sceneMainMenu:enterPostTransition(event)
     elseif useAdverts and advertType == "banner" then
         system:addTimer(hideAdverts, 2, 1, 0)
     end
-
+    
     sceneMainMenu.sceneShown = true
     
     -- Each "start" call may push data to flurry's server. Data is sent on

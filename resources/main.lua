@@ -242,6 +242,7 @@ end
 
 function shutDownCleanup(event)
     dbg.print("Cleaning up app on shutdown")
+    googlePlayServices.terminate()
     audio:stopStream()
     analytics:endSession()
 end
