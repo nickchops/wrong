@@ -236,11 +236,6 @@ function splitAsteroid(target)
     destroyNode(target)
 end
 
-function AsteroidFX(event)
-end
-
-
-
 AirFX = function(event)
     local timer = event.timer
 
@@ -465,9 +460,11 @@ function ShowAchievement(achievementId)
     end
     
     if googlePlayServices and sceneMainMenu.gotPlayServices then
-        googlePlayServices.unlockAchievement(achievementServiceIds[achievementId].googlePlay, true)
+        if googlePlayServices.unlockAchievement(gameInfo.achievementServiceIds[achievementId].googlePlay, true) == false then
+            dbg.assert(false, "failed to unlock achievement: " .. achievementId)
+        end
         dbg.print("Google Play Services: unlocking achievement: " .. achievementId ..
-            "(" .. achievementServiceIds[achievementId].googlePlay .. ")")
+            "(" .. gameInfo.achievementServiceIds[achievementId].googlePlay .. ")")
     end
 
     analytics:logEvent("achievement", {name=achievementId})

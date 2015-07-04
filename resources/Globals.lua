@@ -325,11 +325,12 @@ facebookAppId =  "12345678" --not used yet
 facebookSecret = "12345678" --not used yet
 
 -- Private keys/secrets for services are overriden (this file is not in github!)
-local pvt_keys = io.open(name,"r")
-if pvt_keys~=nil then
-    io.close(f)
+local pvt_keys = io.open("Globals_pvt.lua","r")
+if pvt_keys ~= nil then
+    io.close(pvt_keys)
     dofile("Globals_pvt.lua")
 end
+pvt_keys = nil
 
 facebookUrl = "http://www.facebook.com/wrongapp"
 --
@@ -338,7 +339,7 @@ twitterUrl = "http://twitter.com/nick_chops"
 appId = "com.nickchops.wrong"
 storeUrl = nil
 storeName = nil
-if true then --platform == "ANDROID" then
+if platform == "ANDROID" then
     storeUrl = "market://details?id=" .. appId
     storeName = "google"
     -- else storeName = "amazon" etc

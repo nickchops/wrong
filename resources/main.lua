@@ -23,6 +23,13 @@ require("Utility")
 dofile("Globals.lua") --globals contains all our sensitive data so def want to precompile for some minimal security!
 require("VirtualResolution")
 
+-- EASY DEBUGGING OVERRIDES --
+--gameInfo.soundOn = false
+--INITIAL_WAVE = 6
+--gameInfo.achievements.survival=true
+--gameInfo.achievements.battle=true
+-----------------
+
 if showFrameRate then
     dofile("FrameRate.lua")
 end
@@ -220,7 +227,8 @@ end
 ----------------------------------------------------------
 
 require("MenuScene") -- precompile MenuScene.lua fails for unknown reason with this file, so avoiding with require()
---dofile("GameScene.lua") -- doing this later to save a little bit of load time on platforms that load slower
+dofile("GameScene.lua") -- doing this later to save a little bit of load time on platforms that load slower
+
 
 analytics:setKeys(flurryApiKeyAndroid, flurryApiKeyIos)
 analytics:startSessionWithKeys()
