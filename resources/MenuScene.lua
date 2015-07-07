@@ -1,12 +1,12 @@
 
-require("Utility")
-require("NodeUtility")
-dofile("OnScreenDPad.lua")
-dofile("OnScreenButton.lua")
+require("helpers/Utility")
+require("helpers/NodeUtility")
+dofile("helpers/OnScreenDPad.lua")
+dofile("helpers/OnScreenButton.lua")
 
 startupFlag = true -- for initial menu animation
 
------------------------------------------------------------
+-------------------------------------------------------------------
 -- Simple helper to add more text to screen
 
 function CreateTextDisplay(xLeft, yTop, width, height, strings, paragraphGapSize, colour, scale, font)
@@ -161,8 +161,9 @@ function sceneMainMenu:DestroyInfoText()
         self.infoTextStage = nil
     end
 end
+
 -------------------------------------------------------------
--- high scores screen show/hide 
+-- high scores screen 
 
 function menuAddScore(event)
     local scoreNum = event.doneIterations
@@ -323,8 +324,7 @@ function menuCheckNameInput(event)
         end
         local newCharId =
             circularIncrement(sceneMainMenu.nameInput[sceneMainMenu.nameIndex], sceneMainMenu.nameChars.size, incr)
-        --dbg.print("Cycle char at (" .. tostring(sceneMainMenu.nameIndex) .. ") to: #" .. newCharId ..
-        --        " = '" .. sceneMainMenu.nameChars[newCharId] .."'")
+        --dbg.print("Cycle char at (" .. tostring(sceneMainMenu.nameIndex) .. ") to: #" .. newCharId .. " = '" .. sceneMainMenu.nameChars[newCharId] .."'")
         sceneMainMenu.nameInput[sceneMainMenu.nameIndex] = newCharId
         
     elseif xChange ~= 0 then --switch which character to change
@@ -584,7 +584,7 @@ function menuCloseHighScores(event)
     end
 end
 
--------------------------
+--------------------------------------------------------
 -- Achievements. Largely similar code to scores, but simplified as there's no
 -- name entry and "modes" are just numbered pages so code is more generic.
 
@@ -759,60 +759,8 @@ function menuBackKeyListener(event)
     end
 end
 
---[[
-function sceneMainMenu:addArrowButton(btnType, listener) --types are "back", "left", "right"
-    local xPos
-    local yPos
-    local rotation
-    local btnName = btnType .. "Btn"
-    if btnType == "left" then
-        xPos = self.screenMinX + 75
-        yPos = appHeight*0.6
-        rotation = 90
-    elseif btnType == "right" then
-        xPos = self.screenMaxX - 75
-        yPos = appHeight*0.6
-        rotation = 270
-    elseif btnType == "back" then
-        xPos = appWidth/2
-        yPos = 80
-        rotation = 0
-        
-        sceneMainMenu.backKeyListener = listener
-        system:addEventListener("key", menuBackKeyListener)
-    else
-        dbg.assert(false, "invalid button type in addArrowButton")
-    end
-
-    self[btnName] = director:createLines({x=xPos, y=yPos, coords={-50,30, 0,0, 50, 30}, strokeColor=menuBlue, strokeWidth=2, alpha=0, rotation=rotation})
-    local infoBack2 = director:createLines({y=-20, coords={-50,30, 0,0, 50, 30}, strokeColor=menuBlue, strokeWidth=2, alpha=0})
-    
-    self[btnName].button = director:createRectangle({x=-60, y=-30, w=120, h=70, alpha=0, strokeColor=color.blue, zOrder = 10, isVisible=showDebugTouchArea})
-    
-    self[btnName]:addChild(infoBack2)
-    self[btnName]:addChild(self[btnName].button)
-    self[btnName].button:addEventListener("touch", listener)
-    tween:to(self[btnName], {strokeAlpha=0.1, xScale=1.5, yScale=1.5, time=1.0, mode="mirror"})
-end
-
-function sceneMainMenu:removeArrowButton(btnType, listener)
-    local btnName = btnType .. "Btn"
-    if not self[btnName] then
-        dbg.print("Ignoring request to remove non existing arrow btn: " .. btnName)
-        return
-    end
-    
-    if btnType == "back" then
-        system:removeEventListener("key", menuBackKeyListener)
-        sceneMainMenu.backKeyListener = nil
-    end
-    
-    self[btnName].button:removeEventListener("touch", listener)
-    self[btnName] = self[btnName]:removeFromParent()
-end
---]]
-
 -------------------------------------------------------------
+-- Save and load user data
 
 function menuSaveData(clearFlag)
     local saveStatePath = system:getFilePath("storage", "data.txt")
@@ -968,6 +916,7 @@ function sceneMainMenu:wipeContinueFile()
         end
     end
 end
+
 ------------------------------------------------------------
 -- Button handlers
 
@@ -984,8 +933,8 @@ function MenuStartGame()
     end
     
     -- Just in case! A good time to force re-hiding in case OS showed for some reason
-    if androidFullscreen and androidFullscreen:isImmersiveSupported() then
-        androidFullscreen:turnOn()
+    if androidFullscreen and androidFullscreen.isImmersiveSupported() then
+        androidFullscreen.turnOn()
     end
     menuSaveData() -- save sound on/off option
     if not demoMode then
@@ -1145,9 +1094,9 @@ end
 function touchFacebook(self, event)
     if event.phase == "ended" then
         tween:to(sceneMainMenu.btns.facebook, {yScale=sceneMainMenu.btns.facebook.defaultScale*0.6,
-                xScale=sceneMainMenu.btns.facebook.defaultScale*0.6, time=0.3})
+                xScale=sceneMainMenu.btns.facebook.defaultScale*0.7, time=0.2})
         tween:to(sceneMainMenu.btns.facebook, {yScale=sceneMainMenu.btns.facebook.defaultScale,
-                xScale=sceneMainMenu.btns.facebook.defaultScale, delay=0.4, time=0.3})
+                xScale=sceneMainMenu.btns.facebook.defaultScale, delay=0.25, time=0.2})
         analytics:logEvent("gotoFacebook")
         browser:launchURL(facebookUrl)
     end
@@ -1156,9 +1105,9 @@ end
 function touchTwitter(self, event)
     if event.phase == "ended" then
         tween:to(sceneMainMenu.btns.twitter, {yScale=sceneMainMenu.btns.twitter.defaultScale*0.6,
-                xScale=sceneMainMenu.btns.twitter.defaultScale*0.6, time=0.3})
+                xScale=sceneMainMenu.btns.twitter.defaultScale*0.7, time=0.2})
         tween:to(sceneMainMenu.btns.twitter, {yScale=sceneMainMenu.btns.twitter.defaultScale,
-                xScale=sceneMainMenu.btns.twitter.defaultScale, delay=0.4, time=0.3})
+                xScale=sceneMainMenu.btns.twitter.defaultScale, delay=0.25, time=0.2})
         analytics:logEvent("gotoTwitter")
         browser:launchURL(twitterUrl)
     end
@@ -1167,9 +1116,9 @@ end
 function touchRate(self, event)
     if event.phase == "ended" then
         tween:to(sceneMainMenu.btns.rate, {yScale=sceneMainMenu.btns.rate.defaultScale*0.6,
-                xScale=sceneMainMenu.btns.rate.defaultScale*0.6, time=0.3})
+                xScale=sceneMainMenu.btns.rate.defaultScale*0.7, time=0.2})
         tween:to(sceneMainMenu.btns.rate, {yScale=sceneMainMenu.btns.rate.defaultScale,
-                xScale=sceneMainMenu.btns.rate.defaultScale, delay=0.4, time=0.3})
+                xScale=sceneMainMenu.btns.rate.defaultScale, delay=0.25, time=0.2})
         analytics:logEvent("gotoStoreRate")
         browser:launchURL(storeUrl)
     end
@@ -1291,6 +1240,7 @@ function sceneMainMenu:createServicesButtonTouch(name, image, touchEvent, column
 end
 
 -------------------------------------------------------
+-- Main menu listeners
 
 function startDemo()
     local event = {phase="ended"}
@@ -1301,40 +1251,6 @@ end
 
 function enableMenu()
     sceneMainMenu:addMainMenuListeners()
-end
-
-function sceneMainMenu.gameServicesInit()
-    dbg.assert(googlePlayServices, "! Google Play Services wrapper not found !")
-    
-    if googlePlayServices then
-        if googlePlayServices.isAvailable() then
-            dbg.print("initialising google play services")
-            if googlePlayServices.init() then
-                system:addEventListener("googlePlayServices", sceneMainMenu.playServicesListener)
-            else
-                googlePlayServices = nil --now can assume googlePlayServices~nil means it works
-                dbg.assert(false, "! Google Play Services failed to init !")
-            end
-        else
-            googlePlayServices = nil
-            dbg.print("! Google Play Services not available !")
-        end
-    else
-        dbg.assert(false, "! Google Play Services wrapper not found !")
-    end
-end
-    
-function sceneMainMenu.gameServicesLogin(event)
-    sceneMainMenu.loggingServicesIn = true
-    
-    if sceneMainMenu.gameServicesTimer then
-        sceneMainMenu.gameServicesTimer:cancel()
-        sceneMainMenu.gameServicesTimer = nil
-    end
-        
-    sceneMainMenu.btns.playServices.color = {75,85,110}
-    tween:to(sceneMainMenu.btns.playServices, {color={r=255,g=255,b=255}, time=2, mode="mirror"})
-    googlePlayServices.signIn()
 end
 
 -- demo timers and touch listener are added/removed on enabling/disabling main menu
@@ -1389,7 +1305,10 @@ function quitGameOnBackKey(event)
     shutDownApp()
 end
 
---------------------------------------------------------
+
+------------------------------------------------------------------
+-- suspend/resume, orientation, fullscreen effect start/stop
+
 
 function sceneMainMenu:suspend(event)
     dbg.print("suspending menus...")
@@ -1428,7 +1347,7 @@ function sceneMainMenu:update(event)
     fullscreenEffectsUpdate(self)
 end
 
---------------------------------------------------------
+---------------------------------
 
 local wrongColorDark={r=128,g=255,b=128}
 local wrongColorMid={r=0,g=255,b=0}
@@ -1438,14 +1357,12 @@ function resizeCheck(event)
     -- need to wait till nav bar has hidden and then get fullscreen sizes
     -- need to re-call applyToScene to update transforms
     -- safe to call if user starts game before timer expires
-    --virtualResolution:update()
-    --virtualResolution:applyToScene(sceneMainMenu)
+    virtualResolution:update()
+    virtualResolution:applyToScene(sceneMainMenu)
 end
 
 function sceneMainMenu:fullscreenEffect()
-    dbg.print("!1")
     if not gameInfo.useFullscreenEffects then
-        dbg.print("!2")
         return
     end
     dbg.print("setting up fullscreen render texture effect")
@@ -1495,11 +1412,6 @@ function sceneMainMenu:fullscreenEffect()
         y = math.random(2,4)
     end
     
-    --debugging
-    --x = x*2
-    --y = y*2
-    
-    dbg.print("tweening!")
     self.screenFx.tween = tween:to(self.screenFx, {filter={x=x,y=y}, time=2, mode="mirror",
         easing=ease.bounceInOut, onComplete=self.pauseResumeTween})
     
@@ -1678,8 +1590,95 @@ function sceneMainMenu.pauseResumeTween(target)
     end
 end
 
+--------------------------------------------------------
+-- Online game services
+
+function sceneMainMenu.gameServicesInit()
+    dbg.assert(googlePlayServices, "! Google Play Services wrapper not found !")
+    
+    if googlePlayServices then
+        if googlePlayServices.isAvailable() then
+            dbg.print("initialising google play services")
+            if googlePlayServices.init() then
+                system:addEventListener("googlePlayServices", sceneMainMenu.playServicesListener)
+            else
+                googlePlayServices = nil --now can assume googlePlayServices~nil means it works
+                dbg.assert(false, "! Google Play Services failed to init !")
+            end
+        else
+            googlePlayServices = nil
+            dbg.print("! Google Play Services not available !")
+        end
+    else
+        dbg.assert(false, "! Google Play Services wrapper not found !")
+    end
+end
+    
+function sceneMainMenu.gameServicesLogin(event)
+    sceneMainMenu.loggingServicesIn = true
+    
+    if sceneMainMenu.gameServicesTimer then
+        sceneMainMenu.gameServicesTimer:cancel()
+        sceneMainMenu.gameServicesTimer = nil
+    end
+        
+    sceneMainMenu.btns.playServices.color = {75,85,110}
+    tween:to(sceneMainMenu.btns.playServices, {color={r=255,g=255,b=255}, time=2, mode="mirror"})
+    googlePlayServices.signIn()
+end
+
+function sceneMainMenu.playServicesListener(event)
+    if event.type == "status" then
+        if sceneMainMenu.btns then --can be called after scene ends!
+            cancelTweensOnNode(sceneMainMenu.btns.playServices)
+        end
+        
+        sceneMainMenu.loggingServicesIn = false
+        
+        if event.signedIn then
+            sceneMainMenu.gotPlayServices = true
+            dbg.print("Google Play Services: user logged in, loading achievements...")
+            
+            if sceneMainMenu.btns then
+                sceneMainMenu.btns.playServices.color = color.white
+            end
+            
+            googlePlayServices.loadAchievements()
+            
+            --Force send all achievements in case user got them while not logged in
+            --Should do nothing if already unlocked
+            for k,v in pairs(gameInfo.achievements) do
+                if v == true then
+                    googlePlayServices.unlockAchievement(gameInfo.achievementServiceIds[k].googlePlay, true)
+                end
+            end
+            
+            -- TODO: improve by scanning all scores, find ones that aren't defaults
+            -- and push the highest to services!
+            if gameInfo.score then
+                googlePlayServices.submitScore(gameInfo.leaderboardsServiceIds[gameInfo.mode].googlePlay, gameInfo.score, true)
+            end
+            if gameInfo.streakMax then
+                googlePlayServices.submitScore(gameInfo.leaderboardsServiceIds.streak.googlePlay, gameInfo.streakMax, true)
+            end
+        else
+            sceneMainMenu.gotPlayServices = false
+            dbg.print("Google Play Services: user logged out or failed to log in")
+            
+            if sceneMainMenu.btns then
+                sceneMainMenu.btns.playServices.color = {75,85,110}
+            end
+        end
+    --elseif event.type == "???" then
+        -- flag loading of achievements here so we can show GPS achievements button
+        -- load scores programatically and add to local user scores
+    end
+end
+
+------------------------------------------------------------------
+-- Main setup/scene start
+
 function sceneMainMenu:setUp(event)
-    --dbg.assert(false, "1")
     dbg.print("sceneMainMenu:setUp")
     
     system:addEventListener({"suspend", "resume", "update", "orientation"}, self)
@@ -1697,7 +1696,6 @@ function sceneMainMenu:setUp(event)
     end
     
     -- loads scores, last user name and achievements from local storage
-    -- TODO: integrate these with online services...
     if not gameInfo.highScore then LoadUserData() end
     
     --if not startupFlag and not gameInfo.newHighScore then gameInfo.newHighScore = 3 end --for debugging nsmith
@@ -1705,10 +1703,9 @@ function sceneMainMenu:setUp(event)
     self.readyToContinue = LoadContinueData()
     gameInfo.continue = {} --needed for demo mode to not try to do continue logic
     
-    --self.title = director:createSprite(0, 0, "textures/wrongtitle.png")
-    ----self.title:getAtlas():setTextureParams("GL_NEAREST", "GL_NEAREST")
-    --tween:to(self.title, {alpha=0.4, time=3.0, mode="mirror", delay=1.0})
-    --self.title.alpha=0.3
+    ---------------------------------
+    -- Setup W R O N G title graphics
+    ---------------------------------
     
     local wrongWidth=2
     local hillWidth=1
@@ -1717,18 +1714,6 @@ function sceneMainMenu:setUp(event)
     local titlePartsY = 80
     self.titleY = 0
     
-    --[[
-    if gameInfo.achievements.survival then
-        self.titleY = self.titleY - 35
-    end
-    
-    if gameInfo.achievements.battle then
-        self.titleY = self.titleY - 35
-    end
-    ]]--
-    
-    --dbg.assert(false, "2")
-
     self.title = director:createNode({x=appWidth/2,y=self.titleY})
     self.title.origin = director:createNode({x=-appWidth/2,y=0})
     self.title:addChild(self.title.origin)
@@ -1755,8 +1740,6 @@ function sceneMainMenu:setUp(event)
     self.title.G = director:createLines({x=452, y=titlePartsY, coords={66,0, 30,14, 0,61, 8,80, 37,80, 57,72, 71,61, 55,61, 36,70, 24,70, 18,59, 41,26, 67,17, 93,17, 77,36, 59,36, 49,48, 84,48, 129,0, 65,0}, strokeWidth=wrongWidth, strokeColor=wrongColor, alpha=0})
     table.insert(self.title.letters, self.title.G)
     
-    --dbg.assert(false, "3")
-    
     self.hills = director:createLines({x=0, y=titlePartsY+111, coords={8,0, 632,0}, strokeWidth=hillWidth, strokeColor=hillColor, alpha=0})
     
     self.hills:addChild(director:createLines({x=0, y=0, coords={57,0, 95,22, 116,0}, strokeWidth=hillWidth, strokeColor=hillColor, alpha=0}))
@@ -1778,6 +1761,10 @@ function sceneMainMenu:setUp(event)
     self.title.origin:addChild(self.title.G)
     self.title.origin:addChild(self.hills)
     
+    -------------------------------
+    -- Setup menu main text buttons
+    -------------------------------
+    
     --NB: Using manual touch boxes instead of relying on label's own touch area:
     --   Touch area vs visual area of labels don't perfectly match
     --   Nice to have full manual controll of padding
@@ -1790,8 +1777,6 @@ function sceneMainMenu:setUp(event)
     local labelW = 250
     local labelY = 0
     local extraBtnCount = 0
-    
-    -- main menu buttons
     
     if self.readyToContinue then
         self.btns["continue"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Continue", color=menuBlue, font=fontMainLarge})
@@ -1850,7 +1835,10 @@ function sceneMainMenu:setUp(event)
     self.labelHighScore = director:createLabel({x=appWidth-169, y=appHeight-50, w=250, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Height: " .. director.displayHeight, xScale=0.6, yScale=0.6, color=menuBlue, font=fontDefault})
     ]]--
     
-    -- buttons for facebook twitter etc
+    ----------------------------------------
+    -- icon buttons for facebook twitter etc
+    ----------------------------------------
+    
     self.btnSize = 38
     self.servicesBtnsOrigin = director:createNode({x=20, y=appHeight-14-self.btnSize})
     
@@ -1917,6 +1905,10 @@ function sceneMainMenu:setUp(event)
     self:restartFlicker()
     
     self.rotateInfo = director:createLabel({x=appWidth/2, y=self.screenMinY*0.6, xAnchor=0.5, w=appWidth, h=50, hAlignment="center", vAlignment="center", text="ROTATE FOR LARGER VIEW", color=color.black, font=fontMainLarge, alpha=0, xScale=0.6, yScale=0.6})
+    
+    ----------------------------------------------
+    -- Animate title appear (or go to high scores)
+    ----------------------------------------------
     
     if gameInfo.newHighScore then
         --self.newDontClear = false --dont blur the high score controls (looks awful)
@@ -2053,54 +2045,6 @@ function sceneMainMenu:flashEffect(arrayOfNodes, color, delay)
     return delay
 end
 
-function sceneMainMenu.playServicesListener(event)
-    if event.type == "status" then
-        if sceneMainMenu.btns then --can be called after scene ends!
-            cancelTweensOnNode(sceneMainMenu.btns.playServices)
-        end
-        
-        sceneMainMenu.loggingServicesIn = false
-        
-        if event.signedIn then
-            sceneMainMenu.gotPlayServices = true
-            dbg.print("Google Play Services: user logged in, loading achievements...")
-            
-            if sceneMainMenu.btns then
-                sceneMainMenu.btns.playServices.color = color.white
-            end
-            
-            googlePlayServices.loadAchievements()
-            
-            --Force send all achievements in case user got them while not logged in
-            --Should do nothing if already unlocked
-            for k,v in pairs(gameInfo.achievements) do
-                if v == true then
-                    googlePlayServices.unlockAchievement(gameInfo.achievementServiceIds[k].googlePlay, true)
-                end
-            end
-            
-            -- TODO: improve by scanning all scores, find ones that aren't defaults
-            -- and push the highest to services!
-            if gameInfo.score then
-                googlePlayServices.submitScore(gameInfo.leaderboardsServiceIds[gameInfo.mode].googlePlay, gameInfo.score, true)
-            end
-            if gameInfo.streakMax then
-                googlePlayServices.submitScore(gameInfo.leaderboardsServiceIds.streak.googlePlay, gameInfo.streakMax, true)
-            end
-        else
-            sceneMainMenu.gotPlayServices = false
-            dbg.print("Google Play Services: user logged out or failed to log in")
-            
-            if sceneMainMenu.btns then
-                sceneMainMenu.btns.playServices.color = {75,85,110}
-            end
-        end
-    --elseif event.type == "???" then
-        -- flag loading of achievements here so we can show GPS achievements button
-        -- load scores programatically and add to local user scores
-    end
-end
-
 function sceneMainMenu:enterPostTransition(event)
     dbg.print("sceneMainMenu:enterPostTransition")
     -- if we rest this in startUp or enterPreTransition, it would happen *before*
@@ -2141,6 +2085,9 @@ end
 function hideAdverts()
     ads:show(false)
 end
+
+---------------------------------------------------------------------------
+-- Scene exit and tear down
 
 function sceneMainMenu:exitPreTransition(event)
     dbg.print("sceneMainMenu:exitPreTransition")
@@ -2185,6 +2132,8 @@ function sceneMainMenu:exitPostTransition(event)
     
     dbg.print("sceneMainMenu:exitPostTransition done")
 end
+
+------------------------------------------------------------------------------------------
 
 function sceneMainMenu:touch(event)
     if self.demoTimer and event.phase == "ended" then

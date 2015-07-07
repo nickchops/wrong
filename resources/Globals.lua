@@ -2,9 +2,7 @@
 -- Debugging --
 
 --DEBUG_OVERRIDE_TYPE = "cloak"
-
-showDebugTouchArea = false
-
+showDebugTouchArea = false --cant be nil, nil -> ignored!
 --showFrameRate = true
 
 --require("mobdebug").start() -- ZeroBrain IDE debuger support
@@ -18,7 +16,7 @@ showDebugTouchArea = false
 
 ----------------------------------------------------------------------
 
-require("Utility")
+require("helpers/Utility")
 
 DEFAULT_HEALTH_BATTLE = 13
 DEFAULT_HEALTH_SURVIVAL = 8
@@ -28,7 +26,7 @@ DEFAULT_AMMO_BATTLE_DEMO = 5
 DEFAULT_AMMO_WAVES = 0
 DEFAULT_AMMO_SURVIVAL = 3
 
-SECOND_BALL_SPEED = 14 --pixels/second - subsequent balls increase by NEW_BALL_SPEED_INCREASE --was 13
+SECOND_BALL_SPEED = 14 --pixels/second - subsequent balls increase by NEW_BALL_SPEED_INCREASE
 FIRST_BALL_SPEED = 110 --first few balls should be fast to keep play interesting
 INITIAL_BALL_QUEUE = 4
 INITIAL_BALL_DELAY = 0.6
@@ -37,7 +35,7 @@ INTIAL_NEW_BALL_DELAY = 7 --seconds between adding balls
 MAX_NEW_BALL_DELAY = 12
 FIGHT_NEW_BALL_DELAY = 12
 REPLACE_BALL_DELAY = 0.3 -- seconds between replacing destroyed balls
-NEW_BALL_SPEED_INCREASE = 4.5 --was 4
+NEW_BALL_SPEED_INCREASE = 4.5
 REPLACE_BALL_SPEED_INCREASE = 1
 MAX_BALL_WAVE_START_SPEED = 60
 MAX_BALL_SPEED = 150
@@ -53,44 +51,38 @@ demoAvailable = true  -- demo is available
 demoModeDebug = false --can still interact ir
 DEMO_TIMEOUT = 10
 
+------------------
 director.isAlphaInherited = true -- the default in Quick 1.0 but not in Quick beta
-
 pauseflag = false -- flag to work around Quick's pause-resume bug/quirkh
+------------------
 
 local platform = device:getInfo("platform")
 local deviceId = device:getInfo("deviceID")
 
--- string of form "OS name majorversion.minor.revision.etc" Could have spaces in
--- OS name; could have arbitrary number of points in version; version might be
--- a string like "XP2"! Following will work for Android and iOS...
-local version = device:getInfo("platformVersion")
-local versionMajor = nil
-local versionMinor = nil
-versionMajor, versionMinor = string.match(version, '%s([^%.%s]+)%.(.+)')
-if versionMajor and versionMinor then
-    versionMajor = tonumber(versionMajor)
-    local minorMatch = string.match(versionMinor, '([^%.]+)%..+')
-    if minorMatch then
-        versionMinor = minorMatch
-    end
-    versionMinor = tonumber(versionMinor)
-end
+dofile("helpers/PlatformStoreInfo.lua")
+local versionMajor,versionMinor = getPlatformVersion()
 
--- Somewhat hacky at the moment! we know certain devices that run really fast
--- so on those we are upping some graphic features, notably the amount of stars
--- (more nodes=more work)
+-- Somewhat hacky at the moment! Uping some graphic features, notably the amount of stars
+-- (more nodes=more work) on faster devices
 performanceLevel = 1
-if platform == "OSX" or platform == "WINDOWS" or platform == "WS8" or platform == "WS81" or 
-        string.startswith(deviceId, "iPad4") or string.startswith(deviceId, "iPhone6") then
-    -- These IDs are retina iPads and iPhone 5s - only devices with new PowerVR G6430 GPUs.
-    -- TODO: make this work with newer models (>=ipad4 etc)
+local iosIsNew = false
+if platform == "IPHONE" then
+    if string.startswith(deviceId, "iPad") then
+        if tonumber(deviceId[5]) > 3 then --ipad4,x (mini retina) or newer
+            iosIsNew = true
+        end
+    elseif string.startswith(deviceId, "iPhone") then
+        if tonumber(deviceId[5]) > 5 then --iphone6,x (iphont 5s) or newer
+            iosIsNew = true
+        end
+    end
+    -- These are the first iOS devices with the new PowerVR G6430 GPUs.
+end
+if platform == "OSX" or platform == "WINDOWS" or platform == "WS8" or platform == "WS81" or iosIsNew then
     performanceLevel = 2
 end
 
---local deviceIsAndroid = platform == "ANDROID"
---local deviceIsX86 = device:getInfo("architecture") == "X86"
-
-deviceIsTouch = true -- TODO: for cotrollers set to false. For Windows Surface etc, need a switch in the game! Not yet used.
+deviceIsTouch = true -- TODO: for cotrollers set to false. For Windows Surface etc, need both! Not yet used.
 
 -- virtual coordinates
 appWidth = 640
@@ -106,6 +98,11 @@ menuBlue = {150,150,255}
 
 achieveCol = color.orange
 achieveLockedCol = {100,50,50}
+
+fontMainLarge = "fonts/dosfont32.fnt"
+fontMainSmall = "fonts/dosfont16.fnt"
+fontDefault = "fonts/Default.fnt"
+
 
 ballRadius = 8
 sledExpandSize = 10
@@ -136,9 +133,8 @@ numColors = table.getn(colorIndex)
 --Prototyped game on Nexus 7 1st gen (216 DPI), so using that as dpiScale = 1
 local dpiScale = nil
 
-dpiScaler = dofile("PixelDensity.lua")
+dpiScaler = dofile("helpers/PixelDensity.lua")
 dpiScaler:setReferenceDpi(216)
---dpiScaler:setReferenceDpi(326)
 
 --Gating factors for touch control. Must move faster than this for touch to cause movement
 --In screen pixels, not user space, which makes sense as this shouldnt relate to visuals
@@ -149,11 +145,6 @@ MIN_TOUCH_MOVE_X = dpiScaler:getSize(100) --same for weapon change
 -- second happens when x > WEAPON_MOVE_AMOUNT_X, third on x > WEAPON_MOVE_AMOUNT_X*2, etc.
 -- TODO: needs to be 1st=100, 2nd=90, 3rd=60, 4th+=30 so first two are hard and then progressively easier
 WEAPON_MOVE_AMOUNT_X = dpiScaler:getSize(90)
-
---TODO: prob want to use pixel density on flick movement scaling too,
--- i.e. deceleration
--- currenlty moves faster/further on high res devices than low ones.
--- want relatively fast on all devices...
 
 ---------------------------------------------------------------------
 -- Control which ball types appear in which waves and how often
@@ -203,6 +194,7 @@ end
 
 ---------------------------------------------------------------------
 
+-- Global struct for most progress data
 gameInfo = {}
 gameInfo.playerColours = {}
 gameInfo.score = 0
@@ -248,6 +240,7 @@ gameInfo.achievements = {}
 for k,v in ipairs(gameInfo.achievementIndex) do
     gameInfo.achievements[v] = false
 end
+
 -- uncomment to debug locked modes:
 --gameInfo.achievements.survival=true
 --gameInfo.achievements.battle=true
@@ -274,10 +267,6 @@ end
 for n=40, 50, 10 do
     gameInfo.achievementNames["survival" .. n] = {"survival mode:", "survived " .. n .. " bombs "}
 end
-
-fontMainLarge = "fonts/dosfont32.fnt"
-fontMainSmall = "fonts/dosfont16.fnt"
-fontDefault = "fonts/Default.fnt"
 
 -------------------------------------------
 --Music
@@ -312,7 +301,7 @@ effectSpriteCount = table.getn(effectSprites)
 -------------------------------------------
 --Services
 
-useAdverts = nil
+useAdverts = nil -- not yet used
 
 --------
 
@@ -324,7 +313,7 @@ flurryApiKeyIos =     "12345678"
 facebookAppId =  "12345678" --not used yet
 facebookSecret = "12345678" --not used yet
 
--- Private keys/secrets for services are overriden (this file is not in github!)
+-- Private keys/secrets for services are overriden here (this file is not in github!)
 local pvt_keys = io.open("Globals_pvt.lua","r")
 if pvt_keys ~= nil then
     io.close(pvt_keys)
@@ -333,27 +322,14 @@ end
 pvt_keys = nil
 
 facebookUrl = "http://www.facebook.com/wrongapp"
---
 twitterUrl = "http://twitter.com/nick_chops"
---
-appId = "com.nickchops.wrong"
-storeUrl = nil
-storeName = nil
-if platform == "ANDROID" then
-    storeUrl = "market://details?id=" .. appId
-    storeName = "google"
-    -- else storeName = "amazon" etc
-elseif platform == "IPHONE" then
-    appId = "wrong!/id897361366"
-    storeName = "apple"
-    if versionMajor >= 7 then
-        storeUrl = "itms-apps://itunes.apple.com/app/" .. appId
-    else
-        storeUrl = "itms-apps://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?id=" .. appId .. "&onlyLatestVersion=true&pageNumber=0&sortOrdering=1&type=Purple+Software"
-    end
-end
 
+-----------
+
+appId = "com.nickchops.wrong"
+storeUrl, storeName = getStoreUrl(platform, majorVersion, minorVersion, appId, "wrong!/id897361366")
 blogUrl = "http://nickchops.github.io/wrong-prototype"
+
 ---------------------------------------------------------
 
 sceneMainMenu = director:createScene()

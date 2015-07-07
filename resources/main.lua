@@ -1,15 +1,17 @@
 -- NB: Quick supports makePrecompiledLua etc if using dofile(), but not require()
 -- So, for good performance but with some ease of code reuse, I'm using
 -- dofile for big one-off inlcudes and require otherwise
---require("mobdebug").start() -- to debug before dofile(Globals)!
+
+--require("mobdebug").start() -- uncomment to debug before dofile(Globals)!
 
 --workaround for asserts causing game to hang on Win Store 8.1 (at least)
+--not sure if this is an SDK bug or I broke it!
 if device:getInfo("platform") == "WS81" or device:getInfo("platform") == "WINDOWS" then
     dbg.assert = function(a,b) if not a then if b then dbg.print("assert: " .. b) else dbg.print("assert with no comment!") end end end
     --above must be on one line so will be trimmed out safely if using debug.general = false!
 end
 
--- turn fullscreen on as early as possible. screen size won't update till bar is gone
+-- turn fullscreen on as early as possible. screen size won't update till bar animates away
 if androidFullscreen == nil then
     dbg.assert(false, "androidFullscreen extension not found. rebuild quick binaries with this extension!")
 else
@@ -18,10 +20,10 @@ else
     end
 end
 
-require("Utility")
+require("helpers/Utility")
 
 dofile("Globals.lua") --globals contains all our sensitive data so def want to precompile for some minimal security!
-require("VirtualResolution")
+require("helpers/VirtualResolution")
 
 -- EASY DEBUGGING OVERRIDES --
 --gameInfo.soundOn = false
@@ -31,17 +33,17 @@ require("VirtualResolution")
 -----------------
 
 if showFrameRate then
-    dofile("FrameRate.lua")
+    dofile("helpers/FrameRate.lua")
 end
 
 -- garbage  defaults are both 200
 collectgarbage("setpause", 200) -- wait between cycles (deafult of 200 = wait for memory use to increase by 2x) 
-collectgarbage("setstepmul", 150) -- run cycles for less time (1.5x speed of memory allocation)
+collectgarbage("setstepmul", 150) -- run cycles for less time (1.5x speed of memory allocation). Set from trial and error
 
 -- by default, try to keep each pixel scaling up to an integer size for crisp visuals
--- and have extra border area if needed
+-- and have extra border area if needed. Rare that device doesn't override this, but nice if it fits.
 local nearestMultiple = true
-local overrideW = nil
+local overrideW = nil -- could set by device ID if wanted...
 local overrideH = nil
 
 director:startRendering()
@@ -60,7 +62,7 @@ virtualResolution:initialise{userSpaceW=appWidth, userSpaceH=appHeight, nearestM
     windowOverrideW=overrideW, windowOverrideH=overrideH, ignoreMultipleIfTooSmall = 0.9, forceScale=0.96, maxScreenW=0.9}
 --virtualResolution:scaleTouchEvents(true) -- not using as not very stable or fast!
 
--- default values to allow turning off VR for testing
+-- default values - makes easier to turn off VR for testing
 screenWidth = director.displayWidth
 screenHeight = director.displayHeight
 
@@ -95,21 +97,25 @@ function fullscreenEffectsReset(self)
     end
 end
 
+--blend filter algorithm doesn't look so good with pure black -> super dark grey!
 clearCol = quick.QColor:new()
 clearCol.r = 1
 clearCol.g = 1
 clearCol.b = 1
 clearCol.a = 255
---clearCol = color.darkBlue
+--clearCol = color.darkBlue --for debug
 
-local fxFrameLock = 0
-
+-- not finished or used - for if we wanted to only capture part of scene
+-- offsets are odd when doing this so prob needs each tree to be offset to
+-- compensate. happy with full scene at anyway
+--[[
 function visitChildren(obj, scene)
     for k,v in pairs(obj.children) do
         v:visit()
     end
     visitChildren(v, scene)
 end
+]]--
 
 function fullscreenEffectsUpdate(self)
     if not self.rt or self.effectSkipFlag or self.pauseRt then
@@ -118,17 +124,22 @@ function fullscreenEffectsUpdate(self)
 
     -- update render texture with whole scene every frame
     if self.rtWorkaround then
-        --workaround for getSprite texture being in wrong place on fitst frame: make sure first frame is empty!
+        --workaround for SDK issues of getSprite texture being in wrong place on first frame:
+        -- makes sure first frame is empty!
         self.rtWorkaround = nil
     else
         if self.rtDontClear then
             self.rt:begin(nil)
-            --pick up the old image.. the screen burn type effect is awesome so keep it!
+            -- "nil" means no clear (default is clear to black).
+            -- This was an accident but.. the screen burn type effect is awesome so keeping it!
         else
             self.rt:begin(clearCol)
         end
-        --self.screenFx.isVibile = false
+        
         self:visit()
+        
+        --if we wanted specific scene parts...
+        --self.screenFx.isVibile = false
         --visitChildren(self.scalerRootNode, self)
         --self.screenFx.isVibile = true
         
@@ -163,6 +174,7 @@ function fullscreenEffectsOff(self)
 end
 
 ----------------------------------------------------------
+-- generic button helper used in both scenes
 
 function addArrowButton(scene, btnType, listener, backKeyListener, x, y, startAlpha) --types are "back", "left", "right"
     local xPos
@@ -226,8 +238,11 @@ end
 
 ----------------------------------------------------------
 
-require("MenuScene") -- precompile MenuScene.lua fails for unknown reason with this file, so avoiding with require()
-dofile("GameScene.lua") -- doing this later to save a little bit of load time on platforms that load slower
+require("MenuScene") -- Precompile MenuScene.lua fails for unknown reason with this file, so avoiding with require()
+                     -- Precompile uses offline luac (lua compiler) which isnt guaranteed same as lib version
+                     -- Would like to look into this when have more time, could be a game code but...
+--dofile("GameScene.lua") -- Doing this later to save a little bit of load time on platforms that load slower
+                          -- Uncomment for instant pre-compile!
 
 
 analytics:setKeys(flurryApiKeyAndroid, flurryApiKeyIos)
@@ -235,12 +250,14 @@ analytics:startSessionWithKeys()
 
 analytics:logEvent("userInfo", {appVersion=appVersion, devUserName=device:getInfo("name"), deviceID=device:getInfo("deviceID"), platform=device:getInfo("platform"), platVersion=device:getInfo("platformVersion"), arch = device:getInfo("architecture"), mem=device:getInfo("memoryTotal"), lang=device:getInfo("language"), locale=device:getInfo("locale")})
 
+--ads not used atm
+--[[
 if useAdverts then
     ads:init()
 end
+]]--
 
---device:enableVibration()
-
+--does nothing normally, but keep in case more sceenes are added above
 director:moveToScene(sceneMainMenu)
 
 function shutDownApp()
@@ -250,16 +267,13 @@ end
 
 function shutDownCleanup(event)
     dbg.print("Cleaning up app on shutdown")
-    googlePlayServices.terminate()
+    
+    if googlePlayServices and googlePlayServices.isAvailable() then
+        googlePlayServices.terminate()
+    end
+    
     audio:stopStream()
     analytics:endSession()
 end
 
 system:addEventListener("exit", shutDownCleanup)
-
-
--- Note: We have lots of "classes" with Quick nodes as values. Would be nice to
---   actually "override" the node, but would need some convoluted multiple 
---   inheritance solution to work with lua userdata types. If doable, will have
---   the advantage that things like tweens and timers get a hook to the root
---   object and can destroy themselves without aditional look-ups.

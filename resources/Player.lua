@@ -1,5 +1,5 @@
 
-require("Utility")
+require("helpers/Utility")
 require("Counter")
 
 -- Pseudo-class to track a player's info

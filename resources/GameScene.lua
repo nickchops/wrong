@@ -4,8 +4,8 @@
 -- controlled way. Useful for debugging still.
 --------------------------------------------------------------------------------
 
-require("Utility")
-require("NodeUtility")
+require("helpers/Utility")
+require("helpers/NodeUtility")
 dofile("Player.lua")
 dofile("WeaponsMeter.lua")
 
@@ -463,8 +463,7 @@ function ShowAchievement(achievementId)
         if googlePlayServices.unlockAchievement(gameInfo.achievementServiceIds[achievementId].googlePlay, true) == false then
             dbg.assert(false, "failed to unlock achievement: " .. achievementId)
         end
-        dbg.print("Google Play Services: unlocking achievement: " .. achievementId ..
-            "(" .. gameInfo.achievementServiceIds[achievementId].googlePlay .. ")")
+        dbg.print("Google Play Services: unlocking achievement: " .. achievementId .. "(" .. gameInfo.achievementServiceIds[achievementId].googlePlay .. ")")
     end
 
     analytics:logEvent("achievement", {name=achievementId})
@@ -2940,8 +2939,8 @@ function ResumeGame()
     
     --in case somethin's gone wrong and bar re-showed itself, now is a good time
     --to force re-hide
-    if androidFullscreen and androidFullscreen:isImmersiveSupported() then
-        androidFullscreen:turnOn()
+    if androidFullscreen and androidFullscreen.isImmersiveSupported() then
+        androidFullscreen.turnOn()
     end
 end
 
