@@ -96,7 +96,7 @@ virtualResolution:applyToScene(myScene)
 
 virtualResolution:scaleTouchEvents(true)
 -- Optionally set this true to make event.x and event.y values be returned in
--- user space rather than window/screen space. Not recommened as it reduces
+-- user space rather than window/screen space. Not recommended as it reduces
 -- performance of general event handling and is rather hacky. But good for
 -- some quick testing.
 
@@ -264,7 +264,7 @@ function virtualResolution:applyToScene(scene, transformActualScene)
         -- Override scene:addChild() to call scene.scalerRootNode:addChild()
         -- Note that we cant just do scene.addChild = scene.scalerRootNode.addChild
         -- because those .addChild functions are the same actual function value! It's the
-        -- "self" value passed implicitly via : mechanism that determins which node is used!
+        -- "self" value passed implicitly via : mechanism that determines which node is used!
         scene.addChildNoTrans = scene.addChild -- keep a backup so user can still add "window space" nodes
         scene.addChild = virtualResolutionSceneAddChildOverride
         
@@ -345,7 +345,7 @@ end
 --------------------------------------
 --Public release function
 
--- note that you likley only ever want to call this if destroying a scene or
+-- note that you likely only ever want to call this if destroying a scene or
 -- turning off virtual resolution (rare!). For the later, you will want to
 -- first "move" all scene nodes from being children of the scaler node to
 -- children of the scene itself. TODO: implement keepChildren to do that!
@@ -359,10 +359,10 @@ end
 
 -- Experimental support for auto-scaling touch event positions
 
--- Call with true to make all touch listers event.x/y be scaled to user coordinates
+-- Call with true to make all touch listeners event.x/y be scaled to user coordinates
 -- Call with false to reset to default behaviour (event coords are world space)
 -- Off by default.
--- This is quite a hack! It is recommened to use virtualResolution:getUserX()
+-- This is quite a hack! It is recommended to use virtualResolution:getUserX()
 -- or getLocalCoords() inside event listeners instead.
 -- Note that getLocalCoords is from github.com/nickchops/MarmaladeQuickNodeUtility
 --
@@ -392,7 +392,7 @@ function virtualResolutionHandleEventWithListenerOverride(event, listener)
         -- Would be nice to transform on QEvent creation, but would then have to change QSystems
         -- code that does node intersection testing
         
-        --dbg.print("in override touch funtion. phase=" .. event.phase)
+        --dbg.print("in override touch function. phase=" .. event.phase)
         local doTrans = true
         if event.scaledFlag == event.phase then
             if event.phase == "moved" then

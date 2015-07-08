@@ -1,6 +1,6 @@
 -- NB: Quick supports makePrecompiledLua etc if using dofile(), but not require()
 -- So, for good performance but with some ease of code reuse, I'm using
--- dofile for big one-off inlcudes and require otherwise
+-- dofile for big one-off includes and require otherwise
 
 --require("mobdebug").start() -- uncomment to debug before dofile(Globals)!
 
@@ -22,7 +22,7 @@ end
 
 require("helpers/Utility")
 
-dofile("Globals.lua") --globals contains all our sensitive data so def want to precompile for some minimal security!
+dofile("Globals.lua") -- contains all our sensitive data so precompile for some minimal security!
 require("helpers/VirtualResolution")
 
 -- EASY DEBUGGING OVERRIDES --
@@ -37,7 +37,7 @@ if showFrameRate then
 end
 
 -- garbage  defaults are both 200
-collectgarbage("setpause", 200) -- wait between cycles (deafult of 200 = wait for memory use to increase by 2x) 
+collectgarbage("setpause", 200) -- wait between cycles (default of 200 = wait for memory use to increase by 2x) 
 collectgarbage("setstepmul", 150) -- run cycles for less time (1.5x speed of memory allocation). Set from trial and error
 
 -- by default, try to keep each pixel scaling up to an integer size for crisp visuals
@@ -257,7 +257,7 @@ if useAdverts then
 end
 ]]--
 
---does nothing normally, but keep in case more sceenes are added above
+--does nothing normally, but keep in case more scenes are added above
 director:moveToScene(sceneMainMenu)
 
 function shutDownApp()

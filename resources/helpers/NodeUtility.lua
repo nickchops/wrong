@@ -162,7 +162,7 @@ end
 
 function FlickerFx(event)
     event.target:pauseTweens()
-    event.target.flicker = true --for trailfx
+    event.target.flicker = true
     event.target.storeAlpha=event.target.alpha
     event.target.storeStroke=event.target.strokeAlpha
     event.target.alpha=event.target.flickerAlpha or 0

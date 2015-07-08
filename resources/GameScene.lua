@@ -2260,6 +2260,7 @@ function sceneBattle:setUp(event)
     local ammo = {}
     local ammo2 = {}
     local wavePosInSet
+    local ammoDefault = 0
     
     gameInfo.playerColours[1] = {50,255,50}
     if onePlayerMode then
@@ -2270,7 +2271,8 @@ function sceneBattle:setUp(event)
         
         if gameInfo.mode == "survival" then -- survival mode
             gameInfo.powerupLevel = 8 --allow all weapons from start
-            ammoDefault = DEFAULT_AMMO_SURVIVAL
+            --ammoDefault = DEFAULT_AMMO_SURVIVAL
+            ammo = {air=DEFAULT_AMMO_SURVIVAL}
             gameInfo.wave = nil
             gameInfo.firstCloak = gameInfo.continue.firstCloak or true --flag so only first cloak powerup will show message
             setStarAnimation(1) -- static is boring!
@@ -2331,10 +2333,13 @@ function sceneBattle:setUp(event)
             players[k].velocity = saveInfo.velocity
             players[k].halfHeight = saveInfo.halfHeight
             players[k].newHalfHeight = saveInfo.halfHeight
-            --These need to be values which are used to set the timers again
+            --TODO: These need to be values which are used to set the timers again
             --players[k].reverseTimer = saveInfo.reverseTimer
             --players[k].cloakTimer = saveInfo.cloakTimer
         end
+    elseif onePlayerMode and gameInfo.mode == "survival" then
+        player1.weaponsMeter:SetWeapon(3) -- most useful weapon to start
+        player2.weaponsMeter:SetWeapon(3)
     end
     
     sceneBattle.deathPhase = false

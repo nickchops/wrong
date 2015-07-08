@@ -1,11 +1,11 @@
 
+-- WeaponsMeter class. On screen display for weapon selected and ammo
+
 require("Counter")
 
--- Counter class for on screen value display
 WeaponsMeter = {}
 WeaponsMeter.__index = WeaponsMeter
 
---function WeaponsMeter.Create(playerId, mirrorX, ammoBulletAmmount, ammoOtherAmount, colourOverride)
 function WeaponsMeter.Create(playerId, mirrorX, ammo, ammoDefault, colourOverride)
     local meter = {}
     setmetatable(meter,WeaponsMeter)
@@ -32,21 +32,6 @@ function WeaponsMeter.Create(playerId, mirrorX, ammo, ammoDefault, colourOverrid
     meter.currentWeaponID = 1
     meter.currentWeapon = "bullet"
     meter.ammo = {bullet = ammo.bullet or ammoDefault, ball = ammo.ball or ammoDefault, air =  ammo.air or ammoDefault, expander = ammo.expander or ammoDefault, freezer = ammo.freezer or ammoDefault, heatseeker = ammo.heatseeker or ammoDefault, reverser = ammo.reverser or ammoDefault}
-
-    -- only allow air to have ammo at start in survival
-    if gameInfo.controlType == "onePlayer" then
-        meter.ammo.bullet = 0
-        meter.ammo.expander = 0
-        meter.ammo.freezer = 0
-        meter.ammo.reverser = 0
-        meter.ammo.ball = 0
-        if gameInfo.mode == "survival" then -- give player ammo to start in this mode
-            meter.currentWeaponID = 3 --explicitly set to air as its most practical
-            meter.currentWeapon = "air"
-        else
-            meter.ammo.heatseeker = 0
-        end
-    end
 
     -- DASHBOARD (SELECTED WEAPON LIGHTS) & ICONS --
 
@@ -153,7 +138,7 @@ function WeaponsMeter:Destroy()
 end
 
 function WeaponsMeter:HasAmmo()
-    -- currenet weapon must have ammo, unless no weapons have ammo
+    -- current weapon must have ammo, unless no weapons have ammo
     if self.ammo[self.currentWeapon] > 0 then
         return true
     else
@@ -238,8 +223,9 @@ function WeaponsMeter:UpdateDisplay(swipe, hideCounter)
     --end
 end
 
---TODO amount doesnt do anything!!
 function WeaponsMeter:AddAmmo(amount)
+    --TODO amount doesnt do anything, but dont need it to atm!
+    
     if gameInfo.controlType == "onePlayer" then
         if gameInfo.powerupLevel == 0 then
             gameInfo.powerupLevel = 1
@@ -276,11 +262,11 @@ function WeaponsMeter:AddAmmo(amount)
         end
         
         if gameInfo.powerupLevel >= 4 then
-            if gameInfo.mode ~= "survival" then -- a useless weapon for survival!
+            if gameInfo.mode ~= "survival" then -- a useless weapon for survival so skip!
                 --if gameInfo.powerupLevel == 2 and self.ammo.heatseeker >=6 then
                 --    gameInfo.powerupLevel = 3
                 --    ShowMessage("new weapon:", 0, false, "up", 40)
-                --    ShowMessage("health gun", 0.5, false, "down", -40)
+                --    ShowMessage("health gun!", 0.5, false, "down", -40)
                 --end
                 self.ammo.ball = self.ammo.ball + 1
             end

@@ -1,4 +1,6 @@
--- COUNTERDIGIT class for each digital clock style digit used by the COUNTER class --
+
+-- CounterDigit class for each digital clock style digit
+-- Used by the Counter class, defined further down
 
 CounterDigit = {}
 CounterDigit.__index = CounterDigit
@@ -14,13 +16,11 @@ function CounterDigit.Create(initValue, sideImage, middleImage, counterOrigin)
     counterDigit.segments = {}
 
     -- load image and position for each part of digital counterDigit (prob should be doing some cloning etc
-    -- or could just use vectors to make colouring easier)
+    -- or could just use vectors to make colouring easier - whatever, I like the pixely sprites!)
     -- use .top segment as parent so other parts position and scale with it
-    -- (Quick doesn't give us a flexible way to set parent coordinates so this is prob easiest option)
     -- 0,0 is bottom left of digit
 
     -- x at -7 to put conceptual centre in middle (13 pixel wide counterDigit)
-    -- could change this to do double digit counters
     local centreOffsetX = 6
     local centreOffsetY = 13
 
@@ -66,9 +66,9 @@ end
 
 function CounterDigit:UpdateDisplay(value)
     -- our counter is made of cloned and rotated images shown/hidden
-    -- prob way simpler to just have a list of full bitmaps to show/hide for each value!
+    -- maybe simpler to just have a list of full bitmaps to show/hide for each value!
     -- But since I did this, we can do some fun per-trapezium animation if we want :)
-    -- Actually prob just want to make these out of primitives then can colour them too.
+    -- Could also colour individually by using white pngs and .color property
     if value == 0 then
         self.segments.top.isVisible = true
         self.segments.topLeft.isVisible = true
@@ -153,7 +153,9 @@ function CounterDigit:UpdateDisplay(value)
 end
 
 
--- COUNTER class for holding scores and displaying then as multiple digits using CounterDigit objects --
+-- Counter class for holding scores and displaying then as multiple digits
+-- using CounterDigit objects
+-- Fairly re-usable but playerId stuff is Wrong-specific
 
 Counter = {}
 Counter.__index = Counter
@@ -184,7 +186,8 @@ function Counter.Create(playerId, initValue, maxValue, hideOnStart, colourOverri
     local sideImage = "textures/DigiCounterSide" ..colour.. ".png"
     local middleImage = "textures/DigiCounterMiddle" ..colour.. ".png"
 
-    -- meter needs to offset by a pixel to be equal distance from each screen side using same origin (odd sized counter, even sized screen)
+    -- meter needs to offset by a pixel to be equal distance from each screen
+    -- side using same origin (odd sized counter, even sized screen)
     local nudge
     if playerId == 1 then nudge = -1 else nudge = 0 end
     
@@ -264,7 +267,7 @@ function Counter:UpdateDisplay(firstTime)
     local number = self.value
 
     local newVisibleDigits = 0
-    if self.value ~= 0 then -- final digit animates out on value==0. remove if we want to still show final zero.
+    if self.value ~= 0 then -- final digit animates out on value==0. remove if want to still show final 0.
         repeat
             number = number / 10
             newVisibleDigits = newVisibleDigits + 1

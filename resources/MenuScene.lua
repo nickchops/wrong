@@ -6,6 +6,10 @@ dofile("helpers/OnScreenButton.lua")
 
 startupFlag = true -- for initial menu animation
 
+-- Reduce app startup loading time by a small bit by loading the large game
+-- scene code and dependencies only when its first needed
+gameSceneLoadFlag = false
+
 -------------------------------------------------------------------
 -- Simple helper to add more text to screen
 
@@ -53,8 +57,8 @@ end
 -- "about" screen show/hide 
 
 -- build info screen objects once. This was all quite slow due to font loading
--- and having to generate the text and then calaulate sizes between each paragraph.
--- So, to improve we only do the setup one and distroy on scene exit, plus animate
+-- and having to generate the text and then calculate sizes between each paragraph.
+-- So, to improve we only do the setup one and destroy on scene exit, plus animate
 -- a chunk at a time which add to retro style anyway
 function sceneMainMenu:DisplayInfoText()
     if not self.infoText then
@@ -88,7 +92,7 @@ function sceneMainMenu:DisplayInfoText()
         else
             startPos = self.infoText[stage-1].yTextBottomWithParaGap
         end
-          
+        
         if stage == 1 then
             txtStrings = {
                 "WRONG: it's Weaponised Reverse xONG, of course!",
@@ -247,7 +251,7 @@ function sceneMainMenu:showNameEntry()
 
     self.nameChars.size = table.getn(self.nameChars) --precalculate array size
     
-    -- counter to hold char indices, refering to a index of nameChars
+    -- counter to hold char indices, referring to a index of nameChars
     self.nameInput = {nameCharLookup[gameInfo.name:sub(1,1)], nameCharLookup[gameInfo.name:sub(2,2)], nameCharLookup[gameInfo.name:sub(3,3)]}
     
     self.nameInput.size = table.getn(self.nameInput)
@@ -268,7 +272,7 @@ function menuEnterNameForScore()
     sceneMainMenu.joystick:activate()
     sceneMainMenu.scoreSaveButton:activate()
     
-    sceneMainMenu.backKeyListener = menuSaveOnBackKey --alow android etc back key to press save button
+    sceneMainMenu.backKeyListener = menuSaveOnBackKey --allow android etc back key to press save button
     system:addEventListener("key", menuBackKeyListener)
     
     -- these values are from the text label positioning
@@ -281,6 +285,8 @@ function menuEnterNameForScore()
     sceneMainMenu.nameCursor:addChild(topCursor)
     
     -- poll at intervals so stick position slowly changes selected character
+    -- TODO: this is annoying as misses some first moves. Should use callback that fires
+    -- immediately and then also queues the timer and finally cancels the timer on reing released
     sceneMainMenu.joyTimer = system:addTimer(menuCheckNameInput, 0.25, 0)
 end
 
@@ -421,8 +427,9 @@ function menuDisplayHighScoreScreen(target)
 end
 
 function sceneMainMenu:displayHighScores()
-    -- build list of scores for current mode - ie the one the user last played or the one they just got a high score with
-    -- This can be "streak" if they got a streak high score but not a waves or survival one
+    -- Build list of scores for current mode - ie the one the user last played
+    -- or the one they just got a high score with. Can be "streak" if they got
+    -- a streak high score but not a waves or survival one
     
     local scoreTimer = system:addTimer(menuAddScore, 0.15, 10, 0.3)
     scoreTimer.mode = self.scoreMenuState
@@ -454,7 +461,7 @@ function menuShowSurvivalScores(event)
         removeArrowButton(sceneMainMenu, "down", menuCloseHighScores, menuBackKeyListener)
         sceneMainMenu.scoreLabels.title.text = "SURVIVAL MODE"
         
-        --lazily tween both to allow this funciton to be called from either left or right
+        --lazily tween both to allow this function to be called from either left or right
         for k, v in pairs(sceneMainMenu.scoreLabels.waves) do
             tween:to(v, {x=sceneMainMenu.screenMinX - 100})
         end
@@ -748,13 +755,10 @@ function showMainMenu()
     sceneMainMenu:titleFlash()
 end
 
-
 function menuBackKeyListener(event)
-    if event.keyCode == 210 and event.phase == "pressed" then
-        -- 210 is the C++ code for s3eKeyAbsBSK (abstract/mappable back soft key)
-        -- 1) Quick doesnt expose that or any abs keys as a variable (ought to be "absBSK" in QEventX.h)
-        -- 2) Our s3eAbs keys are a bit dated! We ought to have s3eKeyAbsBack/Home/Menu to match modern phones!
-        -- "BSK"/"soft key" are old fashioned concepts...
+    if event.keyCode == key.absBSK and event.phase == "pressed" then
+        -- absBSK is "abstract back key". In the ICF, this is mapped to hardware or
+        -- on screen back key on Android and Esc on keyboards.
         sceneMainMenu.backKeyListener({phase="ended"})
     end
 end
@@ -830,7 +834,7 @@ end
 
 function LoadUserData()
     -- load highscore from JSON encoded lua value
-    -- Eventually integrate some onlne service (google play/game center/amazon/etc)
+    -- Eventually integrate some online service (google play/game center/amazon/etc)
     local saveStatePath = system:getFilePath("storage", "data.txt")
     local file = io.open(saveStatePath, "r")
     if not file then
@@ -877,7 +881,7 @@ function LoadUserData()
     if not gameInfo.name then gameInfo.name = " P1" end --records last name entered to save re-entering
 end
 
--- as above for restoring last game if game was killed before user explicitly exited
+-- as above for restoring abandoned game state
 function LoadContinueData()
     local saveStatePath = system:getFilePath("storage", "continue.txt")
     local file = io.open(saveStatePath, "r")
@@ -887,7 +891,7 @@ function LoadContinueData()
     end
     
     analytics:logEvent("LoadContineData")
-    local success, continue = pcall(json.decode, file:read("*a")) -- "*a" = read the entire file contents
+    local success, continue = pcall(json.decode, file:read("*a")) -- "*a" = read entire file
     file:close()
     
     if not success then
@@ -919,10 +923,6 @@ end
 
 ------------------------------------------------------------
 -- Button handlers
-
--- Reduce startup loading time by a small bit by loading the large-ish game
--- scene code only when its first needed
-gameSceneLoadFlag = false
 
 function MenuStartGame()
     
@@ -962,7 +962,7 @@ function sceneMainMenu:buttonPressedAnim(touched)
     tween:to(self.labelHighScore, {alpha=0, time=0.3})
 end
 
--- set as if menu was acessed already
+-- set as if menu was accessed already
 -- only works fully for highscores atm
 function sceneMainMenu:setMenuState(touched)
     for k,v in pairs(self.btns) do
@@ -1230,7 +1230,7 @@ function sceneMainMenu:createServicesButtonTouch(name, image, touchEvent, column
         btn.touch = touchEvent
         btn:addEventListener("touch", btn)
     else
-        btn.touchArea = btn --match label style to reusue same code
+        btn.touchArea = btn --match label style to reuse same code
         btn.touchArea.touch = touchEvent
         
         self.btnY[column] = self.btnY[column] - self.btnSize*1.4
@@ -1292,7 +1292,7 @@ function sceneMainMenu:addMainMenuListeners()
         gameInfo.titleMusicPlaying = true
     end
     
-     --alow android etc back key to quit on main menu.
+     --allow android etc back key to quit on main menu.
      --TODO: reuse in-game pause menu exit icons for user to confirm quit
     sceneMainMenu.backKeyListener = quitGameOnBackKey
     system:addEventListener("key", menuBackKeyListener)
@@ -1372,8 +1372,8 @@ function sceneMainMenu:fullscreenEffect()
     self.rt.y = virtualResolution.userWinMinY + screenHeight/2
     self.rt.isVisible = false
 
-    -- Bug: sprite from getSprite will be inverted un-transformed version of the rendertexture for first frame
-    -- Workaround: render nothing for first frame
+    -- SDK Bug: sprite from getSprite will be inverted un-transformed version of
+    -- the rendertexture for first frame. Workaround: render nothing for first frame
     self.rtWorkaround = 1
     self.rt:clear(clearCol)
     -- Workaround end --
@@ -1388,7 +1388,7 @@ function sceneMainMenu:fullscreenEffect()
     self.screenFx.xScale = 1/virtualResolution.scale
     self.screenFx.x = virtualResolution.userWinMinX
     self.screenFx.yScale = -1/virtualResolution.scale
-    self.screenFx.y = screenHeight + virtualResolution.userWinMinY --screenHeight is workaround for bug in renderTexture!
+    self.screenFx.y = screenHeight + virtualResolution.userWinMinY --screenHeight is workaround for another bug in renderTexture!
     
     -------- debugging --------------------
     --self.screenFx.xScale = self.screenFx.xScale / 2
@@ -1426,7 +1426,7 @@ function sceneMainMenu:orientation(event, delayEffects)
     adaptToOrientation(event)
     
     -- User space coords for screen edges inc letterboxes
-    -- Menu uses 0,0 is bottom left
+    -- Menu uses 0,0 as bottom left
     self.screenMinX = appWidth/2 - screenWidth/2
     self.screenMaxX = appWidth/2 + screenWidth/2
     self.screenMinY = appHeight/2 - screenHeight/2
@@ -1477,10 +1477,10 @@ function sceneMainMenu:orientation(event, delayEffects)
                 end
             end
         end
-        -- note: middle/current item uses vr space position (centre!) not screen
+        -- else: middle/current item uses vr space position (centre!) not screen
     end
     
-    -- jump to submenu if interrupting existing tween
+    -- jump to sub-menu if interrupting existing tween
     if self.title and self.title.nextMenu then
         if self.title.menuTween then
             tween:cancel(self.title.menuTween)
@@ -1515,8 +1515,8 @@ function sceneMainMenu:orientation(event, delayEffects)
         end
     end
     
-    -- (re)setup screen burn filter effect...
-    if not delayEffects then -- dont do when called form setUp() pre transition! Cant start tweens until transition is over.
+    -- (re)setup screen burn filter effect
+    if not delayEffects then -- dont do when called from setUp() pre transition! Cant start tweens until transition is over.
         self:queueFullscreenEffect()
     end
 end
@@ -1671,11 +1671,11 @@ function sceneMainMenu.playServicesListener(event)
         end
     --elseif event.type == "???" then
         -- flag loading of achievements here so we can show GPS achievements button
-        -- load scores programatically and add to local user scores
+        -- load scores programmatically and add to local user scores
     end
 end
 
-------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- Main setup/scene start
 
 function sceneMainMenu:setUp(event)
@@ -1698,7 +1698,7 @@ function sceneMainMenu:setUp(event)
     -- loads scores, last user name and achievements from local storage
     if not gameInfo.highScore then LoadUserData() end
     
-    --if not startupFlag and not gameInfo.newHighScore then gameInfo.newHighScore = 3 end --for debugging nsmith
+    --if not startupFlag and not gameInfo.newHighScore then gameInfo.newHighScore = 3 end --for debugging
     
     self.readyToContinue = LoadContinueData()
     gameInfo.continue = {} --needed for demo mode to not try to do continue logic
@@ -1767,10 +1767,10 @@ function sceneMainMenu:setUp(event)
     
     --NB: Using manual touch boxes instead of relying on label's own touch area:
     --   Touch area vs visual area of labels don't perfectly match
-    --   Nice to have full manual controll of padding
+    --   Nice to have full manual control of padding
     --   hAlignment is broken atm and centres text around x pos not centre of box.
     --   xText and yText also seem to be broken when using left-bottom alignment.
-    --   These may get/have been fixed by the time this is read!
+    --   These will probably have been fixed by the time this anyone reads this!
     
     self.btns = {}
     self.btnsOrigin = director:createNode({x=appWidth/2-20, y=appHeight/2+120})
@@ -1829,7 +1829,7 @@ function sceneMainMenu:setUp(event)
     self.labelScore = director:createLabel({x=appWidth-170, y=appHeight-35, w=190, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="SCORE    " .. gameInfo.score, color=menuGreen, font=fontDefault})
     self.labelHighScore = director:createLabel({x=appWidth-169, y=appHeight-50, w=250, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="HIGH SCORE     " .. gameInfo.highScore[gameInfo.mode][1].score, xScale=0.6, yScale=0.6, color=menuBlue, font=fontDefault})
     
-    -- handy debug code to show screen size!
+    -- handy debug code to show screen size
     --[[
     self.labelScore = director:createLabel({x=appWidth-170, y=appHeight-35, w=190, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Width: " .. director.displayWidth, color=menuGreen, font=fontDefault})
     self.labelHighScore = director:createLabel({x=appWidth-169, y=appHeight-50, w=250, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Height: " .. director.displayHeight, xScale=0.6, yScale=0.6, color=menuBlue, font=fontDefault})
@@ -1854,7 +1854,7 @@ function sceneMainMenu:setUp(event)
     
     if extraBtnCount >= 2 then
         -- _icon - need different names as self.btn contains both icon and text buttons
-        -- and dont want to ovverwrite selb.btn.highscores, etc
+        -- and dont want to overwrite self.btn.highscores, etc
         self:createServicesButtonTouch("highscores_icon", "highscores", touchHighScores)
         self:createServicesButtonTouch("achievements_icon", "achievements", touchAchievements)
         extraServiceBtns = extraServiceBtns + 2
@@ -1941,7 +1941,6 @@ function sceneMainMenu:setUp(event)
         end
         
         for k,v in pairs(self.btns) do
-            --tween:from(v, {yScale=0, time=0.3})
             v.yScale=0
         end
         
@@ -2047,16 +2046,16 @@ end
 
 function sceneMainMenu:enterPostTransition(event)
     dbg.print("sceneMainMenu:enterPostTransition")
-    -- if we rest this in startUp or enterPreTransition, it would happen *before*
+    -- if we reset this in startUp or enterPreTransition, it would happen *before*
     -- battlescene's exitPreTransition!
     demoMode = false
     
     -- restore rotation (locked during transitions; always locked in battle)
     device:setOrientation("free")
-    self:orientation(true) -- force resolution check for desktop (or anything that doesn't support locking resolution) 
+    self:orientation(true) -- force resolution check for desktop (or anything that doesn't support locking resolution)
     
     if not startupFlag and not gameInfo.newHighScore then
-        -- blur on joystick looks awkward, plus it's not conceptually "on screen", so delay effect for highscores
+        -- delay effect for highscores: joystick is not conceptually "on screen" and looks odd blurred
         self:queueFullscreenEffect()
     end
     
@@ -2066,8 +2065,8 @@ function sceneMainMenu:enterPostTransition(event)
         frameRateOverlay.showFrameRate({x = virtualResolution.userWinMinX+5, y = virtualResolution.userWinMinY+5, zOrder = 100, width = 100}) --debugging
     end
     
-    -- show the sctual scores. menu title and state was set on setup but we wait for
-    -- transiation over before showing scores
+    -- show the actual scores. menu title and state was set on setup but we wait for
+    -- transition over before showing scores
     if gameInfo.newHighScore then
         self:displayHighScores()
     elseif useAdverts and advertType == "banner" then
@@ -2077,7 +2076,7 @@ function sceneMainMenu:enterPostTransition(event)
     sceneMainMenu.sceneShown = true
     
     -- Each "start" call may push data to flurry's server. Data is sent on
-    -- start/pause/resume/exit dependign on platform - good to try to force
+    -- start/pause/resume/exit depending on platform - good to try to force
     -- push on re-entering menu.
     analytics:startSessionWithKeys()
 end

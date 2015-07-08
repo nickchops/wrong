@@ -1,18 +1,22 @@
 
+-- Class to track a player's info
+-- Call: instance = Player.Create()
+-- Then: instance:Fire() etc to call functions with automatic access to "instance.self" value
+
 require("helpers/Utility")
 require("Counter")
 
--- Pseudo-class to track a player's info
--- Call: instance = Player.Create()
--- Then: instance:Fire() etc to call functions with automatic access to "instance.self" value
 Player = {}
 Player.__index = Player -- meta table to implement a "class" in lua (google it!)
 
 Player.xPos = -appWidth/2 + 20
 
--- we use a table of nodes and re-use once anim is over to save creating and garbage collecting hundreds of these
--- TODO: turn this into generic code that can be re-used by any node or even generic table
--- Generic version should have a max size setting - balance memory used vs garbage collection
+-- we use a table of nodes and re-use once anim is over to save creating and
+-- garbage collecting hundreds of these
+-- TODO: turn this into generic code that can be re-used by any node or even
+-- generic table
+-- Generic version should have a max size setting - balance memory used vs
+-- garbage collection
 function ReusePlayerFX(target)
     --point to this slot if fxLastFreed doesnt point to a currently "free" slot
     if not target.player.effects[target.player.fxLastFreed].freed then
@@ -53,7 +57,7 @@ function PlayerFx(event)
                 fx.y=y
                 --print("PLAYER FX: reusing fx at slot: " .. iFx)
             end
-            player.fxLastFreed = iFx+1 -- guess next one is next to be freed. Likley if timers expire in order added.
+            player.fxLastFreed = iFx+1 -- guess next one is next to be freed. Likely if timers expire in order added.
             if player.fxLastFreed > player.fxSize then player.fxLastFreed = 1 end
             fx.freed = false
             break
@@ -146,7 +150,8 @@ function Player:Destroy()
     self.health:Destroy()
     self.weaponsMeter:Destroy()
     self:RemoveSled()
-    --no need to nil anything as we'll just nil the player after destrouction and then there are no references left to any of its member values
+    --no need to nil anything as we'll just nil the player after destruction
+    --and then there are no references left to any of its member values
 end
 
 function Player:AddSled(xPos, yPos)
@@ -184,20 +189,21 @@ end
 
 function Player:Fire(weaponOverride)
     --dbg.print("FIRE!")
-    --print("Player:Fire")
 
     if self.weaponsMeter:HasAmmo() then
         weapon = weaponOverride or self.weaponsMeter.currentWeapon
+        --dbg.print("Fire: " .. weapon)
 
         -- fire from in front of player (avoid having to ignore collisions on firing)
         local xPos = self.sled.x + self.mirrorX*(ballRadius+5)
 
         if weapon == "bullet" then
-            --dbg.print("FIRE bullet")
-            local speed = 750 --speeds are in pixels/sec (multiplied by update delta in main update func to get pixels/frame)
-            local bullet = CollidableCreate("bullet", xPos, self.sled.y, {x=self.mirrorX*speed, y=0}, speed) -- some objects dont need speed as their velocity never changes
+            --speeds are in pixels/sec (multiplied by update delta in main
+            --update func to get pixels/frame)
+            -- some objects dont need speed as their velocity never changes
+            local speed = 750
+            local bullet = CollidableCreate("bullet", xPos, self.sled.y, {x=self.mirrorX*speed, y=0}, speed)
         elseif weapon == "ball" then
-            --dbg.print("FIRE ball")
             local minAngle
             local maxAngle
             if self.mirrorX == 1 then
@@ -216,20 +222,16 @@ function Player:Fire(weaponOverride)
             
             AddBall{xPos=xPos, yPos=self.sled.y, minAngle=minAngle, maxAngle=maxAngle, allowedBallTypes = {"ball"}}
         elseif weapon == "expander" then
-            --dbg.print("FIRE expander")
             local speed = 500
             local bullet = CollidableCreate("expander-up", xPos, self.sled.y, {x=self.mirrorX*speed, y=0}, speed)
             local bullet = CollidableCreate("expander-down", xPos, self.sled.y, {x=self.mirrorX*speed, y=0}, speed)
         elseif weapon == "air" then
-            --dbg.print("FIRE air")
             local fxTimer = self.sled:addTimer(AirFX, 0.2, 3, 0)
             fxTimer.x = self.sled.x + self.mirrorX*8
             fxTimer.y = self.sled.y
             fxTimer.initAlpha = 1
         elseif weapon == "freezer" then
-            --dbg.print("FIRE freezer")
-
-            -- we can queue up multiple of timers (will all be cancelled on sled destruction)
+            -- we can safely queue up multiple timers (all cancelled on sled destruction)
             self.sled:addTimer(FreezePlayers, 1, 1, 0)
             sceneBattle.freezeStarted = true
             local fxTimer = self.sled:addTimer(FreezerFX, 0.2, 3, 0)
@@ -237,16 +239,13 @@ function Player:Fire(weaponOverride)
             fxTimer.y = self.sled.y
             fxTimer.initAlpha = 1
         elseif weapon == "heatseeker" then
-            --dbg.print("FIRE heatseeker")
             local speed = 400
-            if gameInfo.controlType == "onePlayer" then --weapon needs to change all ball directions fast
-                speed = 750
+            if gameInfo.controlType == "onePlayer" then
+                speed = 750 --weapon needs to change all ball directions fast
             end
             local bullet = CollidableCreate("heatseeker", xPos, self.sled.y, {x=self.mirrorX*speed, y=0}, speed)
             bullet.enemy = self.enemy
         elseif weapon == "reverser" then
-            --dbg.print("FIRE reverser")
-
             ReverserFx(1, self.enemy.sled)
             if self.enemy.reverseTimer then
                 self.enemy.reverseTimer:cancel()
@@ -258,7 +257,6 @@ function Player:Fire(weaponOverride)
             end
             self.enemy.reverseTimer = system:addTimer(UnReverse, 4, 1, 0) --system timer to allow for sled destruction
             self.enemy.reverseTimer.player = self.enemy
-            --self.enemy.touchPosDiff = 0 - self.enemy.touchPosDiff
         end
 
         self.weaponsMeter:Fire(weaponOverride) --deprecate ammo and switch weapon if current is empty
@@ -386,7 +384,7 @@ function Player:CancelTimersAndAnims(cancelSledChildren)
         self.cloakTimer = nil
     end
 
-    -- reverse is a system timer. OK to leave reverse spoke anims to finish if already running.
+    -- reverse is a system timer. Leave reverse spoke anims to finish if already running.
     if self.reverseTimer ~= nil then
         self.reverseTimer:cancel()
         self.reverseTimer = nil
@@ -419,7 +417,11 @@ function Player:Explode()
     local waves = 3
     for n=1,10,1 do
         local randomExplosionTimer = self.sled:addTimer(ExplodeFX, 0.1, waves, delay)
-        delay = delay + (10-n)*0.05 -- all timers start at once, with delays that increasingly converge so explosions get closer together
+        
+        -- all timers start at once, with delays that increasingly converge so
+        -- explosions get closer together
+        delay = delay + (10-n)*0.05
+        
         randomExplosionTimer.origin = {}
         if self.mirrorX > 0 then
             randomExplosionTimer.origin.x = math.random(self.sled.x-initSledWidth, self.sled.x)
@@ -450,16 +452,16 @@ function Player:Explode()
 
     self.ballDestroyTimer = self.sled:addTimer(ExplodeRadius, 0.1, 0, delay-0.2)
     self.ballDestroyTimer.player = self
-    self.ballDestroyTimer.step = appWidth/(2.0/0.1) -- at each update, exapand by: total dist/(total duration/frame duration)
+    self.ballDestroyTimer.step = appWidth/(2.0/0.1) -- at each update, expand by: total dist/(total duration/frame duration)
 
     -- timer destroys balls that waves "hit".
-    -- onComplete event checks for all balls gone and any deadFlag players finishing exploding, then ends battle
+    -- onComplete event checks for all balls gone and any deadFlag players
+    -- finishing exploding, then ends battle
 end
 
 function PlayerExplosionFinished(player)
     dbg.print("explosion over for player " .. player.id)
     player.deadFlag = player.deadFlag + 1
-    --destroyNode(target)
 end
 
 ExplodeRadius = function(event)
@@ -538,7 +540,9 @@ ExplodeFX = function(event)
 
     origin:addChild(fx)
 
-    if timer.useFill and (not timer.useStroke or timer.waves < 4 or event.doneIterations < timer.waves - 1) then -- no fill on last few waves of big explosions
+    if timer.useFill and (not timer.useStroke or timer.waves < 4 or event.doneIterations < timer.waves - 1) then
+        -- no fill on last few waves of big explosions
+        
         tween:to(fx, {alpha=0.7, time=timer.duration*0.2})
         if timer.useStroke then
             tween:to(fx, {alpha=0, delay=timer.duration*0.3, time=timer.duration*0.2})

@@ -7,11 +7,11 @@ showDebugTouchArea = false --cant be nil, nil -> ignored!
 
 --require("mobdebug").start() -- ZeroBrain IDE debuger support
                    
-    -- note that you can only use breakpoints in code loaded *after* this, therefor breakpoints
-    -- in engine code will be ignored. TODO: check this is true! may have just been issue with
-    -- old ZB version...
+    -- note: seems you can only use breakpoints in code loaded *after* this,
+    -- therefore breakpoints in engine code will be ignored. TODO: check this
+    -- is true! may have just been issue with older ZB version...
 
---debugGoSlow = true -- flag to manaully make changes during debugging for things we want/need
+--debugGoSlow = true -- flag to manually make changes during debugging for things we want/need
                      -- to run slowly...
 
 ----------------------------------------------------------------------
@@ -53,7 +53,7 @@ DEMO_TIMEOUT = 10
 
 ------------------
 director.isAlphaInherited = true -- the default in Quick 1.0 but not in Quick beta
-pauseflag = false -- flag to work around Quick's pause-resume bug/quirkh
+pauseflag = false -- flag to work around Quick's pause-resume bug/quirk
 ------------------
 
 local platform = device:getInfo("platform")
@@ -82,7 +82,7 @@ if platform == "OSX" or platform == "WINDOWS" or platform == "WS8" or platform =
     performanceLevel = 2
 end
 
-deviceIsTouch = true -- TODO: for cotrollers set to false. For Windows Surface etc, need both! Not yet used.
+deviceIsTouch = true -- TODO: for controllers set to false. For Windows Surface etc, need both! Not yet used.
 
 -- virtual coordinates
 appWidth = 640
@@ -246,7 +246,7 @@ end
 --gameInfo.achievements.battle=true
 
 gameInfo.achievementPages = 0
-local achCount = table.getn(gameInfo.achievementIndex) --NB, cant use .achievements as .tablegetn only works on arrays!
+local achCount = table.getn(gameInfo.achievementIndex) --NB, cant use .achievements as table.getn only works on arrays!
 while achCount > 0 do
     gameInfo.achievementPages = gameInfo.achievementPages+1
     achCount = achCount-10
@@ -313,7 +313,7 @@ flurryApiKeyIos =     "12345678"
 facebookAppId =  "12345678" --not used yet
 facebookSecret = "12345678" --not used yet
 
--- Private keys/secrets for services are overriden here (this file is not in github!)
+-- Private keys/secrets for services are overridden here (this file is not in github!)
 local pvt_keys = io.open("Globals_pvt.lua","r")
 if pvt_keys ~= nil then
     io.close(pvt_keys)
