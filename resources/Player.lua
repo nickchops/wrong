@@ -233,7 +233,7 @@ function Player:Fire(weaponOverride)
         elseif weapon == "freezer" then
             -- we can safely queue up multiple timers (all cancelled on sled destruction)
             self.sled:addTimer(FreezePlayers, 1, 1, 0)
-            sceneBattle.freezeStarted = true
+            sceneGame.freezeStarted = true
             local fxTimer = self.sled:addTimer(FreezerFX, 0.2, 3, 0)
             fxTimer.x = self.sled.x + self.mirrorX*8
             fxTimer.y = self.sled.y
@@ -264,7 +264,7 @@ function Player:Fire(weaponOverride)
 end
 
 ReverserFx = function(direction, sled)
-    sceneBattle.reverseStarted = true
+    sceneGame.reverseStarted = true
     local stepSize = 360/20
     for n=0, 360-stepSize, stepSize do
         local vec = VectorFromAngle(n, 20)
@@ -278,7 +278,7 @@ ReverserFx = function(direction, sled)
 end
 
 UnReverse = function(event)
-    sceneBattle.reverseStarted = nil --only relevant in 1 player where both sleds always reverse together
+    sceneGame.reverseStarted = nil --only relevant in 1 player where both sleds always reverse together
     local player = event.timer.player
     ReverserFx(-1, player.sled)
 

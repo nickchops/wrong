@@ -76,10 +76,10 @@ end
 -- *lots* so let's optimise. Could improve.
 
 function putObjInRecycler(obj, objType)
-    sceneBattle.recyclerCount[objType] = sceneBattle.recyclerCount[objType] + 1
-    table.insert(sceneBattle.recycler[objType], obj)
+    sceneGame.recyclerCount[objType] = sceneGame.recyclerCount[objType] + 1
+    table.insert(sceneGame.recycler[objType], obj)
     -- TODO?: may want to just assign and set to nil rather than use insert/remove for efficiency?
-    --sceneBattle.recycler[objType][sceneBattle.recyclerCount[objType]] = obj
+    --sceneGame.recycler[objType][sceneGame.recyclerCount[objType]] = obj
     destroyNode(obj) --not garbage collected, just parent-less, as still has ref in the recycler
 end
 
@@ -91,10 +91,10 @@ function TrailFx(event)
     startAlpha = event.timer.startAlpha or 0.6
     if not event.target.flicker and event.target.radius >= ballRadius then -- wait till initial expand is over
         local fx
-        if sceneBattle.recyclerCount.fx > 0 then
-            fx = sceneBattle.recycler.fx[sceneBattle.recyclerCount.fx]
-            table.remove(sceneBattle.recycler.fx)
-            sceneBattle.recyclerCount.fx = sceneBattle.recyclerCount.fx-1
+        if sceneGame.recyclerCount.fx > 0 then
+            fx = sceneGame.recycler.fx[sceneGame.recyclerCount.fx]
+            table.remove(sceneGame.recycler.fx)
+            sceneGame.recyclerCount.fx = sceneGame.recyclerCount.fx-1
         else
             fx = director:createCircle({xAnchor=0.5,yAnchor=0.5,
             strokeWidth=1, alpha=0, color=color.black})
@@ -184,7 +184,7 @@ function SpriteFX(event)
     local freqMin = event.timer.freqMin
     local freqMax = event.timer.freqMax
     local timerId = event.timer.id
-    local radius = sceneBattle.screenMaxX*1.35 -- well off screen in any direction
+    local radius = sceneGame.screenMaxX*1.35 -- well off screen in any direction
     local fxType = event.timer.fxType
     local fx
     
@@ -240,11 +240,11 @@ function SpriteFX(event)
     t.id = timerId
     t.canExplode = event.timer.canExplode
     -- just replace previous timer in table and let old one garbage collect
-    sceneBattle.spriteFxTimer[timerId] = t
+    sceneGame.spriteFxTimer[timerId] = t
 end
 
 function splitAsteroid(target)
-    local radius = sceneBattle.screenMaxX*0.8
+    local radius = sceneGame.screenMaxX*0.8
     rotation=target.rotation + 60
     
     for i = 1,3 do
@@ -284,8 +284,8 @@ end
 
 FreezePlayers = function(event)
     -- override if players are already frozen (extend freeze time)
-    if sceneBattle.unFreezeTimer ~= nil then
-        sceneBattle.unFreezeTimer:cancel()
+    if sceneGame.unFreezeTimer ~= nil then
+        sceneGame.unFreezeTimer:cancel()
     end
     for k,player in pairs(players) do
         player.sledColour = collidableColours.freezer
@@ -294,13 +294,13 @@ FreezePlayers = function(event)
         tween:from(player.sled, {alpha=0.3, time=0.5})
     end
 
-    sceneBattle.unFreezeTimer = system:addTimer(EndFreeze, 2.0, 1)
+    sceneGame.unFreezeTimer = system:addTimer(EndFreeze, 2.0, 1)
 end
 
 EndFreeze = function(event)
     -- second is the actual freeze
-    sceneBattle.unFreezeTimer = nil
-    sceneBattle.freezeStarted = nil
+    sceneGame.unFreezeTimer = nil
+    sceneGame.freezeStarted = nil
 
     for k,player in pairs(players) do
         player.sledColour = gameInfo.playerColours[player.id]
@@ -393,13 +393,13 @@ end
 -------------------------------------------------------------------------------
 -- Fullscreen render texture effects
 
-function sceneBattle:clearScreenFx()
+function sceneGame:clearScreenFx()
     if self.rt then
         self.rt:clear(clearCol)
     end
 end
 
-function sceneBattle:reshowScreenFx(time)
+function sceneGame:reshowScreenFx(time)
     if self.screenFx then
         cancelTweensOnNode(self.screenFx)
         self.screenFx.alpha = 0.7
@@ -411,7 +411,7 @@ function sceneBattle:reshowScreenFx(time)
     end
 end
 
-function sceneBattle:fullscreenEffect()
+function sceneGame:fullscreenEffect()
     if not gameInfo.useFullscreenEffects then
         return
     end
@@ -463,14 +463,14 @@ function ShowMessage(message, delay, shrink, expandDir, vDisplacement, xPos, yPo
     -- defaults to alternating between up and down
 
     if not expandDir then
-        expandDir = sceneBattle.messageDir or "up"
+        expandDir = sceneGame.messageDir or "up"
     end
     if expandDir == "down" then
         vAlign="top"
-        sceneBattle.messageDir = "up" --switch on next call
+        sceneGame.messageDir = "up" --switch on next call
     elseif expandDir == "up" then
         vAlign="bottom"
-        sceneBattle.messageDir = "down"
+        sceneGame.messageDir = "down"
     elseif expandDir == "none" then
         vAlign="center"
     else
@@ -505,7 +505,7 @@ end
 
 function ShowAchievement(achievementId)
     gameInfo.achievements[achievementId] = true
-    sceneBattle:reshowScreenFx()
+    sceneGame:reshowScreenFx()
     ShowMessage("NEW ACHIEVEMENT:", 2.0, false, "up", nil, nil, nil, achieveCol)
     
     local delay = 2.3
@@ -657,7 +657,7 @@ function CollidableCreate(objType, xPos, yPos, startVector, startSpeed, objectOn
             
             if gameInfo.controlType == "onePlayer" and gameInfo.mode ~= "survival" and gameInfo.wave == 1 then
                 ShowMessage("heatseeker", 0.5, false)
-                sceneBattle:reshowScreenFx()
+                sceneGame:reshowScreenFx()
             end
         end
     else
@@ -778,15 +778,15 @@ function AddBall(vals)
         objType = allowedBallTypes[objType] or "ball"
     end
     
-    local defaultSpeed = sceneBattle.ballSpeed
+    local defaultSpeed = sceneGame.ballSpeed
     if objType == "bullet" then defaultSpeed = defaultSpeed*1.4 end
     local minSpeed = vals.minSpeed or defaultSpeed
     local maxSpeed = vals.maxSpeed or defaultSpeed+15
     local speed = vals.speed or math.random(minSpeed, maxSpeed) --NB math.random needs integers
     
     if objType == "reverser" then
-        if sceneBattle.reverseStarted then
-            sceneBattle:queueReplacementBall(0.5)--gets too messy/hard with overlapping freeze or reverse
+        if sceneGame.reverseStarted then
+            sceneGame:queueReplacementBall(0.5)--gets too messy/hard with overlapping freeze or reverse
         else
             ReverserFx(1, origin)
             for k,player in pairs(players) do
@@ -801,25 +801,25 @@ function AddBall(vals)
                 player.reverseTimer = system:addTimer(UnReverse, 4, 1, 0)
                 player.reverseTimer.player = player
             end
-            sceneBattle:queueReplacementBall(1.5)--dont want instant replacement
+            sceneGame:queueReplacementBall(1.5)--dont want instant replacement
             ShowMessage("reverse")
-            sceneBattle:reshowScreenFx()
+            sceneGame:reshowScreenFx()
         end
         return
     elseif objType == "freezer" then
-        if sceneBattle.freezeStarted then
-            sceneBattle:queueReplacementBall(0.5)
+        if sceneGame.freezeStarted then
+            sceneGame:queueReplacementBall(0.5)
         else
             player1.sled:addTimer(FreezePlayers, 1, 1, 0)
-            sceneBattle.freezeStarted = true
-            --todo: no need to track sceneBattle.freezeTimers. can just cancel all play timers
+            sceneGame.freezeStarted = true
+            --todo: no need to track sceneGame.freezeTimers. can just cancel all play timers
             local fxTimer = player1.sled:addTimer(FreezerFX, 0.2, 3, 0)
             fxTimer.x = 0 --centre in screen
             fxTimer.y = 0
             fxTimer.initAlpha = 1
             ShowMessage("freeze")
-            sceneBattle:reshowScreenFx()
-            sceneBattle:queueReplacementBall(1.5)
+            sceneGame:reshowScreenFx()
+            sceneGame:queueReplacementBall(1.5)
         end
         return
     end
@@ -834,7 +834,7 @@ function AddBall(vals)
         ball.enemy = players[math.random(1,2)]
     end
     
-    RingFX({timer={x=xPos, y=yPos, color=ball.mainColor, strokeAlpha=0.5, rEnd=speed/MAX_BALL_SPEED*sceneBattle.screenMaxY}})
+    RingFX({timer={x=xPos, y=yPos, color=ball.mainColor, strokeAlpha=0.5, rEnd=speed/MAX_BALL_SPEED*sceneGame.screenMaxY}})
 end
 
 
@@ -842,7 +842,7 @@ end
 -- Background animations (stars, asteroids, etc)
 
 function setStarAnimation(speedMultiple, rotation, decelerate)
-    if sceneBattle.deathPhase then
+    if sceneGame.deathPhase then
         return
     end
         
@@ -851,9 +851,9 @@ function setStarAnimation(speedMultiple, rotation, decelerate)
     else
         cancelTweensOnNode(origin)
         
-        sceneBattle.starSpeed = (speedMultiple+1) * speedMultiple * 20 - 10 --max speed on multiple=5 is 590 pixels/sec
-        sceneBattle.starAlpha = 0 -- >0 means get white dot as stars pile up in centre!
-        sceneBattle.starsMove = true
+        sceneGame.starSpeed = (speedMultiple+1) * speedMultiple * 20 - 10 --max speed on multiple=5 is 590 pixels/sec
+        sceneGame.starAlpha = 0 -- >0 means get white dot as stars pile up in centre!
+        sceneGame.starsMove = true
         
         -- turn from dots to streaks
         if speedMultiple > 2 or decelerate then
@@ -863,7 +863,7 @@ function setStarAnimation(speedMultiple, rotation, decelerate)
             else
                 streakSize = 1
             end
-            for kStar, star in pairs(sceneBattle.background.children) do
+            for kStar, star in pairs(sceneGame.background.children) do
                 --if gameInfo.wave and (gameInfo.wave > 6 and speedMultiple == 5) then
                 --    -- could, on later levels, turn to crazy vortex effect at the end!
                 --    tween:to(star, {yScale=streakSize, xScale=1, time=1})
@@ -897,7 +897,7 @@ function setStarAnimation(speedMultiple, rotation, decelerate)
         end
     end
     
-    sceneBattle.previousStarSpeedMultiple = speedMultiple
+    sceneGame.previousStarSpeedMultiple = speedMultiple
 end
 
 function setBgAnimations(wavePosInSet)
@@ -907,16 +907,16 @@ function setBgAnimations(wavePosInSet)
     setStarAnimation((gameInfo.wave-1) % 6) --0->5, not 1->6
     
     --animate flying sprites
-    for kT,vT in pairs(sceneBattle.spriteFxTimer) do
+    for kT,vT in pairs(sceneGame.spriteFxTimer) do
         vT:cancel()
-        sceneBattle.spriteFxTimer[kT] = nil
+        sceneGame.spriteFxTimer[kT] = nil
     end
-    sceneBattle.spriteFxTimer = {}
+    sceneGame.spriteFxTimer = {}
     
     if wavePosInSet == 5 or (gameInfo.wave > 6 and wavePosInSet > 3) then
         for i=0,2 do
             local t = system:addTimer(SpriteFX, 2, 1, i*2)
-            table.insert(sceneBattle.spriteFxTimer, t)
+            table.insert(sceneGame.spriteFxTimer, t)
             t.id = i+1
             
             if wavePosInSet == 4 then
@@ -937,7 +937,7 @@ function setBgAnimations(wavePosInSet)
             local delay = 0
             if wavePosInSet == 1 then delay = 6 end
             local t = system:addTimer(SpriteFX, 2, 1, delay+i*2)
-            table.insert(sceneBattle.spriteFxTimer, t)
+            table.insert(sceneGame.spriteFxTimer, t)
             t.id = i+1
             
             if wavePosInSet == 1 then
@@ -967,9 +967,9 @@ function endStarMovement(time)
     
     --starsDecelerate controls if and how quickly stars slow down.
     --(300 pixels per sec)/time is a cheap estimate!
-    sceneBattle.starsDecelerate = 300/time
+    sceneGame.starsDecelerate = 300/time
     
-    for kStar, star in pairs(sceneBattle.background.children) do
+    for kStar, star in pairs(sceneGame.background.children) do
         cancelTweensOnNode(star)
         tween:to(star, {xScale=1, yScale=1, time=time})
         tween:to(star, {strokeColor=star.originalStroke, time=time, delay=1})
@@ -983,8 +983,8 @@ end
 
 -- subtracts 1 from wave count and does update logic if wave is over
 function checkWaveIsOver()
-    if sceneBattle.waveLeft then
-        if sceneBattle.waveLeft.value == 0 then
+    if sceneGame.waveLeft then
+        if sceneGame.waveLeft.value == 0 then
             for k,obj in pairs(collidables) do
                 obj.dontBounce = true
                 obj.replaceOnLeaveScreen = false
@@ -993,7 +993,7 @@ function checkWaveIsOver()
             
             -- Note that message display will clear screenFx and set its alpha back on
             
-            sceneBattle.waveLeft:SetValue(INIT_WAVE_SIZE+gameInfo.wave+1)
+            sceneGame.waveLeft:SetValue(INIT_WAVE_SIZE+gameInfo.wave+1)
             --increase by 2 on 2nd wave (go from super easy intro to real difficulty!)
             gameInfo.wave = gameInfo.wave + 1
             ShowMessage("WAVE " .. gameInfo.wave, 0, false, "up")
@@ -1015,12 +1015,12 @@ function checkWaveIsOver()
             end
             
             --ensure message text is emphasised
-            sceneBattle:clearScreenFx()
-            sceneBattle:reshowScreenFx()
+            sceneGame:clearScreenFx()
+            sceneGame:reshowScreenFx()
             
-            analytics:logEvent("waveStarted", {waveNum=tostring(gameInfo.wave), score=tostring(sceneBattle.score.value)})
+            analytics:logEvent("waveStarted", {waveNum=tostring(gameInfo.wave), score=tostring(sceneGame.score.value)})
             -- restart ball adding timers
-            sceneBattle.ballSpeed = math.min(SECOND_BALL_SPEED + sceneBattle.ballSpeed/4, MAX_BALL_WAVE_START_SPEED)
+            sceneGame.ballSpeed = math.min(SECOND_BALL_SPEED + sceneGame.ballSpeed/4, MAX_BALL_WAVE_START_SPEED)
                 --reduce speed or gets too hard too fast
             -- TODO?: we may want to control both speed and wave length explicitly
             -- with similar method to the ball types tables, and then default to just upping them later
@@ -1030,18 +1030,18 @@ function checkWaveIsOver()
             
             setBgAnimations(wavePosInSet)
             
-            if sceneBattle.ballInitTimer then
-                sceneBattle.ballInitTimer:cancel() --maybe user created balls with weapon before timer finished!
+            if sceneGame.ballInitTimer then
+                sceneGame.ballInitTimer:cancel() --maybe user created balls with weapon before timer finished!
             end
-            sceneBattle.ballTimer:cancel() --safe to cancel as not yet nilled
-            local newBallDelay = math.min(sceneBattle.ballTimer.ballDelay+1, MAX_NEW_BALL_DELAY)
-            sceneBattle.ballTimer = system:addTimer(AddNewBall, newBallDelay, 1)
-            sceneBattle.ballTimer.ballDelay = newBallDelay
-            sceneBattle.ballInitTimer = system:addTimer(AddNewBall, INITIAL_BALL_DELAY, math.min(INITIAL_BALL_QUEUE+gameInfo.wave-1, MAX_INIT_BALLS))
+            sceneGame.ballTimer:cancel() --safe to cancel as not yet nilled
+            local newBallDelay = math.min(sceneGame.ballTimer.ballDelay+1, MAX_NEW_BALL_DELAY)
+            sceneGame.ballTimer = system:addTimer(AddNewBall, newBallDelay, 1)
+            sceneGame.ballTimer.ballDelay = newBallDelay
+            sceneGame.ballInitTimer = system:addTimer(AddNewBall, INITIAL_BALL_DELAY, math.min(INITIAL_BALL_QUEUE+gameInfo.wave-1, MAX_INIT_BALLS))
 
-            sceneBattle.ballInitTimer.isInit = true
+            sceneGame.ballInitTimer.isInit = true
             
-            sceneBattle:setBallOverrides(gameInfo.wave, wavePosInSet)
+            sceneGame:setBallOverrides(gameInfo.wave, wavePosInSet)
             
             for n=1, INITIAL_BALL_QUEUE do
                  -- lock first balls to fairly horizontal angles
@@ -1051,9 +1051,9 @@ function checkWaveIsOver()
                 elseif randAngle > 315 then
                     randAngle = randAngle - 270
                 end
-                sceneBattle.ballOverrides[n]["angle"]=randAngle
+                sceneGame.ballOverrides[n]["angle"]=randAngle
             end
-            sceneBattle.ballsAddedThisWave = 0
+            sceneGame.ballsAddedThisWave = 0
             
             if gameInfo.soundOn then
                 local tryId = gameInfo.wave
@@ -1069,9 +1069,9 @@ function checkWaveIsOver()
             
             return true -- signal no new ball to add if wave is over
         end
-        sceneBattle.waveLeft:Increment(-1)
-        if sceneBattle.waveLeft.value == 0 then
-            tween:to(sceneBattle.waveLeft.digits[1].origin, {time=0.3, xScale=3, yScale=3, mode="mirror", alpha=0})
+        sceneGame.waveLeft:Increment(-1)
+        if sceneGame.waveLeft.value == 0 then
+            tween:to(sceneGame.waveLeft.digits[1].origin, {time=0.3, xScale=3, yScale=3, mode="mirror", alpha=0})
             --anim will be auto cancelled once counter gets reset
         end
     end
@@ -1084,12 +1084,12 @@ function AddNewBall(event)
     
     -- is init means it was the initial barrage at the start of a wave
     if event.timer.isInit and event.doneIterations == INITIAL_BALL_QUEUE then
-        sceneBattle.ballInitTimer = nil --so we dont try to cancel/pause it when over
+        sceneGame.ballInitTimer = nil --so we dont try to cancel/pause it when over
     end
     
     -- player gets a point for each new ball added
-    if sceneBattle.score then
-        sceneBattle.score:Increment(1)
+    if sceneGame.score then
+        sceneGame.score:Increment(1)
         gameInfo.streak = gameInfo.streak + 1
         if gameInfo.streak == 30 then
             if not gameInfo.achievements.battle then
@@ -1109,36 +1109,36 @@ function AddNewBall(event)
             end
         end
     end
-    sceneBattle.ballsAddedThisWave = sceneBattle.ballsAddedThisWave + 1
+    sceneGame.ballsAddedThisWave = sceneGame.ballsAddedThisWave + 1
     
     if checkWaveIsOver() == true then
         return
     end
     
-    sceneBattle.ballSpeed = sceneBattle.ballSpeed + NEW_BALL_SPEED_INCREASE
+    sceneGame.ballSpeed = sceneGame.ballSpeed + NEW_BALL_SPEED_INCREASE
     local vals = {}
-    if sceneBattle.ballOverrides[sceneBattle.ballsAddedThisWave] then
+    if sceneGame.ballOverrides[sceneGame.ballsAddedThisWave] then
         dbg.print("BALL OVERRIDE!")
-        for k,v in pairs(sceneBattle.ballOverrides[sceneBattle.ballsAddedThisWave]) do
+        for k,v in pairs(sceneGame.ballOverrides[sceneGame.ballsAddedThisWave]) do
             dbg.print("override: " .. k .. "to" .. v)
             vals[k] = v
         end
     end
     
     if event.timer.ballDelay then --re-queue, with new duration on new wave
-        sceneBattle.ballTimer = system:addTimer(AddNewBall, event.timer.ballDelay, 1)
-        sceneBattle.ballTimer.ballDelay = event.timer.ballDelay
+        sceneGame.ballTimer = system:addTimer(AddNewBall, event.timer.ballDelay, 1)
+        sceneGame.ballTimer.ballDelay = event.timer.ballDelay
     end
     
     -- reset burn effect on new balls to prevent screen getting too messy
     -- ignore initial volley of balls or will reset too fast
-    if sceneBattle.rt then
+    if sceneGame.rt then
         if not event.timer.isInit then
-            sceneBattle:clearScreenFx()
+            sceneGame:clearScreenFx()
         end
         
         if not event.timer.isInit or (event.timer.isInit and event.doneIterations == INITIAL_BALL_QUEUE) then
-            sceneBattle:reshowScreenFx()
+            sceneGame:reshowScreenFx()
         end
     end
     
@@ -1149,17 +1149,17 @@ end
 -- Recursively queues-up adding balls after each other (not a looping timer) to guarantee delay between them
 ReplenishBalls = function(event)
     dbg.print("ReplenishBalls")
-    sceneBattle.ballSpeed = sceneBattle:setBallSpeed(sceneBattle.ballSpeed + REPLACE_BALL_SPEED_INCREASE)
-    sceneBattle.ballCreateQueue = sceneBattle.ballCreateQueue -1
+    sceneGame.ballSpeed = sceneGame:setBallSpeed(sceneGame.ballSpeed + REPLACE_BALL_SPEED_INCREASE)
+    sceneGame.ballCreateQueue = sceneGame.ballCreateQueue -1
     AddBall()
-    if sceneBattle.ballCreateQueue > 0 then
-        sceneBattle.ballReplaceTimer = system:addTimer(ReplenishBalls, REPLACE_BALL_DELAY, 1)
+    if sceneGame.ballCreateQueue > 0 then
+        sceneGame.ballReplaceTimer = system:addTimer(ReplenishBalls, REPLACE_BALL_DELAY, 1)
     else
-        sceneBattle.ballReplaceTimer = nil
+        sceneGame.ballReplaceTimer = nil
     end
 end
 
-function sceneBattle:setBallSpeed(speed)
+function sceneGame:setBallSpeed(speed)
     if speed >= MAX_BALL_SPEED then
         if self.waveLeft then
             dbg.print("MAX SPEED REACHED, wave = " .. gameInfo.wave .. ", balls left = " .. self.waveLeft.value)
@@ -1170,7 +1170,7 @@ function sceneBattle:setBallSpeed(speed)
     return speed
 end
 
-function sceneBattle:queueReplacementBall(extraDelayTime)
+function sceneGame:queueReplacementBall(extraDelayTime)
     if self.deathPhase or self.ignoreEvents then return end
     
     dbg.print("queue replacement ball")
@@ -1195,7 +1195,7 @@ function DyingCollidableDestroy(collidable)
     end
     
     if collidable.replaceOnLeaveScreen then 
-        sceneBattle:queueReplacementBall()
+        sceneGame:queueReplacementBall()
     end
     
     destroyNodesInTree(collidable, true) -- may still have children if abandoned during animation
@@ -1240,7 +1240,7 @@ function CollidableDestroy(collidable, killLater, keepTimersRunning, keepTweensR
                                                -- NB this would be simpler if we had collidables=nodes!
     else
         if collidable.replaceOnLeaveScreen then
-            sceneBattle:queueReplacementBall()
+            sceneGame:queueReplacementBall()
         end
         -- clean up any children, e.g. heatseeker rings etc if they weren't exploded (e.g. battle abandoned)
         --dbg.print("destroy node here: " .. collidable.name)
@@ -1261,7 +1261,7 @@ function AIFire(event)
     player2:Fire()
 end
 
-function sceneBattle:update(event)
+function sceneGame:update(event)
     self.effectSkipFlag = not self.effectSkipFlag
     
     if pauseflag then
@@ -1271,7 +1271,7 @@ function sceneBattle:update(event)
         else
             system:resumeTimers()
             resumeNodesInTree(origin)
-            if sceneBattle.pauseMenu and not sceneBattle.pauseMenu.disabled then
+            if sceneGame.pauseMenu and not sceneGame.pauseMenu.disabled then
                 PauseGame({phase="ended"}) --activate pause menu on non-paused resume
             end
         end
@@ -1509,7 +1509,7 @@ function sceneBattle:update(event)
                                 if not gameInfo.firstCloak then
                                     gameInfo.firstCloak = true
                                     ShowMessage("power surge!")
-                                    sceneBattle:reshowScreenFx()
+                                    sceneGame:reshowScreenFx()
                                 end
                                 player:AddAmmo(1) -- cloak balls also provide powerups
                                 player:Cloak()
@@ -1550,8 +1550,8 @@ function sceneBattle:update(event)
         self.deathPhase = true
         self:cancelTimers()
         if gameInfo.controlType == "onePlayer" and gameInfo.mode ~= "survival" then
-            cancelTweensOnNode(sceneBattle.waveLeft.origin, true)
-            tween:to(sceneBattle.waveLeft.origin, {time=2, xScale=0, yScale=0})
+            cancelTweensOnNode(sceneGame.waveLeft.origin, true)
+            tween:to(sceneGame.waveLeft.origin, {time=2, xScale=0, yScale=0})
         end
     end
 
@@ -1644,7 +1644,7 @@ function sceneBattle:update(event)
     fullscreenEffectsUpdate(self)
 end
 
-function sceneBattle:beginGameOver(duration)
+function sceneGame:beginGameOver(duration)
     self.endTimer = system:addTimer(GameOver, duration, 1)
     cancelTweensOnNode(self.screenFx)
     if self.screenFx then
@@ -1661,7 +1661,7 @@ function playerHit(restoreHealth)
             end
             if gameInfo.streak > gameInfo.streakMax or gameInfo.streak > 2 then
                 ShowMessage(gameInfo.streak .. " bomb streak", 0, false, "up", nil, 0, minY+20, color.red)
-                sceneBattle:reshowScreenFx()
+                sceneGame:reshowScreenFx()
             end
             gameInfo.streak = 0
         end
@@ -1670,8 +1670,8 @@ function playerHit(restoreHealth)
         --re-using logic from one player game. Instead of speed based on waves
         -- multiple of 2 -> 6 = slow->fast; we use health left of >=5 -> 1 = slow->fast
         local speedMultiple = math.max(1, math.min(6, 6-math.min(player1.health.value, player2.health.value)))
-        if (speedMultiple ~= sceneBattle.previousStarSpeedMultiple) and speedMultiple > 0 and speedMultiple < 6 then
-            setStarAnimation(speedMultiple, (speedMultiple-1)*2, sceneBattle.previousStarSpeedMultiple > speedMultiple)
+        if (speedMultiple ~= sceneGame.previousStarSpeedMultiple) and speedMultiple > 0 and speedMultiple < 6 then
+            setStarAnimation(speedMultiple, (speedMultiple-1)*2, sceneGame.previousStarSpeedMultiple > speedMultiple)
         end
     end
 end
@@ -1692,8 +1692,8 @@ function touchReleaseTimer(event)
     event.timer.player.velocity = 0 --touch didnt cause fire or movement -> stop movement
 end
 
-function sceneBattle:touch(touch)
-    if sceneBattle.endTimer then
+function sceneGame:touch(touch)
+    if sceneGame.endTimer then
         return
     end
     
@@ -1953,11 +1953,11 @@ function randomPlayerTimer(event)
     end
     
     if not debugGoSlow then
-        sceneBattle.demoTimers[player.id] = system:addTimer(randomPlayerTimer, 1/actionId, 1)
+        sceneGame.demoTimers[player.id] = system:addTimer(randomPlayerTimer, 1/actionId, 1)
     else
-        sceneBattle.demoTimers[player.id] = system:addTimer(randomPlayerTimer, 4, 1)
+        sceneGame.demoTimers[player.id] = system:addTimer(randomPlayerTimer, 4, 1)
     end
-    sceneBattle.demoTimers[player.id].player = player
+    sceneGame.demoTimers[player.id].player = player
 end
 
 -------------------------------------------------------------------------------
@@ -1965,22 +1965,22 @@ end
 
 function cancelBattle(event)
     if event.phase == "ended" then -- guard or else will try to transition twice!
-        sceneBattle.ignoreEvents = true -- stop balls regenerating etc
+        sceneGame.ignoreEvents = true -- stop balls regenerating etc
         -- if we wanted to not save when users quits manually, but its nicer to let them continue :)
         --sceneMainMenu:wipeContinueFile()
-        sceneBattle:goToMenu()
+        sceneGame:goToMenu()
         --objects will all be destroyed in post transition event
     end
 end
 
 function GameOver(event)
-    sceneBattle.endTimer = nil
+    sceneGame.endTimer = nil
     sceneMainMenu:wipeContinueFile()
-    sceneBattle:goToMenu()
+    sceneGame:goToMenu()
     -- all effects must have finished by this point :)
 end
 
-function sceneBattle:goToMenu()
+function sceneGame:goToMenu()
     if gameInfo.controlType ~= "p1LocalVsP2Local" or demoMode then --already locked in battle mode
         -- Lock rotation during transition or else values are broken next scene start.
         -- Prob should fix this in SDK...
@@ -2006,7 +2006,7 @@ end
 
 -- Save retrievable game state data. Can recreate game state form this if
 -- game gets killed by OS or user in mid play.
-function sceneBattle:saveState()
+function sceneGame:saveState()
     local continueData = {}
     
     if not player1.deadFlag and not player2.deadFlag then
@@ -2104,7 +2104,7 @@ end
 -------------------------------------------------------------------------------
 -- Button to move play area up/down
 
-function sceneBattle.moveSceneTopOrMiddle(event)
+function sceneGame.moveSceneTopOrMiddle(event)
     if not event or event.phase == "ended" then
         local newBtn, oldBtn
         
@@ -2117,8 +2117,8 @@ function sceneBattle.moveSceneTopOrMiddle(event)
                 oldBtn = "up"
             end
             
-            removeArrowButton(sceneBattle, oldBtn, sceneBattle.moveSceneTopOrMiddle)
-            sceneBattle.moveBtn = nil
+            removeArrowButton(sceneGame, oldBtn, sceneGame.moveSceneTopOrMiddle)
+            sceneGame.moveBtn = nil
         end
             -- if not event, then calling from setup -> use current value and just add first button
         
@@ -2128,15 +2128,15 @@ function sceneBattle.moveSceneTopOrMiddle(event)
             newBtn = "up"
         end
         
-        sceneBattle.moveBtn = addArrowButton(sceneBattle, newBtn, sceneBattle.moveSceneTopOrMiddle,
-            nil, nil, sceneBattle.screenMinY*0.3, 0.35)
-        sceneBattle.moveBtn.xScale = 0.5
-        sceneBattle.moveBtn.yScale = 0.5
-        sceneBattle.moveBtn.zOrder = 100
+        sceneGame.moveBtn = addArrowButton(sceneGame, newBtn, sceneGame.moveSceneTopOrMiddle,
+            nil, nil, sceneGame.screenMinY*0.3, 0.35)
+        sceneGame.moveBtn.xScale = 0.5
+        sceneGame.moveBtn.yScale = 0.5
+        sceneGame.moveBtn.zOrder = 100
         
         -- move origins, pause overlay mask and moveBtn
         -- only restart screen effect if button was pressed (not on first setup)
-        sceneBattle:orientation(nil, not event)
+        sceneGame:orientation(nil, not event)
         
     end
     return true
@@ -2146,7 +2146,7 @@ end
 -------------------------------------------------------------------------------
 -- Orientation
 
-function sceneBattle:orientation(event, dontRestartEffects)
+function sceneGame:orientation(event, dontRestartEffects)
     adaptToOrientation(event)
     
     -- User space coords for screen edges inc letterboxes
@@ -2212,7 +2212,7 @@ function sceneBattle:orientation(event, dontRestartEffects)
     -- (re)setup screen burn filter effect...
     if not dontRestartEffects then
         fullscreenEffectsReset(self)
-        sceneBattle:fullscreenEffect()
+        sceneGame:fullscreenEffect()
         self.effectSkipFlag = true -- will go false on first update event and set effect, then alternate
     end
 end
@@ -2250,7 +2250,7 @@ function AddStar(twinkleAnimate, n)
         tween:to(star, {strokeAlpha=math.random(3,10) / 10, time=0.5}) -- avoid tweens running during play
     end
 
-    sceneBattle.background:addChild(star) -- background.children is now a table with refs to all stars
+    sceneGame.background:addChild(star) -- background.children is now a table with refs to all stars
 end
 
 function StretchStar(star, length)
@@ -2264,8 +2264,8 @@ function StretchStar(star, length)
 end
 
 
-function sceneBattle:setUp(event)
-    dbg.print("sceneBattle:setUp")
+function sceneGame:setUp(event)
+    dbg.print("sceneGame:setUp")
         
     self.lastFrameTime = {}
     for i=1,10 do
@@ -2275,7 +2275,7 @@ function sceneBattle:setUp(event)
     -- onePlayerMode mode: p1 controls both sleds and score records survival time in amount of balls added
     local onePlayerMode = gameInfo.controlType == "onePlayer"
     
-    system:addEventListener({"suspend", "resume", "orientation"}, sceneBattle)
+    system:addEventListener({"suspend", "resume", "orientation"}, sceneGame)
     
     virtualResolution:applyToScene(self)
     self:orientation()
@@ -2406,8 +2406,8 @@ function sceneBattle:setUp(event)
         player2.weaponsMeter:SetWeapon(3)
     end
     
-    sceneBattle.deathPhase = false
-    sceneBattle.ignoreEvents = false
+    sceneGame.deathPhase = false
+    sceneGame.ignoreEvents = false
 
     self.ballSpeed = gameInfo.continue.ballSpeed or SECOND_BALL_SPEED --(pixels/second)
     self.ballCreateQueue = gameInfo.continue.ballCreateQueue or 0 -- queues up balls to add to replace destroyed ones
@@ -2452,7 +2452,7 @@ function sceneBattle:setUp(event)
 end
 
 --set params for certain balls in the wave. index 1 = first ball added, 6=6th ball, etc
-function sceneBattle:setBallOverrides(wave, wavePosInSet)
+function sceneGame:setBallOverrides(wave, wavePosInSet)
     -- these keep the first round especially from being too dull!
     self.ballOverrides[1]={angle=95, objType="ball", speed=FIRST_BALL_SPEED}
     self.ballOverrides[2]={angle=275, objType="ball", speed=FIRST_BALL_SPEED}
@@ -2494,7 +2494,7 @@ end
 function ScoreHelperLabels(event)
     tween:to(event.target, {alpha=1, time=1.5, onComplete=LabelHelperDestroy})
     
-    if sceneBattle.waveLeft then
+    if sceneGame.waveLeft then
         local waveHelper = director:createLabel({x=30, y=minY+22, hAlignment="left", vAlignment="center", text="bombs left this wave", w=80, color=menuBlue, font=fontMainSmall, alpha=0})
         origin:addChild(waveHelper)
         tween:to(waveHelper, {alpha=1, time=1, delay=2, onComplete=LabelHelperDestroy})
@@ -2505,8 +2505,8 @@ function LabelHelperDestroy(target)
     tween:to(target, {alpha=0, time=2.5, onComplete=destroyNode})
 end
 
-function sceneBattle:enterPostTransition(event)
-    dbg.print("sceneBattle:enterPostTransition")
+function sceneGame:enterPostTransition(event)
+    dbg.print("sceneGame:enterPostTransition")
     -- start game running after transitions
     
     --disable screen lock for non-battle games once the transition is over
@@ -2534,12 +2534,12 @@ function sceneBattle:enterPostTransition(event)
     end
 
     -- main game logic handlers
-    system:addEventListener({"update"}, sceneBattle)
+    system:addEventListener({"update"}, sceneGame)
     if demoMode and not demoModeDebug then
         system:addEventListener({"touch"}, cancelBattle)
         dbg.print("GAME: added cancel touch")
     else
-        system:addEventListener({"touch"}, sceneBattle)
+        system:addEventListener({"touch"}, sceneGame)
         dbg.print("GAME: added battle touch")
     end
     if demoMode then
@@ -2688,9 +2688,9 @@ end
 -- Pause Menu
 
 -- TODO: should move this out to its own file and pass in origin and originPause
--- Cleaner to use sceneBattle.pauseMenu.touchCircle:touch() etc for functions?
+-- Cleaner to use sceneGame.pauseMenu.touchCircle:touch() etc for functions?
 
-function sceneBattle:scalePauseBtns()
+function sceneGame:scalePauseBtns()
     if not self.pauseMenu then return end
     
     -- want 0.5 inch button... get 0.5 inches in user (VR) space coords
@@ -2716,10 +2716,10 @@ function sceneBattle:scalePauseBtns()
 end
 
 function DisablePauseMenu()
-    if sceneBattle.pauseMenu then
-        sceneBattle.pauseMenu.disabled = true
-        sceneBattle.pauseMenu.touchCircle:removeEventListener({"touch"}, PauseGame)
-        tween:to(sceneBattle.pauseMenu.pause, {time=0.4, xScale=0})
+    if sceneGame.pauseMenu then
+        sceneGame.pauseMenu.disabled = true
+        sceneGame.pauseMenu.touchCircle:removeEventListener({"touch"}, PauseGame)
+        tween:to(sceneGame.pauseMenu.pause, {time=0.4, xScale=0})
        
        system:removeEventListener("key", gameBackKeyListener)
     end
@@ -2727,17 +2727,17 @@ end
 
 function gameBackKeyListener(event)
     if event.keyCode == 210 and event.phase == "pressed" then
-        sceneBattle.backKeyListener({phase="ended"})
+        sceneGame.backKeyListener({phase="ended"})
     end
 end
 
 function PauseGame(touch)
     if touch.phase == "ended" then
-        sceneBattle.gamePaused = true
-        cancelTweensOnNode(sceneBattle.pauseMenu) --can touch while still re-appearing
+        sceneGame.gamePaused = true
+        cancelTweensOnNode(sceneGame.pauseMenu) --can touch while still re-appearing
         
-        sceneBattle.pauseMenu.touchCircle:removeEventListener({"touch"}, PauseGame)
-        system:removeEventListener({"touch"}, sceneBattle)
+        sceneGame.pauseMenu.touchCircle:removeEventListener({"touch"}, PauseGame)
+        system:removeEventListener({"touch"}, sceneGame)
         
         system:pauseTimers()
         pauseNodesInTree(origin)
@@ -2746,27 +2746,27 @@ function PauseGame(touch)
         -- Windows store tries to freeze and do auto resume rather than suspending. Would
         -- rather save in case that doesn't work!
         if not demoMode then
-            sceneBattle:saveState()
+            sceneGame:saveState()
         end
         
-        if not sceneBattle.originMask then
-            sceneBattle.originMask = director:createRectangle({x=sceneBattle.screenMinX, y=sceneBattle.screenMinY,
+        if not sceneGame.originMask then
+            sceneGame.originMask = director:createRectangle({x=sceneGame.screenMinX, y=sceneGame.screenMinY,
                     w=screenWidth, h=screenHeight, zOrder=2, color={0,20,0}, alpha=0, strokeWidth=0, zOrder=-1})
-            sceneBattle.originMaskAnchor:addChild(sceneBattle.originMask)
+            sceneGame.originMaskAnchor:addChild(sceneGame.originMask)
         end
         
-        tween:to(sceneBattle.originMask, {time=0.4, alpha=0.85})
-        tween:to(sceneBattle.pauseMenu.pause, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu.pause, {time=0.4, yScale=0, onComplete=ShowPauseMenu})
+        tween:to(sceneGame.originMask, {time=0.4, alpha=0.85})
+        tween:to(sceneGame.pauseMenu.pause, {time=0.25, xScale=0})
+        tween:to(sceneGame.pauseMenu.pause, {time=0.4, yScale=0, onComplete=ShowPauseMenu})
         
-        sceneBattle:orientation(nil, true) --make sure mask is in right place
+        sceneGame:orientation(nil, true) --make sure mask is in right place
         
-        sceneBattle:startPauseEffects()
+        sceneGame:startPauseEffects()
     end
     return true
 end
 
-function sceneBattle:startPauseEffects()
+function sceneGame:startPauseEffects()
     if self.screenFx then
         cancelTweensOnNode(self.screenFx)
         self.screenFx.filter.name = "blur"
@@ -2785,18 +2785,18 @@ function sceneBattle:startPauseEffects()
 end
 
 function ShowPauseMenu()
-    local resume = sceneBattle.pauseMenu.resume
+    local resume = sceneGame.pauseMenu.resume
     if not resume then
         resume = director:createNode({x=0, y=0, xScale=0, yScale=0, zOrder=3})
         resume.touchCircle = director:createCircle({x=0, y=20, xAnchor=0.5, yAnchor=0.5, radius=20, color=color.black, strokeWidth=1, strokeColor=menuBlue})
         resume.play = director:createLines({x=0, y=20, coords={-8,-12, -8,12, 14,0, -8,-12}, alpha=0, strokeWidth=1, strokeColor=menuGreen})
         resume:addChild(resume.touchCircle)
         resume:addChild(resume.play)
-        sceneBattle.pauseMenu:addChild(resume)
-        sceneBattle.pauseMenu.resume = resume
+        sceneGame.pauseMenu:addChild(resume)
+        sceneGame.pauseMenu.resume = resume
     end
     
-    local quit = sceneBattle.pauseMenu.quit
+    local quit = sceneGame.pauseMenu.quit
     if not quit then
         quit = director:createNode({x=0, y=0, xScale=0, yScale=0, zOrder=3})
         quit.touchCircle = director:createCircle({x=0, y=20, xAnchor=0.5, yAnchor=0.5, radius=20, color=color.black, strokeWidth=1, strokeColor=menuBlue})
@@ -2805,32 +2805,32 @@ function ShowPauseMenu()
         quit:addChild(quit.touchCircle)
         quit:addChild(quit.door)
         quit:addChild(quit.arrow)
-        sceneBattle.pauseMenu:addChild(quit)
-        sceneBattle.pauseMenu.quit = quit
+        sceneGame.pauseMenu:addChild(quit)
+        sceneGame.pauseMenu.quit = quit
     end
     
-    if not sceneBattle.pauseMenu.pauseLabel then
+    if not sceneGame.pauseMenu.pauseLabel then
         local labelY = 0
         if gameInfo.controlType == "p1LocalVsP2Local" then
             labelY = 80 --avoid buttons when they are in centre of screen
         end
-        sceneBattle.pauseMenu.pauseLabel = director:createLabel({x=0, y=labelY, hAlignment="centre", vAlignment="centre", text="PAUSED", color=menuBlue, font=fontMainLarge, zOrder=20})
-        sceneBattle.originPause:addChild(sceneBattle.pauseMenu.pauseLabel)
+        sceneGame.pauseMenu.pauseLabel = director:createLabel({x=0, y=labelY, hAlignment="centre", vAlignment="centre", text="PAUSED", color=menuBlue, font=fontMainLarge, zOrder=20})
+        sceneGame.originPause:addChild(sceneGame.pauseMenu.pauseLabel)
     end
-    sceneBattle.pauseMenu.pauseLabel.isVisible = true
+    sceneGame.pauseMenu.pauseLabel.isVisible = true
     
-    tween:to(sceneBattle.pauseMenu.resume, {time=0.4, x=15, y=55, yScale=1, onComplete=ActivatePauseMenu})
-    tween:to(sceneBattle.pauseMenu.resume, {time=0.25, delay=0.15, xScale=1})
+    tween:to(sceneGame.pauseMenu.resume, {time=0.4, x=15, y=55, yScale=1, onComplete=ActivatePauseMenu})
+    tween:to(sceneGame.pauseMenu.resume, {time=0.25, delay=0.15, xScale=1})
     
-    tween:to(sceneBattle.pauseMenu.quit, {time=0.4, x=50, y=110, yScale=1})
-    tween:to(sceneBattle.pauseMenu.quit, {time=0.25, delay=0.15, xScale=1})
+    tween:to(sceneGame.pauseMenu.quit, {time=0.4, x=50, y=110, yScale=1})
+    tween:to(sceneGame.pauseMenu.quit, {time=0.25, delay=0.15, xScale=1})
 end
 
 function ActivatePauseMenu()
-    sceneBattle.pauseMenu.resume.touchCircle:addEventListener("touch", HidePauseMenu)
-    sceneBattle.pauseMenu.quit.touchCircle:addEventListener("touch", QuitFromPauseMenu)
+    sceneGame.pauseMenu.resume.touchCircle:addEventListener("touch", HidePauseMenu)
+    sceneGame.pauseMenu.quit.touchCircle:addEventListener("touch", QuitFromPauseMenu)
     
-    sceneBattle.backKeyListener = HidePauseMenu
+    sceneGame.backKeyListener = HidePauseMenu
     system:addEventListener("key", gameBackKeyListener)
     
     analytics:endSession() --try to force upload logs to server
@@ -2845,16 +2845,16 @@ end
 
 function HidePauseMenu(touch)
     if touch.phase == "ended" then
-        sceneBattle.pauseMenu.resume.touchCircle:removeEventListener("touch", HidePauseMenu)
-        sceneBattle.pauseMenu.quit.touchCircle:removeEventListener("touch", QuitFromPauseMenu)
+        sceneGame.pauseMenu.resume.touchCircle:removeEventListener("touch", HidePauseMenu)
+        sceneGame.pauseMenu.quit.touchCircle:removeEventListener("touch", QuitFromPauseMenu)
         
-        sceneBattle.pauseMenu.pauseLabel.isVisible = false
+        sceneGame.pauseMenu.pauseLabel.isVisible = false
         
-        tween:to(sceneBattle.originMask, {time=0.2, alpha=0})
-        tween:to(sceneBattle.pauseMenu.resume, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu.resume, {time=0.4, x=0, y=0, yScale=0, onComplete=ResumeGame})
-        tween:to(sceneBattle.pauseMenu.quit, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu.quit, {time=0.4, x=0, y=0, yScale=0})
+        tween:to(sceneGame.originMask, {time=0.2, alpha=0})
+        tween:to(sceneGame.pauseMenu.resume, {time=0.25, xScale=0})
+        tween:to(sceneGame.pauseMenu.resume, {time=0.4, x=0, y=0, yScale=0, onComplete=ResumeGame})
+        tween:to(sceneGame.pauseMenu.quit, {time=0.25, xScale=0})
+        tween:to(sceneGame.pauseMenu.quit, {time=0.4, x=0, y=0, yScale=0})
         
         system:removeEventListener("key", gameBackKeyListener)
     end
@@ -2863,15 +2863,15 @@ end
 
 function QuitFromPauseMenu(touch)
     if touch.phase == "ended" then
-        sceneBattle.pauseMenu.resume.touchCircle:removeEventListener("touch", HidePauseMenu)
-        sceneBattle.pauseMenu.quit.touchCircle:removeEventListener("touch", QuitFromPauseMenu)
+        sceneGame.pauseMenu.resume.touchCircle:removeEventListener("touch", HidePauseMenu)
+        sceneGame.pauseMenu.quit.touchCircle:removeEventListener("touch", QuitFromPauseMenu)
         
-        sceneBattle.pauseMenu.pauseLabel.isVisible = false
+        sceneGame.pauseMenu.pauseLabel.isVisible = false
         
-        tween:to(sceneBattle.pauseMenu.resume, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu.resume, {time=0.4, x=0, y=0, yScale=0, onComplete=ShowQuitConfirmMenu})
-        tween:to(sceneBattle.pauseMenu.quit, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu.quit, {time=0.4, x=0, y=0, yScale=0})
+        tween:to(sceneGame.pauseMenu.resume, {time=0.25, xScale=0})
+        tween:to(sceneGame.pauseMenu.resume, {time=0.4, x=0, y=0, yScale=0, onComplete=ShowQuitConfirmMenu})
+        tween:to(sceneGame.pauseMenu.quit, {time=0.25, xScale=0})
+        tween:to(sceneGame.pauseMenu.quit, {time=0.4, x=0, y=0, yScale=0})
         
         system:removeEventListener("key", gameBackKeyListener)
     end
@@ -2879,64 +2879,64 @@ function QuitFromPauseMenu(touch)
 end
 
 function ShowQuitConfirmMenu()
-    local yes = sceneBattle.pauseMenu.yes
+    local yes = sceneGame.pauseMenu.yes
     if not yes then
         yes = director:createNode({x=0, y=0, xScale=0, yScale=0, zOrder=3})
         yes.touchCircle = director:createCircle({x=0, y=20, xAnchor=0.5, yAnchor=0.5, radius=20, color=color.black, strokeWidth=1, strokeColor=menuBlue})
         yes.tick = director:createLines({x=0, y=20, coords={-5,-12, -14,2, -5,-3, 11,10, -5,-12}, alpha=0, strokeWidth=1, strokeColor=menuGreen})
         yes:addChild(yes.touchCircle)
         yes:addChild(yes.tick)
-        sceneBattle.pauseMenu:addChild(yes)
-        sceneBattle.pauseMenu.yes = yes
+        sceneGame.pauseMenu:addChild(yes)
+        sceneGame.pauseMenu.yes = yes
     end
     
-    local no = sceneBattle.pauseMenu.no
+    local no = sceneGame.pauseMenu.no
     if not no then
         no = director:createNode({x=0, y=0, xScale=0, yScale=0, zOrder=3})
         no.touchCircle = director:createCircle({x=0, y=20, xAnchor=0.5, yAnchor=0.5, radius=20, color=color.black, strokeWidth=1, strokeColor=menuBlue})
         no.cross = director:createLines({x=0, y=20, coords={-3,0, -12,9, -9,12, 0,3, 9,12, 12,9, 3,0, 12,-9, 9,-12, 0,-3, -9,-12, -12,-9, -3,0}, alpha=0, strokeWidth=1, strokeColor=menuGreen})
         no:addChild(no.touchCircle)
         no:addChild(no.cross)
-        sceneBattle.pauseMenu:addChild(no)
-        sceneBattle.pauseMenu.no = no
+        sceneGame.pauseMenu:addChild(no)
+        sceneGame.pauseMenu.no = no
     end
     
-    if not sceneBattle.pauseMenu.quitLabel then
+    if not sceneGame.pauseMenu.quitLabel then
         local labelY = 0
         if gameInfo.controlType == "p1LocalVsP2Local" then
             labelY = 80 --avoid buttons when they are in centre of screen
         end
-        sceneBattle.pauseMenu.quitLabel = director:createLabel({x=0, y=labelY, hAlignment="centre", vAlignment="centre", text="QUIT GAME?", color=menuBlue, font=fontMainLarge, zOrder=20})
-        sceneBattle.originPause:addChild(sceneBattle.pauseMenu.quitLabel)
+        sceneGame.pauseMenu.quitLabel = director:createLabel({x=0, y=labelY, hAlignment="centre", vAlignment="centre", text="QUIT GAME?", color=menuBlue, font=fontMainLarge, zOrder=20})
+        sceneGame.originPause:addChild(sceneGame.pauseMenu.quitLabel)
     end
-    sceneBattle.pauseMenu.quitLabel.isVisible = true
+    sceneGame.pauseMenu.quitLabel.isVisible = true
     
-    tween:to(sceneBattle.pauseMenu.yes, {time=0.4, x=15, y=55, yScale=1, onComplete=ActivateQuitConfirmMenu})
-    tween:to(sceneBattle.pauseMenu.yes, {time=0.25, delay=0.15, xScale=1})
+    tween:to(sceneGame.pauseMenu.yes, {time=0.4, x=15, y=55, yScale=1, onComplete=ActivateQuitConfirmMenu})
+    tween:to(sceneGame.pauseMenu.yes, {time=0.25, delay=0.15, xScale=1})
     
-    tween:to(sceneBattle.pauseMenu.no, {time=0.4, x=50, y=110, yScale=1})
-    tween:to(sceneBattle.pauseMenu.no, {time=0.25, delay=0.15, xScale=1})
+    tween:to(sceneGame.pauseMenu.no, {time=0.4, x=50, y=110, yScale=1})
+    tween:to(sceneGame.pauseMenu.no, {time=0.25, delay=0.15, xScale=1})
 end
 
 function ActivateQuitConfirmMenu()
-    sceneBattle.pauseMenu.yes.touchCircle:addEventListener("touch", ExitFromQuitConfirmMenu)
-    sceneBattle.pauseMenu.no.touchCircle:addEventListener("touch", BackToPauseMenu)
+    sceneGame.pauseMenu.yes.touchCircle:addEventListener("touch", ExitFromQuitConfirmMenu)
+    sceneGame.pauseMenu.no.touchCircle:addEventListener("touch", BackToPauseMenu)
     
-    sceneBattle.backKeyListener = BackToPauseMenu
+    sceneGame.backKeyListener = BackToPauseMenu
     system:addEventListener("key", gameBackKeyListener)
 end
 
 function BackToPauseMenu(touch)
     if touch.phase == "ended" then
-        sceneBattle.pauseMenu.yes.touchCircle:removeEventListener("touch", ExitFromQuitConfirmMenu)
-        sceneBattle.pauseMenu.no.touchCircle:removeEventListener("touch", BackToPauseMenu)
+        sceneGame.pauseMenu.yes.touchCircle:removeEventListener("touch", ExitFromQuitConfirmMenu)
+        sceneGame.pauseMenu.no.touchCircle:removeEventListener("touch", BackToPauseMenu)
         
-        sceneBattle.pauseMenu.quitLabel.isVisible = false
+        sceneGame.pauseMenu.quitLabel.isVisible = false
         
-        tween:to(sceneBattle.pauseMenu.yes, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu.yes, {time=0.4, x=0, y=0, yScale=0, onComplete=ShowPauseMenu})
-        tween:to(sceneBattle.pauseMenu.no, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu.no, {time=0.4, x=0, y=0, yScale=0})
+        tween:to(sceneGame.pauseMenu.yes, {time=0.25, xScale=0})
+        tween:to(sceneGame.pauseMenu.yes, {time=0.4, x=0, y=0, yScale=0, onComplete=ShowPauseMenu})
+        tween:to(sceneGame.pauseMenu.no, {time=0.25, xScale=0})
+        tween:to(sceneGame.pauseMenu.no, {time=0.4, x=0, y=0, yScale=0})
         
         system:removeEventListener("key", gameBackKeyListener)
     end
@@ -2945,25 +2945,25 @@ end
 
 function ExitFromQuitConfirmMenu(touch)
     if touch.phase == "ended" then
-        sceneBattle.pauseMenu.yes.touchCircle:removeEventListener("touch", ExitFromQuitConfirmMenu)
-        sceneBattle.pauseMenu.no.touchCircle:removeEventListener("touch", BackToPauseMenu)
+        sceneGame.pauseMenu.yes.touchCircle:removeEventListener("touch", ExitFromQuitConfirmMenu)
+        sceneGame.pauseMenu.no.touchCircle:removeEventListener("touch", BackToPauseMenu)
         
-        sceneBattle.pauseMenu.quitLabel.isVisible = false
+        sceneGame.pauseMenu.quitLabel.isVisible = false
         
-        tween:to(sceneBattle.originMask, {time=0.2, alpha=0})
-        tween:to(sceneBattle.pauseMenu.yes, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu.yes, {time=0.4, x=0, y=0, yScale=0, onComplete=ExitFromQuitConfirmMenu2})
-        tween:to(sceneBattle.pauseMenu.no, {time=0.25, xScale=0})
-        tween:to(sceneBattle.pauseMenu.no, {time=0.4, x=0, y=0, yScale=0})
-        if sceneBattle.screenFx then
-            if sceneBattle.screenFx.tween then
-                tween:cancel(sceneBattle.screenFx.tween)
-                sceneBattle.screenFx.tween = nil
+        tween:to(sceneGame.originMask, {time=0.2, alpha=0})
+        tween:to(sceneGame.pauseMenu.yes, {time=0.25, xScale=0})
+        tween:to(sceneGame.pauseMenu.yes, {time=0.4, x=0, y=0, yScale=0, onComplete=ExitFromQuitConfirmMenu2})
+        tween:to(sceneGame.pauseMenu.no, {time=0.25, xScale=0})
+        tween:to(sceneGame.pauseMenu.no, {time=0.4, x=0, y=0, yScale=0})
+        if sceneGame.screenFx then
+            if sceneGame.screenFx.tween then
+                tween:cancel(sceneGame.screenFx.tween)
+                sceneGame.screenFx.tween = nil
             end
-            sceneBattle.screenFx.filter.name = nil
-            sceneBattle.screenFx.zOrder = -1
-            sceneBattle.screenFx.alpha = 0.7
-            tween:to(sceneBattle.screenFx, {alpha=0, time=0.3})
+            sceneGame.screenFx.filter.name = nil
+            sceneGame.screenFx.zOrder = -1
+            sceneGame.screenFx.alpha = 0.7
+            tween:to(sceneGame.screenFx, {alpha=0, time=0.3})
         end
         
         system:removeEventListener("key", gameBackKeyListener)
@@ -2974,7 +2974,7 @@ end
 function ExitFromQuitConfirmMenu2()
     system:resumeTimers()
     resumeNodesInTree(origin)
-    sceneBattle.gamePaused = false
+    sceneGame.gamePaused = false
     local wave=gameInfo.wave
     if wave == nil then wave = "none" end
     system:removeEventListener("key", gameBackKeyListener)
@@ -2983,32 +2983,32 @@ function ExitFromQuitConfirmMenu2()
 end
 
 function ResumeGame()
-    system:addEventListener({"touch"}, sceneBattle)
-    sceneBattle.pauseMenu.touchCircle:addEventListener("touch", PauseGame)
-    sceneBattle.backKeyListener = PauseGame
+    system:addEventListener({"touch"}, sceneGame)
+    sceneGame.pauseMenu.touchCircle:addEventListener("touch", PauseGame)
+    sceneGame.backKeyListener = PauseGame
     system:addEventListener("key", gameBackKeyListener)
     
     system:resumeTimers()
     resumeNodesInTree(origin)
-    sceneBattle.gamePaused = false
+    sceneGame.gamePaused = false
     
     --stop filter and clear texture so pause menu doesn't overpower screen!
-    if sceneBattle.screenFx then --checks not really needed but let's stay safe in case logic changes
-        if sceneBattle.screenFx.tween then
-            tween:cancel(sceneBattle.screenFx.tween)
-            sceneBattle.screenFx.tween = nil
+    if sceneGame.screenFx then --checks not really needed but let's stay safe in case logic changes
+        if sceneGame.screenFx.tween then
+            tween:cancel(sceneGame.screenFx.tween)
+            sceneGame.screenFx.tween = nil
         end
-        sceneBattle.screenFx.filter.name = nil
-        sceneBattle.screenFx.zOrder = -1
+        sceneGame.screenFx.filter.name = nil
+        sceneGame.screenFx.zOrder = -1
     end
     
-    sceneBattle:clearScreenFx()
-    sceneBattle:reshowScreenFx()
+    sceneGame:clearScreenFx()
+    sceneGame:reshowScreenFx()
     
-    sceneBattle:orientation()
+    sceneGame:orientation()
     
-    tween:to(sceneBattle.pauseMenu.pause, {time=0.4, yScale=1})
-    tween:to(sceneBattle.pauseMenu.pause, {time=0.25, delay=0.15, xScale=1})
+    tween:to(sceneGame.pauseMenu.pause, {time=0.4, yScale=1})
+    tween:to(sceneGame.pauseMenu.pause, {time=0.25, delay=0.15, xScale=1})
     
     --in case something's gone wrong and bar re-showed itself, now is a good time to force re-hide
     if androidFullscreen and androidFullscreen.isImmersiveSupported() then
@@ -3019,10 +3019,10 @@ end
 -----------------------------------------------------------------------------
 -- Suspend/resume
 
-function sceneBattle:suspend(event)
+function sceneGame:suspend(event)
     dbg.print("suspending...")
     if not pauseflag then
-        if not sceneBattle.gamePaused then
+        if not sceneGame.gamePaused then
             system:pauseTimers()
             pauseNodesInTree(origin) --pauses timers and tweens
         else
@@ -3039,7 +3039,7 @@ function sceneBattle:suspend(event)
     dbg.print("...suspended!")
 end
 
-function sceneBattle:resume(event)
+function sceneGame:resume(event)
     dbg.print("resuming...")
     pauseflag = true
     --system:resumeTimers()
@@ -3051,7 +3051,7 @@ end
 ----------------------------------------------------------------------------
 -- Exit/teardown
 
-function sceneBattle:cancelDemoTimers()
+function sceneGame:cancelDemoTimers()
     if self.demoTimers then
         if self.demoTimers[1] then
             self.demoTimers[1]:cancel()
@@ -3064,7 +3064,7 @@ function sceneBattle:cancelDemoTimers()
     end
 end
 
-function sceneBattle:cancelTimers()
+function sceneGame:cancelTimers()
     self:cancelDemoTimers()
     if player2.AITimer then
         player2.AITimer:cancel()
@@ -3085,17 +3085,17 @@ function sceneBattle:cancelTimers()
         self.ballReplaceTimer:cancel()
         self.ballReplaceTimer = nil
     end
-    if sceneBattle.spriteFxTimer then
-        for kT,vT in pairs(sceneBattle.spriteFxTimer) do
+    if sceneGame.spriteFxTimer then
+        for kT,vT in pairs(sceneGame.spriteFxTimer) do
             vT:cancel()
-            sceneBattle.spriteFxTimer[kT] = nil
+            sceneGame.spriteFxTimer[kT] = nil
         end
         self.spriteFxTimer = nil
     end
     self.ballCreateQueue = 0
 end
 
-function sceneBattle:removeSceneMoveButton()
+function sceneGame:removeSceneMoveButton()
     if self.moveBtn then
         if gameInfo.portraitTopAlign then
             oldBtn = "down"
@@ -3109,8 +3109,8 @@ end
 
 -- stop controls pre-transition
 -- also cancelling timers (looked a bit nicer this way)
-function sceneBattle:exitPreTransition(event)
-    dbg.print("sceneBattle:exitPreTransition")
+function sceneGame:exitPreTransition(event)
+    dbg.print("sceneGame:exitPreTransition")
     
     if showFrameRate then
         frameRateOverlay.hideFrameRate() --debugging
@@ -3141,8 +3141,8 @@ function sceneBattle:exitPreTransition(event)
 end 
 
 -- destroy all objects after transition so they are still visible during anim
-function sceneBattle:exitPostTransition(event)
-    dbg.print("sceneBattle:exitPostTransition")
+function sceneGame:exitPostTransition(event)
+    dbg.print("sceneGame:exitPostTransition")
     
     fullscreenEffectsOff(self)
 
@@ -3205,9 +3205,9 @@ function sceneBattle:exitPostTransition(event)
     dbg.print("GC count: " .. collectgarbage("count"))
     -- trial and error shows it takes 3 garbage cycles to collect scene ojects
 
-    dbg.print("sceneBattle:exitPostTransition done")
+    dbg.print("sceneGame:exitPostTransition done")
 end
 
 
 -- Register events that are always running
-sceneBattle:addEventListener({"setUp", "enterPostTransition", "exitPreTransition", "exitPostTransition"}, sceneBattle)
+sceneGame:addEventListener({"setUp", "enterPostTransition", "exitPreTransition", "exitPostTransition"}, sceneGame)

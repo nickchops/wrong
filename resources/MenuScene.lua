@@ -946,7 +946,7 @@ function MenuStartGame()
         --require("GameScene")
         gameSceneLoadFlag = true
     end
-    director:moveToScene(sceneBattle, {transitionType="slideInT", transitionTime=0.8})
+    director:moveToScene(sceneGame, {transitionType="slideInT", transitionTime=0.8})
 end
 
 function sceneMainMenu:buttonPressedAnim(touched)

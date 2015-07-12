@@ -156,10 +156,10 @@ end
 function WeaponsMeter:ChangeWeapon(swipe)
     --dbg.print("swipe dif=" .. swipe)
 
-    if self.frameCount == sceneBattle.frameCounter then
+    if self.frameCount == sceneGame.frameCounter then
         return false
     end
-    self.frameCount = sceneBattle.frameCounter
+    self.frameCount = sceneGame.frameCounter
 
     if swipe*self.mirrorX > 0 then
         self.currentWeaponID = self.currentWeaponID + 1

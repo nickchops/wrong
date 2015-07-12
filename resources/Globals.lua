@@ -167,7 +167,7 @@ ALLOWED_BALLS_IN_WAVE = {
 
 MAX_MANAGED_WAVE = table.getn(ALLOWED_BALLS_IN_WAVE)
 
---also check sceneBattle:setBallOverrides() where specific types are set for exact obj instances!
+--also check sceneGame:setBallOverrides() where specific types are set for exact obj instances!
 
 SURVIVAL_UNLOCKED_WAVE = MAX_MANAGED_WAVE + 1
 BATTLE_UNLOCKED_STREAK = 25
@@ -334,6 +334,6 @@ blogUrl = "http://nickchops.github.io/wrong-prototype"
 
 sceneMainMenu = director:createScene()
 sceneMainMenu.name = "MainMenu"
-sceneBattle = director:createScene()
-sceneBattle.name = "Battle"
+sceneGame = director:createScene()
+sceneGame.name = "Game"
 
