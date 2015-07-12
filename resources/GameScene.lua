@@ -9,6 +9,20 @@ require("helpers/NodeUtility")
 dofile("Player.lua")
 dofile("WeaponsMeter.lua")
 
+-- In game objects are referred to interchangeably as "balls" or "collidables"
+-- They live in global collidables, created in scene setup
+
+--------------------------------------------------------------------
+-- General helpers
+
+function VectorFromAngle(angle, size)
+    return {x = (math.sin(angle) * size), y = (math.cos(angle) * size)}
+end
+
+
+--------------------------------------------------------------------
+-- Apply changes to all balls
+
 function PushCollidablesAwayFromPos(x, y, boostSpeed)
     boostSpeed = boostSpeed or 1
 
@@ -47,7 +61,9 @@ function PushCollidableAwayFromPos(obj, x, y, boostSpeed)
     obj.vec.y = vecToY * obj.speed * boostSpeed
 end
 
--------- Timer callbacks for weapons and weapon effects --------
+
+------------------------------------------------------------------
+-- Timer callbacks for weapons and weapon effects
 
 function AppearTimer(event)
     dbg.print("appear over")
@@ -56,10 +72,13 @@ function AppearTimer(event)
     timer.target.appearTimer = nil
 end
 
+-- helpers to reuse objects. Just using for trail fx on balls atm. Those are added
+-- *lots* so let's optimise. Could improve.
+
 function putObjInRecycler(obj, objType)
     sceneBattle.recyclerCount[objType] = sceneBattle.recyclerCount[objType] + 1
     table.insert(sceneBattle.recycler[objType], obj)
-    -- TODO: may want to just assign and set to nil rather than use insert/remove for efficiency?
+    -- TODO?: may want to just assign and set to nil rather than use insert/remove for efficiency?
     --sceneBattle.recycler[objType][sceneBattle.recyclerCount[objType]] = obj
     destroyNode(obj) --not garbage collected, just parent-less, as still has ref in the recycler
 end
@@ -75,7 +94,6 @@ function TrailFx(event)
         if sceneBattle.recyclerCount.fx > 0 then
             fx = sceneBattle.recycler.fx[sceneBattle.recyclerCount.fx]
             table.remove(sceneBattle.recycler.fx)
-            --sceneBattle.recycler.fx[sceneBattle.recyclerCount.fx] = nil
             sceneBattle.recyclerCount.fx = sceneBattle.recyclerCount.fx-1
         else
             fx = director:createCircle({xAnchor=0.5,yAnchor=0.5,
@@ -106,9 +124,14 @@ ExpanderFx = function(event)
     tween:to(fx, {x=fx.x-expander.vec.x*system.deltaTime*2, y=fx.y+expander.yMirror*30, rotation=120*expander.yMirror*expander.xMirror, xScale=8, yScale=4, alpha=0, time=0.37+15/expander.speed, onComplete=destroyNode})
 end
 
--- Functions to animate objects to destruction. Timers (for effects) are cencelled; tweens left to do the death anim
+-- Functions to animate objects to destruction.
+-- Timers (for effects) are cencelled; tweens left to do the death anim.
+-- CollidableDestroy kills and removes object from  global collidables table.
+-- DyingCollidableDestroy moves it out of global table to a secondary table
+-- where it's managed until finished with.
+
 function ShrinkDestroy(collidable)
-    CollidableDestroy(collidable, true) -- collidable is still alive (untill DyingCollidableDestroy called at tween-end)
+    CollidableDestroy(collidable, true) -- collidable is still alive (until DyingCollidableDestroy called at tween-end)
     collidable.deathTween = tween:to(collidable, {xScale=0, yScale=0, strokeAlpha=0, time=0.2, onComplete=DyingCollidableDestroy})
 end
 
@@ -367,9 +390,8 @@ HeatseekerFX = function(event)
     TrailFx(event)
 end
 
-function VectorFromAngle(angle, size)
-    return {x = (math.sin(angle) * size), y = (math.cos(angle) * size)}
-end
+-------------------------------------------------------------------------------
+-- Fullscreen render texture effects
 
 function sceneBattle:clearScreenFx()
     if self.rt then
@@ -383,17 +405,61 @@ function sceneBattle:reshowScreenFx(time)
         self.screenFx.alpha = 0.7
         
         if self.ballTimer then
-            tween:to(self.screenFx,
-                {alpha=0.05, time=time or self.ballTimer.period + self.ballTimer.delay - self.ballTimer.elapsed, easing=ease.powIn})
+            tween:to(self.screenFx, {alpha=0.05, easing=ease.powIn,
+                    time=time or self.ballTimer.period + self.ballTimer.delay - self.ballTimer.elapsed})
         end
     end
 end
+
+function sceneBattle:fullscreenEffect()
+    if not gameInfo.useFullscreenEffects then
+        return
+    end
     
+    dbg.print("setting up fullscreen render texture effect")
+    self.rt = director:createRenderTexture(director.displayWidth, director.displayHeight, pixel_format.RGBA8888)
+        
+    self.rt.x = virtualResolution.userWinMinX + screenWidth/2
+    self.rt.y = virtualResolution.userWinMinY + screenHeight/2
+    self.rt.isVisible = false
+
+    -- Bug: sprite from getSprite will be inverted un-transformed version of the rendertexture for first frame
+    -- Workaround: render nothing for first frame
+    self.rtWorkaround = 1
+    self.rt:clear(clearCol)
+    -- Workaround end --
+    
+    -- Only create sprite for rendering once. It has a clone of the renderTexture's texture
+    -- so gets updated with each frame
+    self.screenFx = self.rt:getSprite()
+    self.screenFx.zOrder = -1
+
+    -- have to scale to match VR
+    self.screenFx.xScale = 1/virtualResolution.scale
+    self.screenFx.x = virtualResolution.userWinMinX -- - screenWidth/2 -- 0,0 is centre screen!
+    self.screenFx.yScale = -1/virtualResolution.scale
+    self.screenFx.y = screenHeight + virtualResolution.userWinMinY --  - screenWidth/2
+        --screenHeight is workaround for bug in renderTexture!
+    
+    self.screenFx.alpha=0.7
+    
+    if self.gamePaused then
+        self:startPauseEffects()
+    else
+        self:reshowScreenFx()
+    end
+end
+
+-------------------------------------------------------------------------------
+-- On screen message system
+
+-- TODO: should queue up messages in some cases so they dont overlap....
+
 function ShowMessage(message, delay, shrink, expandDir, vDisplacement, xPos, yPos, color)    
     x = xPos or 0
     y = yPos or 0
     local vAlign
-    -- direction of grow/shring depends on text-to-origin alignment
+    -- direction of grow/shrink depends on text-to-origin alignment
     -- defaults to alternating between up and down
 
     if not expandDir then
@@ -422,7 +488,8 @@ function ShowMessage(message, delay, shrink, expandDir, vDisplacement, xPos, yPo
         end
     end
     
-    message = director:createLabel({x=x, y=y+vDisplacement, hAlignment="centre", vAlignment=vAlign, text=message, color=color or menuBlue, font=fontMainLarge, xScale=0, yScale=0})
+    message = director:createLabel({x=x, y=y+vDisplacement, hAlignment="centre", vAlignment=vAlign, text=message,
+            color=color or menuBlue, font=fontMainLarge, xScale=0, yScale=0})
     origin:addChild(message)
     
     if shrink then
@@ -441,15 +508,12 @@ function ShowAchievement(achievementId)
     sceneBattle:reshowScreenFx()
     ShowMessage("NEW ACHIEVEMENT:", 2.0, false, "up", nil, nil, nil, achieveCol)
     
-    --local offset = -40
     local delay = 2.3
-    --if table.getn(gameInfo.achievementNames[achievementId]) > 1 then
-    --    offset = 0
-    --end
     local dir = "down"
+    
     for k,v in pairs(gameInfo.achievementNames[achievementId]) do
         ShowMessage(v, delay, false, dir, nil, nil, nil, achieveCol)
-        --offset = -100
+
         if dir == "down" then
             delay = delay + 1
             dir = "up"
@@ -468,12 +532,19 @@ function ShowAchievement(achievementId)
 
     analytics:logEvent("achievement", {name=achievementId})
 end
+
+
 ---------------------------------------------------------------------------
--- "collidables": balls and bullets that players can hit.
+
+-- Creating ball/collidable objects: bombs, bullets, powerups, etc that player#
+-- can hit
+
 -- Not using a class for these... they are always created dynamically
 -- and have little need for methods. Avoiding classes and just using
--- Nodes  directly means we can pass them easily around with onComplete
+-- Nodes directly means we can pass them easily around with onComplete
 -- in tweens, etc.
+
+-- TODO?: Move to separate file
 
 function CollidableCreate(objType, xPos, yPos, startVector, startSpeed, objectOnly)
     objType = DEBUG_OVERRIDE_TYPE or objType
@@ -488,7 +559,8 @@ function CollidableCreate(objType, xPos, yPos, startVector, startSpeed, objectOn
             yMirror = -1
         end
 
-        collidable = director:createLines({x=xPos, y=yPos+yMirror*30, coords={-ballRadius,0, 0,yMirror*ballRadius, ballRadius,0}, strokeWidth=1, strokeColor=colour, color=colour, alpha=0.5})
+        collidable = director:createLines({x=xPos, y=yPos+yMirror*30, strokeWidth=1, strokeColor=colour,
+                color=colour, alpha=0.5, coords={-ballRadius,0, 0,yMirror*ballRadius, ballRadius,0}})
 
         collidable.objType = "expander"
         collidable.yMirror = yMirror
@@ -504,11 +576,12 @@ function CollidableCreate(objType, xPos, yPos, startVector, startSpeed, objectOn
             else
                 collidable.xMirror = -1
             end
-            local fxTimer = collidable:addTimer(ExpanderFx, 25/startSpeed, 0, 0) -- effects are applied to shapes, so we can cancel them easily on shape destruction
+            local fxTimer = collidable:addTimer(ExpanderFx, 25/startSpeed, 0, 0)
+            -- effects are applied to shapes, so we can cancel them easily on shape destruction
         end
 
     elseif objType == "heatseeker" then
-        -- using ballRadius+1 as it looks nicer for heatseekers! collisions are still just ballRadius but thats near enough!
+        -- using ballRadius+1 as it looks nicer for heatseekers! collisions are still just ballRadius but that's near enough!
         collidable = director:createCircle({xAnchor=0.5,yAnchor=0.5, x=xPos, y=yPos, radius=ballRadius+1, strokeWidth=1, strokeColor=collidableColours[objType], alpha=0, color=color.black})
         collidable.rings = {}
         collidable.lights = {}
@@ -595,18 +668,22 @@ function CollidableCreate(objType, xPos, yPos, startVector, startSpeed, objectOn
         if objType == "health" then
             collidable.strokeAlpha=0.6
             collidable.alpha=1
-            --TODO: seems like alpha/strokeAlpha are always inherited and cant be overriden
-            --So, having to make ball non-trasparent. Using a node breaks the tween/trailfx logic.
-            -- could improve that to allow collidable != circle. Investigate if alpha can be overriden somehow.
-            local part1 = director:createRectangle({x=ballRadius, y=ballRadius, xAnchor=0.5, yAnchor=0.5, w=ballRadius*2-6, h=ballRadius/2, strokeWidth=0, color=colour, alpha=1})
-            local part2 = director:createRectangle({x=ballRadius, y=ballRadius, xAnchor=0.5, yAnchor=0.5, w=ballRadius/2, h=ballRadius*2-6, strokeWidth=0, color=colour, alpha=1})
+            --TODO: seems like alpha/strokeAlpha are always inherited and cant be overridden
+            --So, having to make ball non-transparent. Using a node breaks the tween/trailfx logic.
+            -- could improve that to allow collidable != circle. Investigate if alpha can be overridden somehow.
+            local part1 = director:createRectangle({x=ballRadius, y=ballRadius, xAnchor=0.5, yAnchor=0.5,
+                    w=ballRadius*2-6, h=ballRadius/2, strokeWidth=0, color=colour, alpha=1})
+            local part2 = director:createRectangle({x=ballRadius, y=ballRadius, xAnchor=0.5, yAnchor=0.5,
+                    w=ballRadius/2, h=ballRadius*2-6, strokeWidth=0, color=colour, alpha=1})
             tween:to(part1, {time=0.5, xScale=1.5, yScale=1.5, mode="repeat", alpha=0.5})
             tween:to(part2, {time=0.5, xScale=1.5, yScale=1.5, mode="repeat", alpha=0.5})
             collidable:addChild(part1)
             collidable:addChild(part2)
             
         elseif objType == "powerup" or objType == "cloak" then
-            local bolt = director:createLines({x=ballRadius, y=ballRadius, coords={1-4,0-5, 4-4,5-5, 0-4,5-5, 3-4,10-5, 7-4,10-5, 5-4,7-5, 10-4,7-5, 1-4,0-5}, strokeWidth=1, strokeColor=colour, color=color.black, alpha=0})
+            local bolt = director:createLines({x=ballRadius, y=ballRadius,
+                    coords={1-4,0-5, 4-4,5-5, 0-4,5-5, 3-4,10-5, 7-4,10-5, 5-4,7-5, 10-4,7-5, 1-4,0-5},
+                    strokeWidth=1, strokeColor=colour, color=color.black, alpha=0})
             tween:to(bolt, {time=0.5, xScale=3, yScale=3, mode="repeat", strokeAlpha=0})
             collidable:addChild(bolt)
             if objType == "cloak" then
@@ -625,7 +702,6 @@ function CollidableCreate(objType, xPos, yPos, startVector, startSpeed, objectOn
         else
             fxTimer = collidable:addTimer(TrailFx, 0.3, 0, 0)
         end
-        --fxTimer.obj = collidable
     end
 
     collidable.vec = startVector
@@ -633,7 +709,8 @@ function CollidableCreate(objType, xPos, yPos, startVector, startSpeed, objectOn
     if not collidable.objType then collidable.objType = objType end
     
     if not objectOnly then
-        -- table indexed by unique main element name. Easier and more robust than trying to use an array with unit index (lua arrays are fiddly)
+        -- table indexed by unique main element name. Easier and more robust
+        -- than trying to use an array with unit index (lua arrays are fiddly)
         collidables[collidable.name] = collidable
     end
     
@@ -643,6 +720,7 @@ function CollidableCreate(objType, xPos, yPos, startVector, startSpeed, objectOn
     return collidable
 end
 
+-- For creating when game is being continued from save
 function RestoreBall(vals)
     local ball = CollidableCreate(vals.objType, vals.x, vals.y, vals.vec, vals.speed)
     ball.replaceOnLeaveScreen = vals.replaceOnLeaveScreen
@@ -654,9 +732,11 @@ function RestoreBall(vals)
     end
 end
 
+-- Add a new ball object to the scene. vals specifies type and other requirements
 function AddBall(vals)
     dbg.print("AddBall")
-    -- deafult values
+    
+    -- default values
     if not vals then vals = {} end
     local xPos = vals.xPos or 0
     local yPos = vals.yPos or 0
@@ -734,7 +814,7 @@ function AddBall(vals)
             sceneBattle.freezeStarted = true
             --todo: no need to track sceneBattle.freezeTimers. can just cancel all play timers
             local fxTimer = player1.sled:addTimer(FreezerFX, 0.2, 3, 0)
-            fxTimer.x = 0 --center in screen
+            fxTimer.x = 0 --centre in screen
             fxTimer.y = 0
             fxTimer.initAlpha = 1
             ShowMessage("freeze")
@@ -757,7 +837,9 @@ function AddBall(vals)
     RingFX({timer={x=xPos, y=yPos, color=ball.mainColor, strokeAlpha=0.5, rEnd=speed/MAX_BALL_SPEED*sceneBattle.screenMaxY}})
 end
 
--- Collidable callbacks and helper functions --------
+
+-------------------------------------------------------------------------------
+-- Background animations (stars, asteroids, etc)
 
 function setStarAnimation(speedMultiple, rotation, decelerate)
     if sceneBattle.deathPhase then
@@ -770,7 +852,7 @@ function setStarAnimation(speedMultiple, rotation, decelerate)
         cancelTweensOnNode(origin)
         
         sceneBattle.starSpeed = (speedMultiple+1) * speedMultiple * 20 - 10 --max speed on multiple=5 is 590 pixels/sec
-        sceneBattle.starAlpha = 0--(speedMultiple-1)/10 -- >0 means get white dot as stars pile up in center!
+        sceneBattle.starAlpha = 0 -- >0 means get white dot as stars pile up in centre!
         sceneBattle.starsMove = true
         
         -- turn from dots to streaks
@@ -783,7 +865,7 @@ function setStarAnimation(speedMultiple, rotation, decelerate)
             end
             for kStar, star in pairs(sceneBattle.background.children) do
                 --if gameInfo.wave and (gameInfo.wave > 6 and speedMultiple == 5) then
-                --    -- on later levels turn to crazy vortext effect at the end
+                --    -- could, on later levels, turn to crazy vortex effect at the end!
                 --    tween:to(star, {yScale=streakSize, xScale=1, time=1})
                 --else
                     tween:to(star, {xScale=streakSize, time=1})
@@ -813,21 +895,6 @@ function setStarAnimation(speedMultiple, rotation, decelerate)
                 tween:to(origin, {time=time, mode="mirror", delay=time/2, rotation=rotation})
             end
         end
-        --[[if (gameInfo.wave and speedMultiple == 5) or rotation then
-            local time = 2
-            
-            if rotation then
-                time = 10 / rotation
-            end
-            rotation = rotation or gameInfo.wave*0.5
-            
-            if speedMultiple == 1 then
-                tween:to(origin, {time=1, rotation=0}) --reset on battle deceleration
-            else
-                tween:to(origin, {time=time/2, rotation=-rotation})
-                tween:to(origin, {time=time, mode="mirror", delay=time/2, rotation=rotation})
-            end
-        end]]--
     end
     
     sceneBattle.previousStarSpeedMultiple = speedMultiple
@@ -910,6 +977,10 @@ function endStarMovement(time)
     end
 end
 
+
+-------------------------------------------------------------------------------
+-- Adding balls on timers and collisions and wave over check
+
 -- subtracts 1 from wave count and does update logic if wave is over
 function checkWaveIsOver()
     if sceneBattle.waveLeft then
@@ -920,12 +991,7 @@ function checkWaveIsOver()
                 PushCollidableAwayFromPos(obj, 0, 0, 2)
             end
             
-            --if sceneBattle.rt then
-            --    sceneBattle.rt:clear(clearCol)
-            --    cancelTweensOnNode(sceneBattle.screenFx)
-            --    sceneBattle.screenFx.alpha = 0.7
-            --end
-            -- Note that mnessage display will clear screenFx and set its alpha back on
+            -- Note that message display will clear screenFx and set its alpha back on
             
             sceneBattle.waveLeft:SetValue(INIT_WAVE_SIZE+gameInfo.wave+1)
             --increase by 2 on 2nd wave (go from super easy intro to real difficulty!)
@@ -956,7 +1022,7 @@ function checkWaveIsOver()
             -- restart ball adding timers
             sceneBattle.ballSpeed = math.min(SECOND_BALL_SPEED + sceneBattle.ballSpeed/4, MAX_BALL_WAVE_START_SPEED)
                 --reduce speed or gets too hard too fast
-            -- todo: we may want to control both speed and wave length explicitly
+            -- TODO?: we may want to control both speed and wave length explicitly
             -- with similar method to the ball types tables, and then default to just upping them later
             
             -- waves run in sets of 6
@@ -1012,8 +1078,11 @@ function checkWaveIsOver()
     return false
 end
 
+-- Adding more balls on timer (not replacing them)
 function AddNewBall(event)
     dbg.print("AddNewBall")
+    
+    -- is init means it was the initial barrage at the start of a wave
     if event.timer.isInit and event.doneIterations == INITIAL_BALL_QUEUE then
         sceneBattle.ballInitTimer = nil --so we dont try to cancel/pause it when over
     end
@@ -1076,7 +1145,8 @@ function AddNewBall(event)
     AddBall(vals)
 end
 
--- calls recursively to queue-up adding balls after eachother to guarantee delay between them
+-- Adding balls to replace a destroyed one
+-- Recursively queues-up adding balls after each other (not a looping timer) to guarantee delay between them
 ReplenishBalls = function(event)
     dbg.print("ReplenishBalls")
     sceneBattle.ballSpeed = sceneBattle:setBallSpeed(sceneBattle.ballSpeed + REPLACE_BALL_SPEED_INCREASE)
@@ -1114,6 +1184,9 @@ function sceneBattle:queueReplacementBall(extraDelayTime)
 end
 
 
+-------------------------------------------------------------------------------
+-- Removing objects from scene
+
 function DyingCollidableDestroy(collidable)
     --dbg.print("destroy dead collidable: " .. target.name)
     if not deadCollidables[collidable.name] then
@@ -1143,10 +1216,10 @@ function CollidableDestroy(collidable, killLater, keepTimersRunning, keepTweensR
     --intended use is to run a last timer or tween during death
     
     if collidable.dying then
-        --would likely crash at some point oherwise, e.g. trying to do removeFromParent() when has no parent
+        --would likely crash at some point otherwise, e.g. trying to do removeFromParent() when has no parent
         -- note that crash could be delayed till some table clean up event, or not occur at all, if
         -- CollidableDestroy cancels a tween that would have called DyingCollidableDestroy.
-        -- Might want to enforce ignoring dying collibales, i.e. by returning here instead of asserting
+        -- Might want to enforce ignoring dying collidables, i.e. by returning here instead of asserting
         -- if game logic changes...
         dbg.assert(false, "Trying to destroy dying collidable: " .. uniqueId .. " of type " .. collidable.objType)
         print("Trying to destroy dying collidable: " .. uniqueId .. " of type " .. collidable.objType)
@@ -1178,9 +1251,11 @@ function CollidableDestroy(collidable, killLater, keepTimersRunning, keepTweensR
 end
 
 
--- Battle Scene main control events --------------------------------------------------------------------
+-------------------------------------------------------------------------------
+-- Battle Scene main control events
 
-moveFlagAI = 0 --hack to make p2 move on its own for testing
+--debugging: hack to make p2 move on its own for testing
+moveFlagAI = 0
 function AIFire(event)
     local timer = event.timer
     player2:Fire()
@@ -1207,7 +1282,7 @@ function sceneBattle:update(event)
         return
     end
     
-    self.frameCounter = self.frameCounter+1 --for locking visual time-independant events to only once per frame
+    self.frameCounter = self.frameCounter+1 --for locking visual time-independent events to only once per frame
 
     -- limit frame duration as this can return huge values if app pauses
     -- and could result in a huge object distance jump otherwise!
@@ -1236,7 +1311,8 @@ function sceneBattle:update(event)
         for kStar,star in pairs(self.background.children) do
             star.x = star.x + star.normVector.x*system.deltaTime*self.starSpeed
             star.y = star.y + star.normVector.y*system.deltaTime*self.starSpeed
-            if star.x > self.screenMaxX or star.x < self.screenMinX or star.y > self.screenMaxY or star.y < self.screenMinY then
+            if star.x > self.screenMaxX or star.x < self.screenMinX
+                    or star.y > self.screenMaxY or star.y < self.screenMinY then
                 star.x = 0
                 star.y = 0
                 if not self.starsDecelerate then --avoid stopping the stroke shrinking to dot effect if decelerating
@@ -1255,7 +1331,7 @@ function sceneBattle:update(event)
     end
     
     --dbg.print("DELTA: " .. system.deltaTime)
-    -- system.deltaTime is time elapsed since last frame (TODO: is this already avergaed over some frames)
+    -- system.deltaTime is time elapsed since last frame (TODO: is this already averaged over some frames)
     -- should be somewhere between 0.03 (about 30fps) and 0.015 (60)
     -- move by system.deltaTime to move 1 pixel in 1 second
 
@@ -1264,7 +1340,7 @@ function sceneBattle:update(event)
 
         if self.unFreezeTimer == nil then
             if gameInfo.controlType == "p1VsAI" and pK == 2 and not player.deadFlag then
-                -- AI for player 2 - for now just moves up and down!!!
+                -- AI for player 2 - for now just moves up and down!
 
                 if (moveFlagAI == 0 and player.reverseTimer == nil) or (moveFlagAI == 1 and player.reverseTimer ~= nil) then
                     if player.sled.y < 200 then
@@ -1279,8 +1355,9 @@ function sceneBattle:update(event)
                         moveFlagAI = 0
                     end
                 end
-            --elseif gameInfo.controlType == "p1LocalVsP2Remote" and pk == 2 or gameInfo.controlType == "p1RemoteVsP2Local" and pk == 1 then
-            --    remote control of other player goes here!
+            --elseif gameInfo.controlType == "p1LocalVsP2Remote" and pk == 2
+            --        or gameInfo.controlType == "p1RemoteVsP2Local" and pk == 1 then
+            --    remote control of other player would go here!
             else
                 -- local control for player. Can have 2 players if using local vs local
 
@@ -1288,9 +1365,11 @@ function sceneBattle:update(event)
                 if player.moveWithFinger then
                     if player.reverseTimer then
                         --print ("REVERSE for player " .. player.id)
-                        player.sled.y = player.reversePos - player.touches[player.moveWithFinger].touchPosDiff + (player.reversePos - player.touches[player.moveWithFinger].y)
+                        player.sled.y = player.reversePos - player.touches[player.moveWithFinger].touchPosDiff
+                            + (player.reversePos - player.touches[player.moveWithFinger].y)
                     else
-                        player.sled.y = player.touches[player.moveWithFinger].y - player.touches[player.moveWithFinger].touchPosDiff
+                        player.sled.y = player.touches[player.moveWithFinger].y
+                            - player.touches[player.moveWithFinger].touchPosDiff
                     end
                 else
                     -- if finger is up, keep moving but decelerate by 100pix/sec (cheap approximation)
@@ -1317,7 +1396,6 @@ function sceneBattle:update(event)
         end
 
         -- change sled size
-
         if player.halfHeight ~= player.newHalfHeight and not player.deadFlag then
             if player.halfHeight < player.newHalfHeight then
                 player.halfHeight = player.halfHeight + 1 --why bother with frame rate here :)
@@ -1325,14 +1403,15 @@ function sceneBattle:update(event)
                 player.halfHeight = player.halfHeight - 1
             end
 
-            -- literally replace onld sled with new! Note that anything the sled node is doing (tween etc) will be cancelled
+            -- literally replace old sled with new! Note that anything the sled node is doing (tween etc) will be cancelled
             local xPos = player.sled.x
             local yPos = player.sled.y
             player:RemoveSled()
             player:AddSled(xPos,yPos)
         end
 
-        -- Players die but we keep most logic running so 1) anims finish and 2) other player has to try to survive the explosion!
+        -- Players die but we keep most logic running so 1) anims finish and
+        -- 2) in 2 player mode other player has to try to survive the explosion!
         if player.health.value <= 0 and not player.deadFlag then
             player.deadFlag = 1
         end
@@ -1362,10 +1441,8 @@ function sceneBattle:update(event)
                 -- if frame rate drops, heatseeker can get "stuck" bouncing around player and never hit it!
                 if obj.x < Player.xPos then
                     obj.x = Player.xPos
-                    obj.speed = 0
                 elseif obj.x > -Player.xPos then
                     obj.x = -Player.xPos
-                    obj.speed = 0
                 end
             end
 
@@ -1407,7 +1484,9 @@ function sceneBattle:update(event)
                     if ((player.collideX < 0 and obj.x < player.collideX) or (player.collideX > 0 and obj.x > player.collideX))
                             and obj.y < playerCollideYTop and obj.y > playerCollideYBot then
 
-                        -- ShrinkDestroy etc will remove a collidable from the collidables table but leave nodes alive to animate out
+                        -- ShrinkDestroy etc will remove a collidable from the collidables table
+                        -- but leave nodes alive to animate out
+                        
                         if obj.objType == "bullet" then
                             player:TakeHit()
                             playerHit()
@@ -1451,14 +1530,15 @@ function sceneBattle:update(event)
             -- likely "hit" the player (player may have slid in front of them after they passed,
             -- but player cant see this so who cares!)
             -- Therefore, we do this *after* checking for collision with player.
-            -- obj.dying flag prevents killing a node twice (likley to crash eventually otherwise)
+            -- obj.dying flag prevents killing a node twice (likely to crash eventually otherwise)
             if obj.dontBounce and not obj.dying then --check dontBounce to save testing every ball
-                if obj.x < minX - 50 or obj.x > maxX + 50 then
-                    -- +/- 50 is for heatseekers which can overshoot and come back
-                    -- arbitrary but "big enough" number to catch them.
+                if obj.x < minX - 50 or obj.x > maxX + 50 and obj.objType ~= 'heatseeker' then
+                    -- +/- 50 is arbitrary but "big enough" number to ignore edge cases
+                    -- heatseekers can always overshoot and come back
                     obj.dontCollide = true
                 end
-                if obj.x > self.screenMaxX+20 or obj.x < self.screenMinX-20 or obj.y > self.screenMaxY+20 or obj.y < self.screenMinY-50 then
+                if obj.x > self.screenMaxX+20 or obj.x < self.screenMinX-20
+                        or obj.y > self.screenMaxY+20 or obj.y < self.screenMinY-20 then
                     CollidableDestroy(obj)
                 end
             end
@@ -1596,6 +1676,12 @@ function playerHit(restoreHealth)
     end
 end
 
+
+-------------------------------------------------------------------------------
+-- controls
+
+
+--Debugging: do things with desktop keys
 --function keyInput(event)
 --end
 --system:addEventListener('key', keyInput)
@@ -1618,13 +1704,11 @@ function sceneBattle:touch(touch)
     
     self.lastFrameTime[touch.id] = system.gameTime
 
-    -- TODO: - Add keyboard controls for desktop (and phones or tablets with physical keys)
-    --         also support bluetooth keyboard!
-    --       - Add optional gestures for weapons - wont actually make it easier but is fun! 
+    -- TODO: Add keyboard controls for desktop, gamepads and bluetooth keyboards
 
     -- Touch coords are 0,0 bottom left and always in window/world coords
     -- Convert from window-space to user-space/virtual resolution coords and
-    -- subtract half screen width since our origin is in the center
+    -- subtract half screen width since our origin is in the centre
     -- Use local vars instead of modifying touch.x/y (Quick re-uses event objects for began->moved->ended)
     local touchX = virtualResolution:getUserX(touch.x) - maxX
     local touchY = virtualResolution:getUserX(touch.y) - maxY
@@ -1633,7 +1717,8 @@ function sceneBattle:touch(touch)
     
     --print(touch.x .. "," .. touch.y)
 
-    --[[ We loop through players, identify which player touch is for and identify touch type based on how finger moves
+    --[[
+      - We loop through players, identify which player touch is for and identify touch type based on how finger moves
       - We allow 2 fingers per player, but control scheme allows you to play one fingered if needed
       - Only apply movement etc once touch type is determined
       - Dont allow 2 fingers to both move the sled (would be confusing), but do allow 2 fingers to both fire or change weapon
@@ -1706,7 +1791,9 @@ function sceneBattle:touch(touch)
                 for kID, pTouch in pairs(player.touches) do
                     --dbg.print("testing non-began touch event for player " .. k)
 
-                    if kID == touch.id then -- 3rd,4th,etc finger -> wont have made it into player.touches table, so automatically ignored
+                    if kID == touch.id then
+                        -- 3rd,4th,etc finger -> wont have made it into player.touches table, so automatically ignored
+                        
                         -- Quick has a quirk that it records touch events as the pointer moves outside of the
                         -- window (desktop only) by returning x=0, y=window height. It fires a "moved" and then
                         -- an "ended" event as soon as the pointer leaves. We ignore by setting to last value.
@@ -1754,7 +1841,7 @@ function sceneBattle:touch(touch)
                             local yDiff = touchY - pTouch.y
 
                             -- we check distance moved *per second* is > gating values to decided which
-                            -- action to do (move/changeweapon/fire)
+                            -- action to do (move/change-weapon/fire)
                             yDiffAbs = yDiff / system.deltaTime
                             if yDiffAbs < 0 then
                                 yDiffAbs = 0 - yDiffAbs
@@ -1803,7 +1890,8 @@ function sceneBattle:touch(touch)
                                     --pTouch.canSwipeLR = false --if want to only allow one swipe per touch
                                 elseif player.moveWithFinger == nil and ((pTouch.changedWeapon and yDiffAbs > MIN_TOUCH_MOVE_X) or (not pTouch.changedWeapon and yDiffAbs > MIN_TOUCH_MOVE_Y)) then
                                     -- on vertical movement, start moving exactly with finger
-                                    -- changeWeapon flag gives weapon changing equal priority once a succesfull change occurs (for better 1-finger control)
+                                    -- changeWeapon flag gives weapon changing equal priority once a succesfull
+                                    -- change occurs (for better 1-finger control)
                                     -- only one finger can do movement, determined by player's global flag
 
                                     player.moveWithFinger = touch.id -- this finger is now the only move finger
@@ -1813,9 +1901,10 @@ function sceneBattle:touch(touch)
                                     pTouch.y = touchY -- will position player based on pTouch.y
                                     pTouch.yDiffPrev = pTouch.yDiff or yDiff
                                     pTouch.yDiff = yDiff
-                                    -- using yDiffPrev for velocity as Android often returns weird values just before finger is lifted!
-                                    -- TODO: This may be performance related. Ideally dont want to do this on iOS/fast devices because
-                                    -- It does mean you get slightly unnatural deceleration.
+                                    -- using yDiffPrev for velocity as Android/slow devices often returns weird values
+                                    -- just before finger is lifted!
+                                    -- TODO: This may be performance related. Ideally dont want to do this on iOS/fast
+                                    -- devices because it does mean you get slightly unnatural deceleration.
                                 end
                             end
                         end
@@ -1826,6 +1915,7 @@ function sceneBattle:touch(touch)
     end
 end
 
+-- For controlling players in demo mode
 function randomPlayerTimer(event)
     local actions = {"fire", "fire", "weapon-next", "weapon-next", "weapon-switchdir", "move-switchdir", "move-switchdir", "move-switchdir"}
     local actionId = math.random(1,16)
@@ -1870,20 +1960,18 @@ function randomPlayerTimer(event)
     sceneBattle.demoTimers[player.id].player = player
 end
 
+-------------------------------------------------------------------------------
+-- Game end
+
 function cancelBattle(event)
     if event.phase == "ended" then -- guard or else will try to transition twice!
         sceneBattle.ignoreEvents = true -- stop balls regenerating etc
+        -- if we wanted to not save when users quits manually, but its nicer to let them continue :)
         --sceneMainMenu:wipeContinueFile()
         sceneBattle:goToMenu()
         --objects will all be destroyed in post transition event
     end
 end
-
---[[-- TODO: use this if supporting battles with multiple rounds
-function RoundOver(event)
-    
-    -- need to "reset" player objects and start again without changing scene...
-end]]--
 
 function GameOver(event)
     sceneBattle.endTimer = nil
@@ -1912,48 +2000,9 @@ function ShowGameOverAd(event)
     ads:show(true)
 end
 
-function AddStar(twinkleAnimate, n)
-    local x = math.random(minX, maxX)
-    local y = math.random(minY, maxY)
-    
-    local normVector = {}
-    local length = math.sqrt(x*x+y*y)
-    normVector.x = x/length
-    normVector.y = y/length
 
-    local star = director:createLines({x=x, y=y, coords={0,0, 1,0.5}, strokeWidth = 1})
-    --local star = director:createCircle({x=x, y=y, xAnchor=0.5, yAnchor=0.5, radius=1})
-    star.normVector = normVector
-    
-    -- rotation allows xScale to be used to strewtch star out into a line for high speeds
-    -- vectors are actually polygons, so cant just scale in x and y as would creae big squares!
-    star.rotation = math.deg(math.atan2(star.normVector.x, star.normVector.y))+90
-    
-    -- set star colour: get a random white value then allow some variance in each channel for off-white result
-    local brightness = math.random(40, 180)
-    -- NB: if we assigned value to star.strokeColor first and then do star.originalStroke=star.strokeColor
-    -- it actually becomes a 'userdata' type due to Quick C++ internals and then we cant use it in tweens
-    star.originalStroke = {r=math.random(brightness-40, brightness), g=math.random(brightness-40, brightness), b=math.random(brightness-40, brightness)}
-    star.strokeColor = star.originalStroke
-    
-    if twinkleAnimate and performanceLevel > 1 then
-        tween:to(star, {strokeAlpha=0.3, mode="mirror", time=0.5+n*0.05, delay=n*0.05})
-    else
-        tween:to(star, {strokeAlpha=math.random(3,10) / 10, time=0.5}) -- avoid tweens running during play
-    end
-
-    sceneBattle.background:addChild(star) -- background.children is now a table with refs to all stars
-end
-
-function StretchStar(star, length)
-    -- Sadly cant just do xScale and yScale as vectors have thickness (they are made with polygons!)
-    -- Also can change coords after creating them so have to re-create..
-    
-    local newStar = director:createLines({x=star.x, y=star.y, coords={0,0, star.normVector.x*length,star.normVector.y*length}, strokeWidth = 1})
-    newStar.normVector = star.normVector
-    newStar.originalStroke = star.originalStroke
-    destroyNode(star)
-end
+-------------------------------------------------------------------------------
+-- Save progress
 
 -- Save retrievable game state data. Can recreate game state form this if
 -- game gets killed by OS or user in mid play.
@@ -2051,44 +2100,9 @@ function sceneBattle:saveState()
     end
 end
 
-function sceneBattle:fullscreenEffect()
-    if not gameInfo.useFullscreenEffects then
-        return
-    end
-    
-    dbg.print("setting up fullscreen render texture effect")
-    self.rt = director:createRenderTexture(director.displayWidth, director.displayHeight, pixel_format.RGBA8888)
-        
-    self.rt.x = virtualResolution.userWinMinX + screenWidth/2
-    self.rt.y = virtualResolution.userWinMinY + screenHeight/2
-    self.rt.isVisible = false
 
-    -- Bug: sprite from getSprite will be inverted un-transformed version of the rendertexture for first frame
-    -- Workaround: render nothing for first frame
-    self.rtWorkaround = 1
-    self.rt:clear(clearCol)
-    -- Workaround end --
-    
-    -- Only create sprite for rendering once. It has a clone of the renderTexture's texture
-    -- so gets updated with each frame
-    self.screenFx = self.rt:getSprite()
-    self.screenFx.zOrder = -1
-
-    -- have to scale to match VR
-    self.screenFx.xScale = 1/virtualResolution.scale
-    self.screenFx.x = virtualResolution.userWinMinX -- - screenWidth/2 -- 0,0 is centre screen!
-    self.screenFx.yScale = -1/virtualResolution.scale
-    self.screenFx.y = screenHeight + virtualResolution.userWinMinY --  - screenWidth/2
-        --screenHeight is workaround for bug in renderTexture!
-    
-    self.screenFx.alpha=0.7
-    
-    if self.gamePaused then
-        self:startPauseEffects()
-    else
-        self:reshowScreenFx()
-    end
-end
+-------------------------------------------------------------------------------
+-- Button to move play area up/down
 
 function sceneBattle.moveSceneTopOrMiddle(event)
     if not event or event.phase == "ended" then
@@ -2127,6 +2141,10 @@ function sceneBattle.moveSceneTopOrMiddle(event)
     end
     return true
 end
+
+
+-------------------------------------------------------------------------------
+-- Orientation
 
 function sceneBattle:orientation(event, dontRestartEffects)
     adaptToOrientation(event)
@@ -2198,6 +2216,53 @@ function sceneBattle:orientation(event, dontRestartEffects)
         self.effectSkipFlag = true -- will go false on first update event and set effect, then alternate
     end
 end
+
+-------------------------------------------------------------------------------
+-- Scene setup
+
+function AddStar(twinkleAnimate, n)
+    local x = math.random(minX, maxX)
+    local y = math.random(minY, maxY)
+    
+    local normVector = {}
+    local length = math.sqrt(x*x+y*y)
+    normVector.x = x/length
+    normVector.y = y/length
+
+    local star = director:createLines({x=x, y=y, coords={0,0, 1,0.5}, strokeWidth = 1})
+    --local star = director:createCircle({x=x, y=y, xAnchor=0.5, yAnchor=0.5, radius=1})
+    star.normVector = normVector
+    
+    -- rotation allows xScale to be used to stretch star out into a line for high speeds
+    -- vectors are actually polygons, so cant just scale in x and y as would create big squares!
+    star.rotation = math.deg(math.atan2(star.normVector.x, star.normVector.y))+90
+    
+    -- set star colour: get a random white value then allow some variance in each channel for off-white result
+    local brightness = math.random(40, 180)
+    -- NB: if we assigned value to star.strokeColor first and then do star.originalStroke=star.strokeColor
+    -- it actually becomes a 'userdata' type due to Quick C++ internals and then we cant use it in tweens
+    star.originalStroke = {r=math.random(brightness-40, brightness), g=math.random(brightness-40, brightness), b=math.random(brightness-40, brightness)}
+    star.strokeColor = star.originalStroke
+    
+    if twinkleAnimate and performanceLevel > 1 then
+        tween:to(star, {strokeAlpha=0.3, mode="mirror", time=0.5+n*0.05, delay=n*0.05})
+    else
+        tween:to(star, {strokeAlpha=math.random(3,10) / 10, time=0.5}) -- avoid tweens running during play
+    end
+
+    sceneBattle.background:addChild(star) -- background.children is now a table with refs to all stars
+end
+
+function StretchStar(star, length)
+    -- Sadly cant just do xScale and yScale as vectors have thickness (they are made with polygons!)
+    -- Also can change coords after creating them so have to re-create..
+    
+    local newStar = director:createLines({x=star.x, y=star.y, coords={0,0, star.normVector.x*length,star.normVector.y*length}, strokeWidth = 1})
+    newStar.normVector = star.normVector
+    newStar.originalStroke = star.originalStroke
+    destroyNode(star)
+end
+
 
 function sceneBattle:setUp(event)
     dbg.print("sceneBattle:setUp")
@@ -2271,7 +2336,6 @@ function sceneBattle:setUp(event)
         
         if gameInfo.mode == "survival" then -- survival mode
             gameInfo.powerupLevel = 8 --allow all weapons from start
-            --ammoDefault = DEFAULT_AMMO_SURVIVAL
             ammo = {air=DEFAULT_AMMO_SURVIVAL}
             gameInfo.wave = nil
             gameInfo.firstCloak = gameInfo.continue.firstCloak or true --flag so only first cloak powerup will show message
@@ -2292,7 +2356,7 @@ function sceneBattle:setUp(event)
         gameInfo.streak = gameInfo.continue.streak or 0
         gameInfo.streakMax = gameInfo.continue.streakMax or 0
         --TODO: currently will mix in some wave 1 logic with whatever the INITIAL_WAVE wave is.
-        --      Should move all the wave logic out to a standalone funciton used both here and in the next wave event.
+        --      Should move all the wave logic out to a standalone function used both here and in the next wave event.
     else
         gameInfo.wave = nil
         gameInfo.playerColours[2] = {255,50,50}
@@ -2369,7 +2433,7 @@ function sceneBattle:setUp(event)
     end
     
     if not (demoMode and not demoModeDebug) and (gameInfo.controlType == "p1LocalVsP2Local" or gameInfo.controlType == "onePlayer") then
-        --one uses left, one usese right side of screen
+        --one uses left, one uses right side of screen
         player1.touchZone = 1
         player2.touchZone = 2
     elseif gameInfo.controlType == "p1LocalVsP2Remote" or gameInfo.controlType == "p1VsAI" then
@@ -2445,7 +2509,7 @@ function sceneBattle:enterPostTransition(event)
     dbg.print("sceneBattle:enterPostTransition")
     -- start game running after transitions
     
-    --diable screen lock for non-battle games once the transition is over
+    --disable screen lock for non-battle games once the transition is over
     if gameInfo.controlType ~= "p1LocalVsP2Local" or demoMode then
         device:setOrientation("free")
         self:orientation(true) -- also re-check orientation for dekstop or anything else where locking isn't supported
@@ -2568,7 +2632,7 @@ function sceneBattle:enterPostTransition(event)
         end
     end
     
-    --system:addTimer(TestGun, 4, 1)
+    --system:addTimer(TestGun, 4, 1) --debugging
     
     self.gamePaused = false
     -- pause menu
@@ -2605,8 +2669,6 @@ function sceneBattle:enterPostTransition(event)
         self.backKeyListener = PauseGame
         system:addEventListener("key", gameBackKeyListener)
         
-        --tween:to(self.pauseMenu.pause, {time=0.4, yScale=1})
-        --tween:to(self.pauseMenu.pause, {time=0.25, delay=0.15, xScale=1})
         tween:to(self.pauseMenu.pause, {time=0.4, xScale=1})
     end
     
@@ -2615,6 +2677,12 @@ function sceneBattle:enterPostTransition(event)
         self.moveSceneTopOrMiddle()
     end
 end
+
+-- for debugging
+TestGun = function(event)
+    player1:Fire("reverser")
+end
+
 
 ----------------------------------------------------------------
 -- Pause Menu
@@ -2681,7 +2749,6 @@ function PauseGame(touch)
             sceneBattle:saveState()
         end
         
-        --sceneBattle.pauseMenu:resumeTweens()
         if not sceneBattle.originMask then
             sceneBattle.originMask = director:createRectangle({x=sceneBattle.screenMinX, y=sceneBattle.screenMinY,
                     w=screenWidth, h=screenHeight, zOrder=2, color={0,20,0}, alpha=0, strokeWidth=0, zOrder=-1})
@@ -2770,7 +2837,8 @@ function ActivatePauseMenu()
     analytics:startSessionWithKeys()
     
     --TODO:
-    -- display banner advert at top of puase screen, with timer to remove and re-show another one every 5 seconds
+    -- If we want adverts....
+    -- display banner advert at top of pause screen, with timer to remove and re-show another one every 5 seconds
     -- on pause menu exit, check if banner is showing (need to use own flag probably or check ad internals)
     -- and hide if it is.
 end
@@ -2942,14 +3010,14 @@ function ResumeGame()
     tween:to(sceneBattle.pauseMenu.pause, {time=0.4, yScale=1})
     tween:to(sceneBattle.pauseMenu.pause, {time=0.25, delay=0.15, xScale=1})
     
-    --in case somethin's gone wrong and bar re-showed itself, now is a good time
-    --to force re-hide
+    --in case something's gone wrong and bar re-showed itself, now is a good time to force re-hide
     if androidFullscreen and androidFullscreen.isImmersiveSupported() then
         androidFullscreen.turnOn()
     end
 end
 
 -----------------------------------------------------------------------------
+-- Suspend/resume
 
 function sceneBattle:suspend(event)
     dbg.print("suspending...")
@@ -2979,11 +3047,9 @@ function sceneBattle:resume(event)
     dbg.print("...resumed")
 end
 
-----------------------------------------------------------------------------
 
-TestGun = function(event)
-    player1:Fire("reverser")
-end
+----------------------------------------------------------------------------
+-- Exit/teardown
 
 function sceneBattle:cancelDemoTimers()
     if self.demoTimers then
@@ -3080,13 +3146,8 @@ function sceneBattle:exitPostTransition(event)
     
     fullscreenEffectsOff(self)
 
-    -- for most nodes, we coul just do destroyNodesInTree(self.origin, true)!
+    -- for most nodes, we could just do destroyNodesInTree(self.origin, true)!
     -- but instead we're explicitly tearing down items in groups. Useful for finding bugs.
-    
-    --if self.message then
-    --    destroyNode(self.message)
-    --    self.message = nil
-    --end
     
     --stars
     destroyNodesInTree(self.background, true)
@@ -3142,10 +3203,11 @@ function sceneBattle:exitPostTransition(event)
     dbg.print("GC count: " .. collectgarbage("count"))
     collectgarbage("collect")
     dbg.print("GC count: " .. collectgarbage("count"))
-    -- trial and error shoes it takes 3 garbage cycles to collect scene ojects
+    -- trial and error shows it takes 3 garbage cycles to collect scene ojects
 
     dbg.print("sceneBattle:exitPostTransition done")
 end
 
-sceneBattle:addEventListener({"setUp", "enterPostTransition", "exitPreTransition", "exitPostTransition"}, sceneBattle)
 
+-- Register events that are always running
+sceneBattle:addEventListener({"setUp", "enterPostTransition", "exitPreTransition", "exitPostTransition"}, sceneBattle)
