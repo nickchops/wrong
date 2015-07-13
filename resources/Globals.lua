@@ -328,7 +328,7 @@ twitterUrl = "http://twitter.com/nick_chops"
 
 appId = "com.nickchops.wrong"
 storeUrl, storeName = getStoreUrl(platform, majorVersion, minorVersion, appId, "wrong!/id897361366")
-blogUrl = "http://nickchops.github.io/wrong-prototype"
+blogUrl = "http://nickchops.github.io/wrong"
 
 ---------------------------------------------------------
 

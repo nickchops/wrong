@@ -104,7 +104,7 @@ function sceneMainMenu:DisplayInfoText()
             txtColour = menuBlue
             
             if browser:isAvailable() then
-                txtStrings = {"> BLOG & SOURCE CODE FOR WRONG"}
+                txtStrings = {"> GET SOURCE CODE FOR WRONG"}
                 txtFont = fontMainLarge
                 txtStartX = 60
                 txtWidth = appWidth-90
