@@ -8,6 +8,8 @@ This is an open source game written by Nick Smith using Marmalade Quick
 
 More info: http://nickchops.github.io/wrong/
 
+https://www.youtube.com/watch?v=BJYM8GPdZ_g | https://www.youtube.com/watch?v=Zfy3fjeUN0s
+
 Full Source code: https://github.com/nickchops/wrong
 
 Marmalade SDK free download: https://www.madewithmarmalade.com/download
