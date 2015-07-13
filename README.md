@@ -3,13 +3,19 @@ W R O N G
 
 Weaponised Reverse pONG. Battle yourself. In reverse. With guns. WRONG!
 
-This is an open source game written by Nick Smith using Marmalade Quick.
+This is an open source game written by Nick Smith using Marmalade Quick 
+(Lua + Cocos2d-x + Marmalade SDK)
+
+More info: http://nickchops.github.io/wrong/
+
+Full Source code: https://github.com/nickchops/wrong
+
+Marmalade SDK free download: https://www.madewithmarmalade.com/download
 
 ##Current public builds
 
 - Google Play: https://play.google.com/store/apps/details?id=com.nickchops.wrong
 - Apple App Store: https://itunes.apple.com/us/app/wrong!/id897361366
-
 
 ------------------------------------------------------------------------------------------
 
