@@ -285,8 +285,13 @@ end
 FreezePlayers = function(event)
     -- override if players are already frozen (extend freeze time)
     if sceneGame.unFreezeTimer ~= nil then
+        if type(sceneGame.unFreezeTimer) == "number" then --timer queued on continue
+            return
+        end
+            
         sceneGame.unFreezeTimer:cancel()
     end
+
     for k,player in pairs(players) do
         player.sledColour = collidableColours.freezer
         player.sled.color = collidableColours.freezer
@@ -790,7 +795,7 @@ function AddBall(vals)
         else
             ReverserFx(1, origin)
             for k,player in pairs(players) do
-                if player.reverseTimer then
+                if player.reverseTimer and type(player.reverseTimer) ~= "number" then --number on continuing saved game
                     player.reverseTimer:cancel()
                 else
                     if player.touches and player.moveWithFinger then
@@ -1261,6 +1266,28 @@ function AIFire(event)
     player2:Fire()
 end
 
+function sceneGame:borderFlash(side)
+    local node = self.background["border" .. side]
+    local duration = 0.03
+    
+    cancelTweensOnNode(node[1])
+    node[1].alpha=0.2
+    tween:to(node[1], {alpha=0, time=duration})
+    
+    local delay = 0
+    
+    for k,v in ipairs(node) do
+        if k ~= 1 then
+            cancelTweensOnNode(v)
+            v.alpha=0
+            tween:to(v, {alpha=0.2, time=duration, delay=delay})
+            delay = delay + duration
+            tween:to(v, {alpha=0, time=duration, delay=delay})
+            
+        end
+    end
+end
+
 function sceneGame:update(event)
     self.effectSkipFlag = not self.effectSkipFlag
     
@@ -1291,9 +1318,30 @@ function sceneGame:update(event)
     end
     
     -- freeze during intro messages on resuming suspended games
-    if self.continuePause and system.gameTime < self.continuePause then
-        fullscreenEffectsUpdate(self)
-        return
+    if self.continuePause then
+        if system.gameTime < self.continuePause then
+            fullscreenEffectsUpdate(self)
+            return
+        else
+            self.continuePause = nil
+            for k, player in pairs(players) do
+                if player.reverseTimer and type(player.reverseTimer) == "number" then
+                    player.reverseTimer = system:addTimer(UnReverse, player.reverseTimer, 1, 0)
+                    player.reverseTimer.player = player.reverseTimerPlayer
+                    player.reverseTimerPlayer = nil
+                end
+                
+                if player.cloakTimer and type(player.cloakTimer) == "number" then
+                    player.cloakTimer = system:addTimer(EndCloak, player.cloakTimer, 1, 0)
+                    player.cloakTimer.player = player.cloakTimerPlayer
+                    player.cloakTimerPlayer = nil
+                end
+            end
+            
+            if sceneGame.unFreezeTimer and type(sceneGame.unFreezeTimer) == "number" then
+                sceneGame.unFreezeTimer = system:addTimer(EndFreeze, sceneGame.unFreezeTimer, 1)
+            end
+        end
     end
     
     if self.starsDecelerate then
@@ -1457,6 +1505,8 @@ function sceneGame:update(event)
                             obj.dontBounce = true
                             obj.strokeColor = {105,0,105}
                         end
+                        
+                        self:borderFlash("Right")
                     end
                     if obj.x < minX then
                         obj.x = minX
@@ -1465,14 +1515,20 @@ function sceneGame:update(event)
                             obj.dontBounce = true
                             obj.strokeColor = {105,0,105}
                         end
+                        
+                        self:borderFlash("Left")
                     end
                     if obj.y > maxY then
                         obj.y = maxY
                         obj.vec.y = -obj.vec.y
+                        
+                        self:borderFlash("Top")
                     end
                     if obj.y < minY then
                         obj.y = minY
                         obj.vec.y = -obj.vec.y
+                        
+                        self:borderFlash("Bottom")
                     end
                 end
                 
@@ -2007,6 +2063,10 @@ end
 -- Save retrievable game state data. Can recreate game state form this if
 -- game gets killed by OS or user in mid play.
 function sceneGame:saveState()
+    if self.continuePause then
+        return
+    end
+    
     local continueData = {}
     
     if not player1.deadFlag and not player2.deadFlag then
@@ -2057,10 +2117,23 @@ function sceneGame:saveState()
             player.y = p.sled.y            
             player.health = p.health.value
             
-            --TODO These need to be values which are used to set the timers again
-            -- e.g. reverseTimer = p.reverseTimer.timeLeft or whatever
-            --player.reverseTimer = p.reverseTimer
-            --player.cloakTimer = p.cloakTimer
+            if p.reverseTimer then
+                player.reverseTimerLeft = p.reverseTimer.period - p.reverseTimer.elapsed
+                if player.reverseTimerLeft <= 0 then --prob not needed, but just in case!
+                    player.reverseTimerLeft = nil
+                else
+                    player.reverseTimerPlayer = player.reverseTimer.player
+                end
+            end
+            
+            if p.cloakTimer then
+                player.cloakTimerLeft = p.cloakTimer.period - p.cloakTimer.elapsed
+                if player.cloakTimerLeft <= 0 then
+                    player.cloakTimerLeft = nil
+                else
+                    player.cloakTimerPlayer = player.cloakTimer.player
+                end
+            end
             
             player.ammo = {}
             player.ammo.bullet = p.weaponsMeter.ammo.bullet
@@ -2075,6 +2148,13 @@ function sceneGame:saveState()
             --FYI for restoring: player.currentWeapon = weapons[player.currentWeaponID]
             
             table.insert(continueData.players, player)
+        end
+    
+        if sceneGame.unFreezeTimer then
+            continueData.unFreezeTimerLeft = sceneGame.unFreezeTimer.period - sceneGame.unFreezeTimer.elapsed
+            if continueData.unFreezeTimerLeft <=0 then
+                continueData.unFreezeTimerLeft = nil
+            end
         end
         
         continueData.canContinue = true -- last flag set for safety check plus allowing use of empty table
@@ -2164,8 +2244,8 @@ function sceneGame:orientation(event, dontRestartEffects)
         offset = screenHeight/2 - (screenHeight/2 - appHeight)*0.7
         maskOffset = (screenHeight-appHeight) / 2 - (screenHeight/2 - appHeight) * 0.7
     else
-        offset = screenHeight/2
-        maskOffset = (screenHeight-appHeight) / 2
+        offset = screenHeight/2 -30 --minus 30 to give a little top padding
+        maskOffset = (screenHeight-appHeight) / 2 -30
     end
     
     if not demoMode and (not lockPlayAreaCentred and gameInfo.portraitTopAlign) then
@@ -2292,14 +2372,9 @@ function sceneGame:setUp(event)
     -- being hit tested. Pause menu has its own originPause
     origin.isTouchable = false
     
-    self.background = director:createRectangle({
-        x=0, y=0,
-        xAnchor=0, yAnchor=0,
-        w=appWidth, h=appHeight,
-        strokeWidth=0,  --strokeColor=color.green, strokeAlpha=1.0,
-        color=color.black, alpha=0, zOrder=-10})
+    self.background = director:createNode({x=0,y=0, zOrder=-10})
     origin:addChild(self.background)
-
+    
     -- create random stars on background
     math.randomseed(os.time())
     local starCount = 20
@@ -2311,6 +2386,33 @@ function sceneGame:setUp(event)
     self.starsMove = false
     self.starsDecelerate = false
     self.starSpeed = 0
+    
+    self.background.painMask = director:createRectangle({
+        x=0, y=0,
+        xAnchor=0.5, yAnchor=0.5,
+        w=appWidth, h=appHeight,
+        strokeWidth=0,
+        color=color.red, alpha=0})
+    origin:addChild(self.background.painMask)
+    
+    local borderNames = {"Top", "Bottom", "Left", "Right"}
+    local borderVals = {{x=minX, y=maxY-1, w=appWidth, h=2, xAdj=0, yAdj=2},
+                        {x=minX, y=minY-1, w=appWidth, h=2, xAdj=0, yAdj=-2},
+                        {x=minX-1, y=minY, w=2, h=appHeight, xAdj=-2, yAdj=0},
+                        {x=maxX-1, y=minY, w=2, h=appHeight, xAdj=2, yAdj=0}
+                        }
+    for i=1,4,1 do
+        local lineGroup = {}
+        
+        for j=1,5,1 do
+            lineGroup[j] =  director:createRectangle({alpha=0, color=color.green, strokeWidth=0,
+                x=borderVals[i].x + borderVals[i].xAdj*(j-1), y=borderVals[i].y + borderVals[i].yAdj*(j-1),
+                w=borderVals[i].w, h=borderVals[i].h})
+            origin:addChild(lineGroup[j])
+        end
+        
+        self.background["border" .. borderNames[i]] = lineGroup
+    end
     
     -- table to keep references to nodes that have been created, have no parent and are waiting to be reused
     self.recycler = {ball={},fx={}}
@@ -2397,13 +2499,31 @@ function sceneGame:setUp(event)
             players[k].velocity = saveInfo.velocity
             players[k].halfHeight = saveInfo.halfHeight
             players[k].newHalfHeight = saveInfo.halfHeight
-            --TODO: These need to be values which are used to set the timers again
-            --players[k].reverseTimer = saveInfo.reverseTimer
-            --players[k].cloakTimer = saveInfo.cloakTimer
+            
+            if saveInfo.reverseTimerLeft then
+                players[k].reverseTimer = saveInfo.reverseTimerLeft --set to number -> start timer later
+                players[k].reverseTimerPlayer = saveInfo.reverseTimePlayer
+            end
+            
+            if saveInfo.cloakTimerLeft then
+                players[k].sled.alpha=0
+                players[k].cloakTimer = saveInfo.cloakTimerLeft
+                players[k].cloakTimerPlayer = saveInfo.cloakTimerPlayer
+            end
         end
     elseif onePlayerMode and gameInfo.mode == "survival" then
         player1.weaponsMeter:SetWeapon(3) -- most useful weapon to start
         player2.weaponsMeter:SetWeapon(3)
+    end
+    
+    if gameInfo.continue.unFreezeTimerLeft then
+        sceneGame.unFreezeTimer = gameInfo.continue.unFreezeTimerLeft
+        
+        for k,player in pairs(players) do
+            player.sledColour = collidableColours.freezer
+            player.sled.color = collidableColours.freezer
+            player.sled.alpha = 1
+        end
     end
     
     sceneGame.deathPhase = false

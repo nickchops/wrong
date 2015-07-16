@@ -40,9 +40,9 @@ assets
     textures
     sounds
 	
-	Utility.lua
-    NodeUtility.lua
-    VirtualResolution.lua
+	helpers/Utility.lua
+    helpers/NodeUtility.lua
+    helpers/VirtualResolution.lua
 	Globals.lua
 	Counter.lua
 	MenuScene.lua

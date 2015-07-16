@@ -863,10 +863,11 @@ function LoadUserData()
     
     -- do "if nil then create" for all values so game can be updated and new settings get
     -- initialised when save games already exist
-    if not gameInfo.highScore then
-        gameInfo.highScore = {waves={}, survival={}, streak={}}
+    
+    if not gameInfo.defaultScores then
+        gameInfo.defaultScores = {waves={}, survival={}, streak={}}
         local names = {"NIC", "MAR", "MAL", "ADE", "PAC", "JNR", "CRS", "I3D", "MRK", "FFS"}
-        for k,v in pairs(gameInfo.highScore) do
+        for k,v in pairs(gameInfo.defaultScores) do
             for n=1, 10 do
                 local score = (11-n)*20 --20->200
                 if k == "survival" then score = score/4 end --5->50
@@ -876,6 +877,10 @@ function LoadUserData()
                 if score == 0 then v[n].name="XXX" end
             end
         end
+    end
+    
+    if not gameInfo.highScore then
+        gameInfo.highScore = gameInfo.defaultScores
     end
     
     if not gameInfo.name then gameInfo.name = " P1" end --records last name entered to save re-entering
@@ -1653,13 +1658,32 @@ function sceneMainMenu.playServicesListener(event)
                 end
             end
             
-            -- TODO: improve by scanning all scores, find ones that aren't defaults
-            -- and push the highest to services!
+            --Send current known score
             if gameInfo.score then
                 googlePlayServices.submitScore(gameInfo.leaderboardsServiceIds[gameInfo.mode].googlePlay, gameInfo.score, true)
             end
             if gameInfo.streakMax then
                 googlePlayServices.submitScore(gameInfo.leaderboardsServiceIds.streak.googlePlay, gameInfo.streakMax, true)
+            end
+            
+            -- compare high scores table with defaults and post any that dont match
+            for kMode,vBoard in pairs(gameInfo.highScore) do
+                local maxFound = 0
+                for kScore,vScore in pairs(vBoard) do
+                    local isDefault = false
+                    for kDefault,vDefault in pairs(gameInfo.defaultScores[kMode]) do
+                        if vScore.name == vDefault.name and vScore.score == vDefault.score then
+                            isDefault = true
+                            break
+                        end
+                    end
+                    if not isDefault then
+                        maxFound = vScore.score
+                    end
+                end
+                if maxFound ~= 0 then
+                    googlePlayServices.submitScore(gameInfo.leaderboardsServiceIds[kMode].googlePlay, maxFound, true)
+                end
             end
         else
             sceneMainMenu.gotPlayServices = false
@@ -1669,9 +1693,22 @@ function sceneMainMenu.playServicesListener(event)
                 sceneMainMenu.btns.playServices.color = {75,85,110}
             end
         end
-    --elseif event.type == "???" then
-        -- flag loading of achievements here so we can show GPS achievements button
-        -- load scores programmatically and add to local user scores
+    elseif event.type == "achievementsLoaded" then
+        dbg.print("Got achievements from play services - count: " .. event.count)
+        
+        for i=1, event.count, 1 do
+            local ach = event.achievements[i]
+            if ach.status == "unlocked" then
+                dbg.print("Unlocked achievement found, syncing local: " .. ach.name)
+                for k,v in pairs(gameInfo.achievements) do
+                    if gameInfo.achievementServiceIds[k].googlePlay == ach.id then
+                        gameInfo.achievements[k] = true
+                    end
+                end
+            end
+        end
+    -- TODO?: could get load scores and in event serach and push to local scores
+    -- ...but names will be difficult and there's more important things to do!
     end
 end
 

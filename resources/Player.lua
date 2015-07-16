@@ -311,7 +311,13 @@ function Player:TakeHit()
     end
     
     device:vibrate(20, 0.3)
-
+    
+    cancelTweensOnNode(sceneGame.background.painMask)
+    sceneGame.background.painMask.xScale=1
+    sceneGame.background.painMask.yScale=1
+    sceneGame.background.painMask.alpha=0.35
+    tween:to(sceneGame.background.painMask, {alpha=0, time=0.4, xScale=1.2, yScale=1.2})
+            
     --dbg.print("HIT! player=" .. self.id)
     self.health:Increment(-1)
 
