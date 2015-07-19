@@ -4,11 +4,12 @@ require("helpers/NodeUtility")
 dofile("helpers/OnScreenDPad.lua")
 dofile("helpers/OnScreenButton.lua")
 
-startupFlag = true -- for initial menu animation
+local startupFlag = true -- for initial menu animation
 
 -- Reduce app startup loading time by a small bit by loading the large game
 -- scene code and dependencies only when its first needed
-gameSceneLoadFlag = false
+local gameSceneLoadFlag = false
+local startedRendering = false
 
 -------------------------------------------------------------------
 -- Simple helper to add more text to screen
@@ -772,7 +773,7 @@ function menuSaveData(clearFlag)
     if not file then
         dbg.print("failed to open save-state file for saving: " .. saveStatePath)
     else
-        file:write(json.encode({scores=gameInfo.highScore, lastName=gameInfo.name, achievements=gameInfo.achievements, soundOn=gameInfo.soundOn, vibrateOn=gameInfo.vibrateOn, portraitTopAlign=gameInfo.portraitTopAlign, shouldLogIntoGameServices=gameInfo.shouldLogIntoGameServices}))
+        file:write(json.encode({scores=gameInfo.highScore, lastName=gameInfo.name, achievements=gameInfo.achievements, soundOn=gameInfo.soundOn, soundFxOn=gameInfo.soundFxOn, vibrateOn=gameInfo.vibrateOn, portraitTopAlign=gameInfo.portraitTopAlign, shouldLogIntoGameServices=gameInfo.shouldLogIntoGameServices}))
         file:close()
         dbg.print("user data saved")
     end
@@ -850,7 +851,12 @@ function LoadUserData()
             gameInfo.name = loaded.lastName
             gameInfo.achievements = loaded.achievements
             gameInfo.soundOn = loaded.soundOn
-            gameInfo.vibrateOn = loaded.vibrateOn
+            if loaded.soundFxOn == true or loaded.soundFxOn == nil then
+                gameInfo.soundFxOn = true --tru by default, old versions of game will not have saved as false
+            end
+            if loaded.vibrateOn == true or loaded.vibrateOn == nil then
+                gameInfo.vibrateOn = true
+            end
             gameInfo.portraitTopAlign = loaded.portraitTopAlign
             gameInfo.shouldLogIntoGameServices = loaded.shouldLogIntoGameServices
             if gameInfo.shouldLogIntoGameServices == nil then
@@ -934,7 +940,7 @@ function MenuStartGame()
     -- Try to log in now if we didnt already. Will suspend game state. If it doesn't
     -- code should be safe anyway
     if googlePlayServices and not sceneMainMenu.gotPlayServices and gameInfo.shouldLogIntoGameServices then
-        sceneMainMenu.gameServicesLogin()
+        sceneMainMenu.gameServicesLogin(nil, true)
     end
     
     -- Just in case! A good time to force re-hiding in case OS showed for some reason
@@ -1034,6 +1040,7 @@ function touchContinue(self, event)
         sceneMainMenu:buttonPressedAnim("continue")
         analytics:logEvent("startContinue")
         sceneMainMenu:animateSceneOut()
+        playEffect("arcadebleep.snd")
     end
 end
 
@@ -1044,6 +1051,7 @@ function touchWaves(self, event)
         sceneMainMenu:buttonPressedAnim("waves")
         analytics:logEvent("startMain")
         sceneMainMenu:animateSceneOut()
+        playEffect("arcadebleep.snd")
     end
 end
 
@@ -1054,6 +1062,7 @@ function touchSurvival(self, event)
         sceneMainMenu:buttonPressedAnim("survival")
         analytics:logEvent("startSurvival")
         sceneMainMenu:animateSceneOut()
+        playEffect("arcadebleep.snd")
     end
 end
 
@@ -1063,6 +1072,9 @@ function touch2pLocal(self, event)
         sceneMainMenu:buttonPressedAnim("2pLocal")
         analytics:logEvent("start2pLocal")
         sceneMainMenu:animateSceneOut()
+        if self then
+            playEffect("arcadebleep.snd")
+        end --else demo start
     end
 end
 
@@ -1074,25 +1086,36 @@ function touchAbout(self, event)
             {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayAbout})
         sceneMainMenu.title.nextMenu = menuDisplayAbout
         sceneMainMenu.subMenu = "about"
+        playEffect("arcadebleep.snd")
     end
 end
 
 function touchHighScores(self, event)
     if event.phase == "ended" then
+        if sceneMainMenu.gameServicesTimer then
+            sceneMainMenu.gameServicesLogin(nil, true)
+        end
+        
         sceneMainMenu:buttonPressedAnim("highscores")
         sceneMainMenu.title.menuTween = tween:to(sceneMainMenu.title, {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayHighScoreScreen})
         sceneMainMenu.title.nextMenu = menuDisplayHighScoreScreen
         sceneMainMenu.subMenu = "highscores"
+        playEffect("arcadebleep.snd")
     end
     --dbg.print("NODE touch listener test - " .. event.phase .. " - x,y=" .. event.x .. "," .. event.y)
 end
 
 function touchAchievements(self, event)
     if event.phase == "ended" then
+        if sceneMainMenu.gameServicesTimer then
+            sceneMainMenu.gameServicesLogin(nil, true)
+        end
+
         sceneMainMenu:buttonPressedAnim("achievements")
         sceneMainMenu.title.menuTween = tween:to(sceneMainMenu.title, {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayAchievementsScreen})
         sceneMainMenu.title.nextMenu = menuDisplayAchievementsScreen
         sceneMainMenu.subMenu = "achievements"
+        playEffect("arcadebleep.snd")
     end
 end
 
@@ -1177,9 +1200,11 @@ function touchPlayServices(self, event)
             self.color = {75,85,110}
             dbg.print("Signing out of google play services")
             googlePlayServices.signOut()
+            playEffect("fizzleout.snd")
         else
             gameInfo.shouldLogIntoGameServices = true
             sceneMainMenu.gameServicesLogin()
+            playEffect("reward.snd")
         end
     end
 end
@@ -1282,6 +1307,7 @@ function sceneMainMenu:removeMainMenuListeners()
     end
     
     self:showRotateInfo(false)
+    self.menuActive = nil
 end
 
 function sceneMainMenu:addMainMenuListeners()
@@ -1303,6 +1329,7 @@ function sceneMainMenu:addMainMenuListeners()
     system:addEventListener("key", menuBackKeyListener)
     
     self:showRotateInfo(true)
+    self.menuActive = true
 end
 
 function quitGameOnBackKey(event)
@@ -1343,6 +1370,11 @@ function sceneMainMenu:resume(event)
 end
 
 function sceneMainMenu:update(event)
+    if not startedRendering then
+        director:startRendering()
+        startedRendering = true
+    end
+    
     if pauseflag then
         pauseflag = false
         system:resumeTimers()
@@ -1618,17 +1650,20 @@ function sceneMainMenu.gameServicesInit()
         dbg.assert(false, "! Google Play Services wrapper not found !")
     end
 end
-    
-function sceneMainMenu.gameServicesLogin(event)
+
+function sceneMainMenu.gameServicesLogin(event, dontAnimate)
     sceneMainMenu.loggingServicesIn = true
     
     if sceneMainMenu.gameServicesTimer then
         sceneMainMenu.gameServicesTimer:cancel()
         sceneMainMenu.gameServicesTimer = nil
     end
-        
-    sceneMainMenu.btns.playServices.color = {75,85,110}
-    tween:to(sceneMainMenu.btns.playServices, {color={r=255,g=255,b=255}, time=2, mode="mirror"})
+    
+    if not dontAnimate then
+        sceneMainMenu.btns.playServices.color = {75,85,110}
+        tween:to(sceneMainMenu.btns.playServices, {color={r=255,g=255,b=255}, time=2, mode="mirror"})
+    end
+    
     googlePlayServices.signIn()
 end
 
@@ -1641,6 +1676,8 @@ function sceneMainMenu.playServicesListener(event)
         sceneMainMenu.loggingServicesIn = false
         
         if event.signedIn then
+            --NB, can login while offline and get cached version!
+            
             sceneMainMenu.gotPlayServices = true
             dbg.print("Google Play Services: user logged in, loading achievements...")
             
@@ -1695,6 +1732,7 @@ function sceneMainMenu.playServicesListener(event)
         end
     elseif event.type == "achievementsLoaded" then
         dbg.print("Got achievements from play services - count: " .. event.count)
+        local newBtnOffset = 0
         
         for i=1, event.count, 1 do
             local ach = event.achievements[i]
@@ -1702,13 +1740,48 @@ function sceneMainMenu.playServicesListener(event)
                 dbg.print("Unlocked achievement found, syncing local: " .. ach.name)
                 for k,v in pairs(gameInfo.achievements) do
                     if gameInfo.achievementServiceIds[k].googlePlay == ach.id then
-                        gameInfo.achievements[k] = true
+                        if gameInfo.achievements[k] ~= true then
+                            gameInfo.achievements[k] = true
+                            
+                            -- cheap way to put new mode buttons onto menu wihtout rebuilding the whole thing...
+                            if k == "survival" and not sceneMainMenu.btns["survival"] then --check btn just in case
+                                newBtnOffset = newBtnOffset + 40
+                                sceneMainMenu.btnsOrigin.y = sceneMainMenu.btnsOrigin.y - 20
+                                local btn = director:createLabel({x=0, y=newBtnOffset, w=250, h=50, xAnchor=0, yAnchor=0,
+                                        hAlignment="left", vAlignment="bottom", text="Survival Mode", color=menuBlue,
+                                        font=fontMainLarge, yScale=0})
+                                createLabelTouchBox(btn, touchSurvival)
+                                sceneMainMenu.btnsOrigin:addChild(btn)
+                                sceneMainMenu.btns["survival"] = btn
+                                
+                                if sceneMainMenu.menuActive then
+                                    tween:to(btn, {xScale=1, yScale=1, alpha=1, time=0.3})
+                                    btn.touchArea:addEventListener("touch", btn.touchArea)
+                                end
+                            end
+
+                            if k == "battle" and not sceneMainMenu.btns["2pLocal"] then
+                                newBtnOffset = newBtnOffset + 40
+                                sceneMainMenu.btnsOrigin.y = sceneMainMenu.btnsOrigin.y - 20
+                                local btn = director:createLabel({x=0, y=newBtnOffset, w=250, h=50, xAnchor=0, yAnchor=0,
+                                        hAlignment="left", vAlignment="bottom", text="Battle", color=menuBlue,
+                                        font=fontMainLarge, yScale=0})
+                                createLabelTouchBox(btn, touch2pLocal)
+                                sceneMainMenu.btnsOrigin:addChild(btn)
+                                sceneMainMenu.btns["2pLocal"] = btn
+                                
+                                if sceneMainMenu.menuActive then
+                                    tween:to(btn, {xScale=1, yScale=1, alpha=1, time=0.3})
+                                    btn.touchArea:addEventListener("touch", btn.touchArea)
+                                end
+                            end
+                        end
                     end
                 end
             end
         end
     -- TODO?: could get load scores and in event serach and push to local scores
-    -- ...but names will be difficult and there's more important things to do!
+    -- ...but there's more important things to do!
     end
 end
 
@@ -1811,25 +1884,24 @@ function sceneMainMenu:setUp(event)
     
     self.btns = {}
     self.btnsOrigin = director:createNode({x=appWidth/2-20, y=appHeight/2+120})
-    local labelW = 250
     local labelY = 0
     local extraBtnCount = 0
     
     if self.readyToContinue then
-        self.btns["continue"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Continue", color=menuBlue, font=fontMainLarge})
+        self.btns["continue"] = director:createLabel({x=0, y=labelY, w=250, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Continue", color=menuBlue, font=fontMainLarge})
         createLabelTouchBox(self.btns["continue"], touchContinue)
         self.btnsOrigin:addChild(self.btns["continue"])
         labelY = labelY-40
         extraBtnCount = extraBtnCount + 1
     end
     
-    self.btns["waves"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Start Game", color=menuBlue, font=fontMainLarge})
+    self.btns["waves"] = director:createLabel({x=0, y=labelY, w=250, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Start Game", color=menuBlue, font=fontMainLarge})
     createLabelTouchBox(self.btns["waves"], touchWaves)
     self.btnsOrigin:addChild(self.btns["waves"])
     
     if gameInfo.achievements.survival then
         labelY = labelY-40
-        self.btns["survival"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Survival Mode", color=menuBlue, font=fontMainLarge})
+        self.btns["survival"] = director:createLabel({x=0, y=labelY, w=250, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Survival Mode", color=menuBlue, font=fontMainLarge})
         createLabelTouchBox(self.btns["survival"], touchSurvival)
         self.btnsOrigin:addChild(self.btns["survival"])
         extraBtnCount = extraBtnCount + 1
@@ -1837,7 +1909,7 @@ function sceneMainMenu:setUp(event)
 
     if gameInfo.achievements.battle then
         labelY = labelY-40
-        self.btns["2pLocal"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Battle", color=menuBlue, font=fontMainLarge})
+        self.btns["2pLocal"] = director:createLabel({x=0, y=labelY, w=250, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Battle", color=menuBlue, font=fontMainLarge})
         createLabelTouchBox(self.btns["2pLocal"], touch2pLocal)
         self.btnsOrigin:addChild(self.btns["2pLocal"])
         extraBtnCount = extraBtnCount + 1
@@ -1845,18 +1917,18 @@ function sceneMainMenu:setUp(event)
     
     if extraBtnCount < 2 then
         labelY = labelY-40
-        self.btns["highscores"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="High Scores", color=menuBlue, font=fontMainLarge})
+        self.btns["highscores"] = director:createLabel({x=0, y=labelY, w=250, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="High Scores", color=menuBlue, font=fontMainLarge})
         createLabelTouchBox(self.btns["highscores"], touchHighScores)
         self.btnsOrigin:addChild(self.btns["highscores"])
         
         labelY = labelY-40
-        self.btns["achievements"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Achievements", color=menuBlue, font=fontMainLarge})
+        self.btns["achievements"] = director:createLabel({x=0, y=labelY, w=250, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="Achievements", color=menuBlue, font=fontMainLarge})
         createLabelTouchBox(self.btns["achievements"], touchAchievements)
         self.btnsOrigin:addChild(self.btns["achievements"])
     end
     
     labelY = labelY-40
-    self.btns["about"] = director:createLabel({x=0, y=labelY, w=labelW, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="[hack me]", color=menuBlue, font=fontMainLarge})
+    self.btns["about"] = director:createLabel({x=0, y=labelY, w=250, h=50, xAnchor=0, yAnchor=0, hAlignment="left", vAlignment="bottom", text="[hack me]", color=menuBlue, font=fontMainLarge})
     createLabelTouchBox(self.btns["about"], touchAbout)
     self.btnsOrigin:addChild(self.btns["about"])
     
@@ -1959,22 +2031,20 @@ function sceneMainMenu:setUp(event)
             system:addTimer(resizeCheck, 2, 1)
             
             sceneMainMenu.gameServicesInit()
-
-            if googlePlayServices then
-                if gameInfo.shouldLogIntoGameServices then
-                    dbg.print("Auto-login to google play services")
-                    --do animation even though login will be delayed. User can cancel timer by pressing button
-                    self.loggingServicesIn = true
-                    tween:to(sceneMainMenu.btns.playServices, {color={r=255,g=255,b=255}, time=2, mode="mirror"})
-                    self.gameServicesTimer = system:addTimer(self.gameServicesLogin, 4, 1)
-                else
-                    dbg.print("No auto-login to google play services - user must have cancelled in past")
-                end
-            end
-            
-            --todo: should cancel timer and force login on any menu press (inc demo start)
         else
             tween:from(self.title, {y=self.screenMinY-500, time=0.4, onComplete=enableMenu})
+        end
+        
+        -- Login tarts after a timeout to prevent freezing the game immediately n first run
+        -- Want to see the title animate, hear music, etc
+        if googlePlayServices then
+            if gameInfo.shouldLogIntoGameServices and not self.gotPlayServices then
+                dbg.print("Auto-login to google play services")
+                --do animation even though login will be delayed. User can cancel timer by pressing button
+                self.loggingServicesIn = true
+                tween:to(sceneMainMenu.btns.playServices, {color={r=255,g=255,b=255}, time=2, mode="mirror"})
+                self.gameServicesTimer = system:addTimer(self.gameServicesLogin, 4, 1)
+            end
         end
         
         for k,v in pairs(self.btns) do

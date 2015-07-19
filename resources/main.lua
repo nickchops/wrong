@@ -46,7 +46,7 @@ local nearestMultiple = true
 local overrideW = nil -- could set by device ID if wanted...
 local overrideH = nil
 
-director:startRendering()
+audio:set_streamVolume(0.85) --  a bit too lound compared to SFX otherwise
 
 -- Using virtual resolution with nearestMultiple (only use 1x, 2x, 3x, etc scaling)
 -- Using ignoreMultipleIfTooSmall when upscaled height is < 0.9 of the screen width - in
@@ -171,6 +171,19 @@ function fullscreenEffectsOff(self)
     end
     
     self.pauseRt = nil
+end
+
+----------------------------------------------------------
+-- sound effects
+
+--audio:setSoundFrequency(11000)
+audio:setSoundFrequency(44100)
+
+function playEffect(name)
+    if gameInfo.soundFxOn then
+        audio:playSound("sounds/fx/" .. name, false)
+        --audio:playSound("sounds/fx/11/" .. name, false)
+    end
 end
 
 ----------------------------------------------------------

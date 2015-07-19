@@ -280,6 +280,8 @@ AirFX = function(event)
     if event.doneIterations == 2 then
         PushCollidablesAwayFromPos(timer.x, timer.y)
     end
+    
+    playEffect("zipup.snd")
 end
 
 FreezePlayers = function(event)
@@ -407,10 +409,19 @@ end
 function sceneGame:reshowScreenFx(time)
     if self.screenFx then
         cancelTweensOnNode(self.screenFx)
-        self.screenFx.alpha = 0.7
+        self.screenFx.alpha = 0.68
         
-        if self.ballTimer then
-            tween:to(self.screenFx, {alpha=0.05, easing=ease.powIn,
+        local duration
+        if time then
+            duration = time
+        end
+        
+        if time or self.ballTimer then
+            if not time then
+                duration = (self.ballTimer.period + self.ballTimer.delay - self.ballTimer.elapsed) * 0.85
+            end
+            
+            tween:to(self.screenFx, {alpha=0, easing=ease.powIn, --TODO: was alpha=0.05
                     time=time or self.ballTimer.period + self.ballTimer.delay - self.ballTimer.elapsed})
         end
     end
@@ -446,7 +457,7 @@ function sceneGame:fullscreenEffect()
     self.screenFx.y = screenHeight + virtualResolution.userWinMinY --  - screenWidth/2
         --screenHeight is workaround for bug in renderTexture!
     
-    self.screenFx.alpha=0.7
+    self.screenFx.alpha=0.68
     
     if self.gamePaused then
         self:startPauseEffects()
@@ -511,7 +522,12 @@ end
 function ShowAchievement(achievementId)
     gameInfo.achievements[achievementId] = true
     sceneGame:reshowScreenFx()
-    ShowMessage("NEW ACHIEVEMENT:", 2.0, false, "up", nil, nil, nil, achieveCol)
+    if not gameInfo.achievements[achievementId] then
+        gameInfo.achievements[achievementId] = true
+        ShowMessage("NEW ACHIEVEMENT:", 2.0, false, "up", nil, nil, nil, achieveCol)
+    else
+        ShowMessage("YOU DID IT AGAIN:", 2.0, false, "up", nil, nil, nil, achieveCol)
+    end
     
     local delay = 2.3
     local dir = "down"
@@ -536,6 +552,8 @@ function ShowAchievement(achievementId)
     end
 
     analytics:logEvent("achievement", {name=achievementId})
+    
+    playEffect("reward.snd")
 end
 
 
@@ -809,6 +827,7 @@ function AddBall(vals)
             sceneGame:queueReplacementBall(1.5)--dont want instant replacement
             ShowMessage("reverse")
             sceneGame:reshowScreenFx()
+            playEffect("arcadebleep.snd")
         end
         return
     elseif objType == "freezer" then
@@ -825,6 +844,7 @@ function AddBall(vals)
             ShowMessage("freeze")
             sceneGame:reshowScreenFx()
             sceneGame:queueReplacementBall(1.5)
+            playEffect("freeze.snd")
         end
         return
     end
@@ -832,6 +852,8 @@ function AddBall(vals)
     local vector = VectorFromAngle(math.rad(angle), speed)
     local ball = CollidableCreate(objType, xPos, yPos, vector, speed) --we push the ball to a global table in create
     ball.replaceOnLeaveScreen = true
+    
+    playEffect("shoot.snd")
     
     if objType == "expander-up" then
         CollidableCreate("expander-down", xPos, yPos, vector, speed)
@@ -1019,6 +1041,8 @@ function checkWaveIsOver()
                 ShowAchievement("survival")
             end
             
+            playEffect("newwave.snd")
+            
             --ensure message text is emphasised
             sceneGame:clearScreenFx()
             sceneGame:reshowScreenFx()
@@ -1114,6 +1138,13 @@ function AddNewBall(event)
             end
         end
     end
+    
+    -- first ball ever released
+    if (not sceneGame.score and sceneGame.ballsAddedThisWave == 0) or (sceneGame.score and sceneGame.score.value == 1) then
+        playEffect("newwave.snd")
+        dbg.print("FX!")
+    end
+    
     sceneGame.ballsAddedThisWave = sceneGame.ballsAddedThisWave + 1
     
     if checkWaveIsOver() == true then
@@ -1268,24 +1299,30 @@ end
 
 function sceneGame:borderFlash(side)
     local node = self.background["border" .. side]
-    local duration = 0.03
+    local duration = 0.02
+    local intensity = 0.2
     
     cancelTweensOnNode(node[1])
-    node[1].alpha=0.2
+    node[1].alpha=intensity
     tween:to(node[1], {alpha=0, time=duration})
     
     local delay = 0
     
     for k,v in ipairs(node) do
         if k ~= 1 then
+            intensity = intensity - 0.02
             cancelTweensOnNode(v)
             v.alpha=0
-            tween:to(v, {alpha=0.2, time=duration, delay=delay})
+            tween:to(v, {alpha=intensity, time=duration, delay=delay})
             delay = delay + duration
             tween:to(v, {alpha=0, time=duration, delay=delay})
             
         end
     end
+    
+    playEffect("beep" .. self.beepType .. ".snd")
+    self.beepType = self.beepType + 1
+    if self.beepType == 4 then self.beepType = 1 end
 end
 
 function sceneGame:update(event)
@@ -1327,13 +1364,13 @@ function sceneGame:update(event)
             for k, player in pairs(players) do
                 if player.reverseTimer and type(player.reverseTimer) == "number" then
                     player.reverseTimer = system:addTimer(UnReverse, player.reverseTimer, 1, 0)
-                    player.reverseTimer.player = player.reverseTimerPlayer
+                    player.reverseTimer.player = players[player.reverseTimerPlayer]
                     player.reverseTimerPlayer = nil
                 end
                 
                 if player.cloakTimer and type(player.cloakTimer) == "number" then
                     player.cloakTimer = system:addTimer(EndCloak, player.cloakTimer, 1, 0)
-                    player.cloakTimer.player = player.cloakTimerPlayer
+                    player.cloakTimer.player = players[player.cloakTimerPlayer]
                     player.cloakTimerPlayer = nil
                 end
             end
@@ -1548,19 +1585,24 @@ function sceneGame:update(event)
                             playerHit()
                             GrowDestroy(obj)
                         elseif obj.objType == "expander" then
-                            player:Grow()
-                            FadeDestroy(obj)
+                            if obj.x > minX and obj.x < maxX then
+                                player:Grow()
+                                FadeDestroy(obj)
+                            end
                         elseif obj.objType == "heatseeker" then
                             player:AnimateHit()
                             HeatseekerDestroy(obj)
+                            playEffect("heatseeker.snd")
                         else
                             if obj.objType == "powerup" then
                                 player:AddAmmo(1)
                                 ShrinkDestroy(obj)
+                                playEffect("powerup.snd")
                             elseif obj.objType == "health" then
                                 player:AddHealth(1)
                                 playerHit(true)
                                 ShrinkDestroy(obj)
+                                playEffect("powerup.snd")
                             elseif obj.objType == "cloak" then
                                 if not gameInfo.firstCloak then
                                     gameInfo.firstCloak = true
@@ -2072,7 +2114,9 @@ function sceneGame:saveState()
     if not player1.deadFlag and not player2.deadFlag then
         continueData.controlType = gameInfo.controlType    
         continueData.mode = gameInfo.mode
-        continueData.score = self.score.value
+        if self.score then
+            continueData.score = self.score.value
+        end
         continueData.wave = gameInfo.wave --can be nil
         continueData.powerupLevel = gameInfo.powerupLevel
         continueData.streak = gameInfo.streak
@@ -2122,7 +2166,7 @@ function sceneGame:saveState()
                 if player.reverseTimerLeft <= 0 then --prob not needed, but just in case!
                     player.reverseTimerLeft = nil
                 else
-                    player.reverseTimerPlayer = player.reverseTimer.player
+                    player.reverseTimerPlayer = p.reverseTimer.player.id
                 end
             end
             
@@ -2131,7 +2175,7 @@ function sceneGame:saveState()
                 if player.cloakTimerLeft <= 0 then
                     player.cloakTimerLeft = nil
                 else
-                    player.cloakTimerPlayer = player.cloakTimer.player
+                    player.cloakTimerPlayer = p.cloakTimer.player.id
                 end
             end
             
@@ -2361,6 +2405,8 @@ function sceneGame:setUp(event)
     self:orientation()
     self.rtDontClear = true
     
+    self.beepType = 1 -- for bounce sound effect changing
+    
     -- root object at screen centre. Adding children to it means their coords will be
     -- relative to this position. Annoyingly Quick provides no way to set the origin; instead,
     -- parent's origins are automatically set to their lowest x&y coords.
@@ -2532,6 +2578,10 @@ function sceneGame:setUp(event)
     self.ballSpeed = gameInfo.continue.ballSpeed or SECOND_BALL_SPEED --(pixels/second)
     self.ballCreateQueue = gameInfo.continue.ballCreateQueue or 0 -- queues up balls to add to replace destroyed ones
     self.ballsAddedThisWave = gameInfo.continue.ballsAddedThisWave or 0
+    
+    if gameInfo.controlType ~= "onePlayer" then
+        self.ballSpeed = self.ballSpeed * 2 --too slow for battle otherwise
+    end
 
     self.ballOverrides={}
     
@@ -2589,6 +2639,7 @@ function sceneGame:setBallOverrides(wave, wavePosInSet)
     elseif wave == 2 then
         self.ballOverrides[3]["objType"]="health" -- guarantee introduce powerups
         self.ballOverrides[4]["objType"]="powerup"
+        self.ballOverrides[6]["objType"]="heatseeker"
     elseif wave == 3 then
         self.ballOverrides[5]["objType"]="cloak" -- new powerup
     elseif wave == 4 or wave == 6 then
@@ -3065,6 +3116,7 @@ end
 
 function ExitFromQuitConfirmMenu(touch)
     if touch.phase == "ended" then
+        playEffect("reversebleep.snd")
         sceneGame.pauseMenu.yes.touchCircle:removeEventListener("touch", ExitFromQuitConfirmMenu)
         sceneGame.pauseMenu.no.touchCircle:removeEventListener("touch", BackToPauseMenu)
         

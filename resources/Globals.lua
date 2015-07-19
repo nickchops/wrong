@@ -156,10 +156,10 @@ ALLOWED_BALLS_IN_WAVE = {
     {"health", "cloak", "cloak", "heatseeker", "heatseeker", "heatseeker"}, --3
     {"bullet", "bullet", "bullet", "bullet", "bullet", "bullet", "bullet", "bullet"}, --4
     {"powerup", "cloak", "heatseeker", "heatseeker"}, --5
-    {"powerup", "health", "freezer"}, --6
+    {"powerup", "powerup", "health", "freezer", "freezer"}, --6
     {"expander-up", "expander-up", "expander-up", "expander-up", "health"}, --7
     {"powerup", "heatseeker", "heatseeker", "heatseeker"}, --8
-    {"health", "health", "heatseeker", "cloak", "cloak", "bullet", "bullet", "freezer", "freezer"}, --9
+    {"health", "heatseeker", "cloak", "cloak", "bullet", "bullet", "freezer", "freezer"}, --9
     {"reverser", "reverser", "reverser", "health"}, --10
     {"reverser", "heatseeker", "powerup", "heatseeker", "reverser"}, --11
     {"powerup", "health", "cloak", "bullet", "bullet", "heatseeker", "heatseeker", "expander-up", "expander-up","reverser", "freezer"} --12
@@ -178,7 +178,7 @@ BALL_PROBABILITY_IN_WAVE = { --effectively inserts this number of blue "ball" ty
     5, --3
     1, --4
     4, --5
-    3, --6
+    6, --6
     2, --7
     2, --8
     2, --9
@@ -202,6 +202,7 @@ gameInfo.streak = 0
 gameInfo.maxStreak = 0
 gameInfo.mode = "waves"
 gameInfo.soundOn = true
+gameInfo.soundFxOn = true
 gameInfo.titleMusicPlaying = false
 gameInfo.shouldLogIntoGameServices = true
 

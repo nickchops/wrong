@@ -203,6 +203,7 @@ function Player:Fire(weaponOverride)
             -- some objects dont need speed as their velocity never changes
             local speed = 750
             local bullet = CollidableCreate("bullet", xPos, self.sled.y, {x=self.mirrorX*speed, y=0}, speed)
+            playEffect("shoot.snd")
         elseif weapon == "ball" then
             local minAngle
             local maxAngle
@@ -219,17 +220,19 @@ function Player:Fire(weaponOverride)
                 -- dangerous esp if fired when waveleft = 1!
                 checkWaveIsOver()
             end
-            
+            playEffect("shoot.snd")
             AddBall{xPos=xPos, yPos=self.sled.y, minAngle=minAngle, maxAngle=maxAngle, allowedBallTypes = {"ball"}}
         elseif weapon == "expander" then
             local speed = 500
-            local bullet = CollidableCreate("expander-up", xPos, self.sled.y, {x=self.mirrorX*speed, y=0}, speed)
-            local bullet = CollidableCreate("expander-down", xPos, self.sled.y, {x=self.mirrorX*speed, y=0}, speed)
+            CollidableCreate("expander-up", xPos, self.sled.y, {x=self.mirrorX*speed, y=0}, speed)
+            CollidableCreate("expander-down", xPos, self.sled.y, {x=self.mirrorX*speed, y=0}, speed)
+            playEffect("shoot.snd")
         elseif weapon == "air" then
             local fxTimer = self.sled:addTimer(AirFX, 0.2, 3, 0)
             fxTimer.x = self.sled.x + self.mirrorX*8
             fxTimer.y = self.sled.y
             fxTimer.initAlpha = 1
+            playEffect("air.snd")
         elseif weapon == "freezer" then
             -- we can safely queue up multiple timers (all cancelled on sled destruction)
             self.sled:addTimer(FreezePlayers, 1, 1, 0)
@@ -238,6 +241,7 @@ function Player:Fire(weaponOverride)
             fxTimer.x = self.sled.x + self.mirrorX*8
             fxTimer.y = self.sled.y
             fxTimer.initAlpha = 1
+            playEffect("freeze.snd")
         elseif weapon == "heatseeker" then
             local speed = 400
             if gameInfo.controlType == "onePlayer" then
@@ -245,6 +249,7 @@ function Player:Fire(weaponOverride)
             end
             local bullet = CollidableCreate("heatseeker", xPos, self.sled.y, {x=self.mirrorX*speed, y=0}, speed)
             bullet.enemy = self.enemy
+            playEffect("shoot.snd")
         elseif weapon == "reverser" then
             ReverserFx(1, self.enemy.sled)
             if self.enemy.reverseTimer then
@@ -257,6 +262,7 @@ function Player:Fire(weaponOverride)
             end
             self.enemy.reverseTimer = system:addTimer(UnReverse, 4, 1, 0) --system timer to allow for sled destruction
             self.enemy.reverseTimer.player = self.enemy
+            playEffect("arcadebleep.snd")
         end
 
         self.weaponsMeter:Fire(weaponOverride) --deprecate ammo and switch weapon if current is empty
@@ -281,6 +287,7 @@ UnReverse = function(event)
     sceneGame.reverseStarted = nil --only relevant in 1 player where both sleds always reverse together
     local player = event.timer.player
     ReverserFx(-1, player.sled)
+    playEffect("reversebleep.snd")
 
     -- dif between finger and sled has changed, so recalculate if still touching
     if player.moveWithFinger then
@@ -317,6 +324,7 @@ function Player:TakeHit()
     sceneGame.background.painMask.yScale=1
     sceneGame.background.painMask.alpha=0.35
     tween:to(sceneGame.background.painMask, {alpha=0, time=0.4, xScale=1.2, yScale=1.2})
+    playEffect("hit1.snd")
             
     --dbg.print("HIT! player=" .. self.id)
     self.health:Increment(-1)
@@ -345,12 +353,14 @@ end
 function Player:Grow()
     if self.newHalfHeight < maxSledHalfHeight then
         self.newHalfHeight = self.newHalfHeight + sledExpandSize
+        playEffect("zipup.snd")
     end
 end
 
 function Player:Shrink()
     if self.newHalfHeight > initSledHalfHeight then
         self.newHalfHeight = self.newHalfHeight - sledExpandSize
+        playEffect("zipup.snd")
     end
 end
 
@@ -368,6 +378,7 @@ function Player:Cloak()
 
     self.cloakTimer = system:addTimer(EndCloak, 3, 1)
     self.cloakTimer.player = self --allow timer to access player itself when timer fires
+    playEffect("fizzleout.snd")
 end
 
 EndCloak = function(event)
@@ -523,7 +534,13 @@ end
 ExplodeFX = function(event)
     local timer = event.timer
     local duration = timer.duration + event.doneIterations*0.1 -- each wave is a little slower
-
+    
+    if event.doneIterations < timer.waves * 0.6 then
+        playEffect("zipup.snd")
+    else
+        playEffect("arcadebleep.snd")
+    end
+    
     if event.doneIterations == 1 or event.doneIterations == timer.waves then
         ringColour = color.red
     elseif event.doneIterations == 2 or event.doneIterations == timer.waves-1 then
