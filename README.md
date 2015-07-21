@@ -54,7 +54,8 @@ You need to copy the contents of engine_mods over the root Marmalade dir (e.g. c
 
 Currently this fixes in 7.8.0 and older:
 
-- A bug in render texture memory management
+- QRenderTexture.cpp: Fixes a bug in render texture memory management. Game will crash in garbage collection without this.
+- QMain.cpp: Makes .lua loading measurably faster. Not needed, but useful!
 
 ------------------------------------------------------------------------------------------
 
