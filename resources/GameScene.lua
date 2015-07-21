@@ -1460,7 +1460,7 @@ function sceneGame:update(event)
                     -- if finger is up, keep moving but decelerate by 100pix/sec (cheap approximation)
                     player.sled.y = player.sled.y + player.velocity*system.deltaTime
                     
-                    local decel = 100*system.deltaTime
+                    local decel = 80*system.deltaTime
 
                     if player.velocity > 0 then
                         player.velocity = math.max(0, player.velocity - decel)
@@ -1623,8 +1623,8 @@ function sceneGame:update(event)
             end
             
             -- Destroy non-bouncing objects (bullets etc) once well off screen:
-            -- Bullets and expanders are only objects that can go "behind" a player, for one frame
-            -- We should count these as collisions as they
+            -- Bullets and expanders are only objects that can go "behind" a player,
+            -- We should count these as collisions for a short distance as they
             -- likely "hit" the player (player may have slid in front of them after they passed,
             -- but player cant see this so who cares!)
             -- Therefore, we do this *after* checking for collision with player.
@@ -1791,6 +1791,8 @@ function touchReleaseTimer(event)
 end
 
 function sceneGame:touch(touch)
+    if sceneGame.gamePaused then return end -- shouldn't be needed, but pause touch event doesnt seem to stop touch propagating
+    
     if sceneGame.endTimer then
         return
     end
@@ -2903,7 +2905,10 @@ function gameBackKeyListener(event)
 end
 
 function PauseGame(touch)
-    if touch.phase == "ended" then
+    -- using began, not ended here... either bug or Im doing something dumb, but
+    -- system touch event is firing even though returning true, so a player
+    -- will fire on the began event otherwise
+    if touch.phase == "began" then
         sceneGame.gamePaused = true
         cancelTweensOnNode(sceneGame.pauseMenu) --can touch while still re-appearing
         

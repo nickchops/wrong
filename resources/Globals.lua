@@ -154,10 +154,10 @@ ALLOWED_BALLS_IN_WAVE = {
     {}, --1
     {"powerup", "powerup", "powerup", "health"}, --2
     {"health", "cloak", "cloak", "heatseeker", "heatseeker", "heatseeker"}, --3
-    {"bullet", "bullet", "bullet", "bullet", "bullet", "bullet", "bullet", "bullet"}, --4
-    {"powerup", "cloak", "heatseeker", "heatseeker"}, --5
+    {"bullet", "bullet", "bullet", "bullet", "bullet", "bullet", "bullet", "bullet", "bullet", "bullet", "health"}, --4
+    {"powerup", "cloak", "heatseeker", "heatseeker", "heatseeker"}, --5
     {"powerup", "powerup", "health", "freezer", "freezer"}, --6
-    {"expander-up", "expander-up", "expander-up", "expander-up", "health"}, --7
+    {"expander-up", "expander-up", "expander-up", "expander-up", "health", "powerup"}, --7
     {"powerup", "heatseeker", "heatseeker", "heatseeker"}, --8
     {"health", "heatseeker", "cloak", "cloak", "bullet", "bullet", "freezer", "freezer"}, --9
     {"reverser", "reverser", "reverser", "health"}, --10
@@ -174,17 +174,17 @@ BATTLE_UNLOCKED_STREAK = 25
 
 BALL_PROBABILITY_IN_WAVE = { --effectively inserts this number of blue "ball" types into the tables above
     1, --1
-    4, --2
+    5, --2
     5, --3
-    1, --4
-    4, --5
-    6, --6
-    2, --7
+    3, --4
+    5, --5
+    8, --6
+    5, --7
     2, --8
-    2, --9
+    3, --9
     5, --10
     3, --11
-    3  --12
+    4  --12
 }
 
 POWERUP_PROBABILITY_IN_WAVE = {}

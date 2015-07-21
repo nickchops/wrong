@@ -285,10 +285,31 @@ function menuEnterNameForScore()
             color=menuBlue, strokeWidth=0})
     sceneMainMenu.nameCursor:addChild(topCursor)
     
-    -- poll at intervals so stick position slowly changes selected character
-    -- TODO: this is annoying as misses some first moves. Should use callback that fires
-    -- immediately and then also queues the timer and finally cancels the timer on reing released
-    sceneMainMenu.joyTimer = system:addTimer(menuCheckNameInput, 0.25, 0)
+    sceneMainMenu.joystick:setMoveListener(sceneMainMenu.joyListener)
+end
+
+function sceneMainMenu.joyListener(x,y,state)
+    if state == "began" then
+        -- get value very shortly after push...
+        sceneMainMenu.joyTimer = system:addTimer(sceneMainMenu.joyStartTimer, 0.07, 1)
+    elseif state == "ended" then
+        if sceneMainMenu.joyTimer then
+            sceneMainMenu.joyTimer:cancel()
+            sceneMainMenu.joyTimer = nil
+        end
+    end
+end
+
+-- then get second value only after a big delay
+function sceneMainMenu.joyStartTimer(event)
+    menuCheckNameInput()
+    sceneMainMenu.joyTimer = system:addTimer(sceneMainMenu.joyStartTimerRepeat, 0.5, 1)
+end
+
+-- then get 3rd, 4th, etc quickly after that
+function sceneMainMenu.joyStartTimerRepeat(event)
+    menuCheckNameInput()
+    sceneMainMenu.joyTimer = system:addTimer(menuCheckNameInput, 0.15, 0)
 end
 
 function setScoreLabel()
@@ -334,6 +355,8 @@ function menuCheckNameInput(event)
         --dbg.print("Cycle char at (" .. tostring(sceneMainMenu.nameIndex) .. ") to: #" .. newCharId .. " = '" .. sceneMainMenu.nameChars[newCharId] .."'")
         sceneMainMenu.nameInput[sceneMainMenu.nameIndex] = newCharId
         
+        playEffect("beep2.snd")
+        
     elseif xChange ~= 0 then --switch which character to change
         local incr = 1
         if xChange < 0 then
@@ -350,6 +373,8 @@ function menuCheckNameInput(event)
         ]]--
         
         sceneMainMenu.nameCursor.x = appWidth/2 - 52 + (sceneMainMenu.nameIndex-1)*8
+        
+        playEffect("beep3.snd")
     end
     
     if xChange ~= 0 or yChange ~= 0 then
@@ -367,8 +392,10 @@ function menuSaveScoreName(buttonDown)
         sceneMainMenu.newHighScoreDisplayFlag = "postInput" --allow controls to tween out on orientation
         sceneMainMenu.nameCursor = sceneMainMenu.nameCursor:removeFromParent()
         
-        sceneMainMenu.joyTimer:cancel()
-        sceneMainMenu.joyTimer=nil
+        if sceneMainMenu.joyTimer then
+            sceneMainMenu.joyTimer:cancel()
+            sceneMainMenu.joyTimer=nil
+        end
         sceneMainMenu.joystick:deactivate()
         sceneMainMenu.scoreSaveButton:deactivate()
         system:removeEventListener("key", menuBackKeyListener)
@@ -387,6 +414,8 @@ function menuSaveScoreName(buttonDown)
         analytics:logEvent("saveData", {scoreName=gameInfo.name})
         sceneMainMenu:activateScoreArrowButtons()
         sceneMainMenu.nameChars = nil
+        
+        playEffect("newwave.snd")
     else
         dbg.print("score save button pushed!")
     end
@@ -1170,6 +1199,21 @@ function touchSound(self, event)
     end
 end
 
+function touchSoundFx(self, event)
+    if event.phase == "ended" then
+        if gameInfo.soundFxOn then
+            analytics:logEvent("turnOffSoundFx")
+            gameInfo.soundFxOn = false
+            sceneMainMenu.btns.soundFx.color = {75,85,110}
+        else
+            analytics:logEvent("turnOnSoundFx")
+            gameInfo.soundFxOn = true
+            playEffect("newwave.snd")
+            sceneMainMenu.btns.soundFx.color = color.white
+        end
+    end
+end
+
 function touchVibrate(self, event)
     if event.phase == "ended" then
         if gameInfo.vibrateOn then
@@ -1792,7 +1836,7 @@ function sceneMainMenu:setUp(event)
     dbg.print("sceneMainMenu:setUp")
     
     system:addEventListener({"suspend", "resume", "update", "orientation"}, self)
-    --system:addEventListener({"suspend", "resume", "update"}, self)
+    --system:addEventListener({"suspend", "resume", "update"}, self) --for testing with vr/orientation disabled
     
     math.randomseed(os.time())
     
@@ -1823,6 +1867,9 @@ function sceneMainMenu:setUp(event)
     local hillColor=color.white
     local titlePartsY = 80
     self.titleY = 0
+    
+    -- debug: draw something to see startup time clearly.
+    --self.bgRenderTest = director:createRectangle({x=0,y=0,w=appWidth,h=appHeight, color=color.white})
     
     self.title = director:createNode({x=appWidth/2,y=self.titleY})
     self.title.origin = director:createNode({x=-appWidth/2,y=0})
@@ -1953,12 +2000,12 @@ function sceneMainMenu:setUp(event)
     
     self:createServicesButtonTouch("facebook", "facebook", touchFacebook)
     self:createServicesButtonTouch("twitter", "twitter", touchTwitter)
-    local extraServiceBtns = 0
+    local serviceBtns = 2
     local column = 1
     
     if storeName then
         self:createServicesButtonTouch("rate", "rate_" .. storeName, touchRate)
-        extraServiceBtns = extraServiceBtns + 1
+        serviceBtns = serviceBtns + 1
     end
     
     if extraBtnCount >= 2 then
@@ -1966,24 +2013,33 @@ function sceneMainMenu:setUp(event)
         -- and dont want to overwrite self.btn.highscores, etc
         self:createServicesButtonTouch("highscores_icon", "highscores", touchHighScores)
         self:createServicesButtonTouch("achievements_icon", "achievements", touchAchievements)
-        extraServiceBtns = extraServiceBtns + 2
+        serviceBtns = serviceBtns + 2
     end
     
-    if extraServiceBtns > 1 then
-        column = 2
-    end
+    if serviceBtns > 4 then column = column + 1 end
     
     local soundBtn = self:createServicesButtonTouch("sound", "sound", touchSound, column)
+    serviceBtns = serviceBtns + 1
     if not gameInfo.soundOn then
         soundBtn.color = {75,85,110}
     end
     
-    if column == 2 then
-        column = 3
+    if serviceBtns > 4 then column = column + 1 end
+    
+    local soundFxBtn = self:createServicesButtonTouch("soundFx", "sound_fx", touchSoundFx, column)
+    serviceBtns = serviceBtns + 1
+    if not gameInfo.soundFxOn then
+        soundFxBtn.color = {75,85,110}
     end
+    
+    if serviceBtns > 4 then column = column + 1 end
     
     if device:isVibrationAvailable() then
         local vibrateBtn = self:createServicesButtonTouch("vibrate", "vibrate", touchVibrate, column)
+        serviceBtns = serviceBtns + 1
+        
+        if serviceBtns > 4 then column = column + 1 end
+        
         if gameInfo.vibrateOn == nil then
             gameInfo.vibrateOn = true
         end
@@ -1993,12 +2049,13 @@ function sceneMainMenu:setUp(event)
             device:disableVibration()
             vibrateBtn.color = {75,85,110}
         end
-        
-        column = column + 1
     end
     
-    if googlePlayServices and googlePlayServices.isAvailable() then
+    if true then --googlePlayServices and googlePlayServices.isAvailable() then
         local playServicesBtn = self:createServicesButtonTouch("playServices", "google_play_services", touchPlayServices, column)
+        serviceBtns = serviceBtns + 1
+        if serviceBtns > 4 then column = column + 1 end
+        
         if not sceneMainMenu.gotPlayServices then
             playServicesBtn.color = {75,85,110}
         end
@@ -2081,6 +2138,7 @@ function sceneMainMenu:setUp(event)
         end
         
         tween:to(self.btns.sound, {yScale=self.btns.sound.defaultScale, time=0.1, delay=btnDelay})
+        tween:to(self.btns.soundFx, {yScale=self.btns.soundFx.defaultScale, time=0.1, delay=btnDelay})
         
         if self.btns.vibrate then
             tween:to(self.btns.vibrate, {yScale=self.btns.vibrate.defaultScale, time=0.1, delay=btnDelay})
