@@ -1457,7 +1457,7 @@ function sceneGame:update(event)
                             - player.touches[player.moveWithFinger].touchPosDiff
                     end
                 else
-                    -- if finger is up, keep moving but decelerate by 100pix/sec (cheap approximation)
+                    -- if finger is up, keep moving but decelerate by 80pix/sec (cheap approximation)
                     player.sled.y = player.sled.y + player.velocity*system.deltaTime
                     
                     local decel = 80*system.deltaTime

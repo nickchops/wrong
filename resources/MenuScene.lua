@@ -1787,36 +1787,38 @@ function sceneMainMenu.playServicesListener(event)
                         if gameInfo.achievements[k] ~= true then
                             gameInfo.achievements[k] = true
                             
-                            -- cheap way to put new mode buttons onto menu wihtout rebuilding the whole thing...
-                            if k == "survival" and not sceneMainMenu.btns["survival"] then --check btn just in case
-                                newBtnOffset = newBtnOffset + 40
-                                sceneMainMenu.btnsOrigin.y = sceneMainMenu.btnsOrigin.y - 20
-                                local btn = director:createLabel({x=0, y=newBtnOffset, w=250, h=50, xAnchor=0, yAnchor=0,
-                                        hAlignment="left", vAlignment="bottom", text="Survival Mode", color=menuBlue,
-                                        font=fontMainLarge, yScale=0})
-                                createLabelTouchBox(btn, touchSurvival)
-                                sceneMainMenu.btnsOrigin:addChild(btn)
-                                sceneMainMenu.btns["survival"] = btn
-                                
-                                if sceneMainMenu.menuActive then
-                                    tween:to(btn, {xScale=1, yScale=1, alpha=1, time=0.3})
-                                    btn.touchArea:addEventListener("touch", btn.touchArea)
+                            if sceneMainMenu.btns then
+                                -- cheap way to put new mode buttons onto menu without rebuilding the whole thing...
+                                if k == "survival" and not sceneMainMenu.btns["survival"] then --check btn just in case
+                                    newBtnOffset = newBtnOffset + 40
+                                    sceneMainMenu.btnsOrigin.y = sceneMainMenu.btnsOrigin.y - 20
+                                    local btn = director:createLabel({x=0, y=newBtnOffset, w=250, h=50, xAnchor=0, yAnchor=0,
+                                            hAlignment="left", vAlignment="bottom", text="Survival Mode", color=menuBlue,
+                                            font=fontMainLarge, yScale=0})
+                                    createLabelTouchBox(btn, touchSurvival)
+                                    sceneMainMenu.btnsOrigin:addChild(btn)
+                                    sceneMainMenu.btns["survival"] = btn
+                                    
+                                    if sceneMainMenu.menuActive then
+                                        tween:to(btn, {xScale=1, yScale=1, alpha=1, time=0.3})
+                                        btn.touchArea:addEventListener("touch", btn.touchArea)
+                                    end
                                 end
-                            end
 
-                            if k == "battle" and not sceneMainMenu.btns["2pLocal"] then
-                                newBtnOffset = newBtnOffset + 40
-                                sceneMainMenu.btnsOrigin.y = sceneMainMenu.btnsOrigin.y - 20
-                                local btn = director:createLabel({x=0, y=newBtnOffset, w=250, h=50, xAnchor=0, yAnchor=0,
-                                        hAlignment="left", vAlignment="bottom", text="Battle", color=menuBlue,
-                                        font=fontMainLarge, yScale=0})
-                                createLabelTouchBox(btn, touch2pLocal)
-                                sceneMainMenu.btnsOrigin:addChild(btn)
-                                sceneMainMenu.btns["2pLocal"] = btn
-                                
-                                if sceneMainMenu.menuActive then
-                                    tween:to(btn, {xScale=1, yScale=1, alpha=1, time=0.3})
-                                    btn.touchArea:addEventListener("touch", btn.touchArea)
+                                if k == "battle" and not sceneMainMenu.btns["2pLocal"] then
+                                    newBtnOffset = newBtnOffset + 40
+                                    sceneMainMenu.btnsOrigin.y = sceneMainMenu.btnsOrigin.y - 20
+                                    local btn = director:createLabel({x=0, y=newBtnOffset, w=250, h=50, xAnchor=0, yAnchor=0,
+                                            hAlignment="left", vAlignment="bottom", text="Battle", color=menuBlue,
+                                            font=fontMainLarge, yScale=0})
+                                    createLabelTouchBox(btn, touch2pLocal)
+                                    sceneMainMenu.btnsOrigin:addChild(btn)
+                                    sceneMainMenu.btns["2pLocal"] = btn
+                                    
+                                    if sceneMainMenu.menuActive then
+                                        tween:to(btn, {xScale=1, yScale=1, alpha=1, time=0.3})
+                                        btn.touchArea:addEventListener("touch", btn.touchArea)
+                                    end
                                 end
                             end
                         end
