@@ -520,7 +520,6 @@ function ShowMessage(message, delay, shrink, expandDir, vDisplacement, xPos, yPo
 end
 
 function ShowAchievement(achievementId)
-    gameInfo.achievements[achievementId] = true
     sceneGame:reshowScreenFx()
     if not gameInfo.achievements[achievementId] then
         gameInfo.achievements[achievementId] = true
@@ -1020,8 +1019,9 @@ function checkWaveIsOver()
             
             -- Note that message display will clear screenFx and set its alpha back on
             
-            sceneGame.waveLeft:SetValue(INIT_WAVE_SIZE+gameInfo.wave+1)
-            --increase by 2 on 2nd wave (go from super easy intro to real difficulty!)
+            sceneGame.waveLeft:SetValue(math.min(INIT_WAVE_SIZE+gameInfo.wave+1, MAX_WAVE_SIZE))
+            -- +1 is to increase by 2 on 2nd wave (go from super easy intro to decent difficulty!)
+            
             gameInfo.wave = gameInfo.wave + 1
             ShowMessage("WAVE " .. gameInfo.wave, 0, false, "up")
             if gameInfo.controlType == "onePlayer" and gameInfo.wave == 2 then
@@ -1063,7 +1063,7 @@ function checkWaveIsOver()
                 sceneGame.ballInitTimer:cancel() --maybe user created balls with weapon before timer finished!
             end
             sceneGame.ballTimer:cancel() --safe to cancel as not yet nilled
-            local newBallDelay = math.min(sceneGame.ballTimer.ballDelay+1, MAX_NEW_BALL_DELAY)
+            local newBallDelay = math.min(sceneGame.ballTimer.ballDelay+NEW_BALL_DELAY_STEP, MAX_NEW_BALL_DELAY)
             sceneGame.ballTimer = system:addTimer(AddNewBall, newBallDelay, 1)
             sceneGame.ballTimer.ballDelay = newBallDelay
             sceneGame.ballInitTimer = system:addTimer(AddNewBall, INITIAL_BALL_DELAY, math.min(INITIAL_BALL_QUEUE+gameInfo.wave-1, MAX_INIT_BALLS))

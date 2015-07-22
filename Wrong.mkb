@@ -24,6 +24,15 @@ files
     .
 }
 
+subprojects
+{
+    s3eAndroidFullscreen
+    dpi/PixelDensity
+    IwGameController
+    s3eFlurry
+    s3eGooglePlayServices
+}
+
 assets
 {
 	(resources)
@@ -51,15 +60,12 @@ assets
 	<include common>
 	(resources-precompiled)
 	.
-}
-
-subprojects
-{
-    s3eAndroidFullscreen
-    dpi/PixelDensity
-    IwGameController
-    s3eFlurry
-    s3eGooglePlayServices
+    
+    ["ios_game_services"]
+    <include GOOGLEPLAYSERVICES_IOS_ASSETS>
+    
+    (resources)
+	.
 }
 
 deployments
@@ -71,7 +77,7 @@ deployments
     #splashscreen = "splash-768x768.jpg"
     
     version-major = "1"
-    version-minor = "0"
+    version-minor = "1"
     version-revision = "0"
     
     app-icf="resources/common.icf,resources/app.icf,resources/win_deploy.icf"
@@ -79,7 +85,11 @@ deployments
     win32-pref-processtitle="W R O N G"
     
     #Google play services (OK to publish this - GPS app needs private key/hash that matches android signing cert)
+
     android-extra-strings='(gps_app_id,838719101791)'
+    
+    iphone-extra-string='(gps_app_id,838719101791-ccnvtl2hjphr87vi178pk3bh9qb737ml.apps.googleusercontent.com)'
+    iphone-bundle-url-schemes='<IO_GPS_URL_SCHEME>'
     
     # App ID for Facebook apps
     #android-extra-strings='(app_id,fb_app_id)'

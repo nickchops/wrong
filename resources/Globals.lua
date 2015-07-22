@@ -31,8 +31,12 @@ FIRST_BALL_SPEED = 110 --first few balls should be fast to keep play interesting
 INITIAL_BALL_QUEUE = 4
 INITIAL_BALL_DELAY = 0.6
 MAX_INIT_BALLS = 7
-INTIAL_NEW_BALL_DELAY = 7 --seconds between adding balls
+INTIAL_NEW_BALL_DELAY = 7.5 --seconds between adding balls
+NEW_BALL_DELAY_STEP = 0.65 --delay increments by 0.7 seconds per wave
+MAX_WAVE_SIZE = 18
 MAX_NEW_BALL_DELAY = 12
+--max time is couple of secs for first 7 balls + (18-7)*12 for rest. = about 134 seconds
+
 FIGHT_NEW_BALL_DELAY = 12
 REPLACE_BALL_DELAY = 0.3 -- seconds between replacing destroyed balls
 NEW_BALL_SPEED_INCREASE = 4.5
@@ -153,10 +157,10 @@ WEAPON_MOVE_AMOUNT_X = dpiScaler:getSize(90)
 ALLOWED_BALLS_IN_WAVE = {
     {}, --1
     {"powerup", "powerup", "powerup", "health"}, --2
-    {"health", "cloak", "cloak", "heatseeker", "heatseeker", "heatseeker"}, --3
+    {"cloak", "cloak", "heatseeker", "heatseeker", "heatseeker"}, --3
     {"bullet", "bullet", "bullet", "bullet", "bullet", "bullet", "bullet", "bullet", "bullet", "bullet", "health"}, --4
     {"powerup", "cloak", "heatseeker", "heatseeker", "heatseeker"}, --5
-    {"powerup", "powerup", "health", "freezer", "freezer"}, --6
+    {"powerup", "powerup", "health", "freezer", "freezer", "freezer"}, --6
     {"expander-up", "expander-up", "expander-up", "expander-up", "health", "powerup"}, --7
     {"powerup", "heatseeker", "heatseeker", "heatseeker"}, --8
     {"health", "heatseeker", "cloak", "cloak", "bullet", "bullet", "freezer", "freezer"}, --9
@@ -176,7 +180,7 @@ BALL_PROBABILITY_IN_WAVE = { --effectively inserts this number of blue "ball" ty
     1, --1
     5, --2
     5, --3
-    3, --4
+    5, --4
     5, --5
     8, --6
     5, --7
