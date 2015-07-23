@@ -85,12 +85,17 @@ deployments
     win32-pref-processtitle="W R O N G"
     
     #Google play services (OK to publish this - GPS app needs private key/hash that matches android signing cert)
-
     android-extra-strings='(gps_app_id,838719101791)'
     
-    iphone-extra-string='(gps_app_id,838719101791-ccnvtl2hjphr87vi178pk3bh9qb737ml.apps.googleusercontent.com)'
-    iphone-bundle-url-schemes='<IO_GPS_URL_SCHEME>'
+    # Not sure if these are safe to go pubic yet... have moved out for now!
+    #iphone-extra-string= # set in deploy_pvt
+    #iphone-bundle-url-schemes= # set in deploy_pvt
     
     # App ID for Facebook apps
     #android-extra-strings='(app_id,fb_app_id)'
+}
+
+if {{ os.path.exists("private_nsmith/deploy_pvt.mkf") }}
+{
+    subproject private_nsmith/deploy_pvt.mkf
 }

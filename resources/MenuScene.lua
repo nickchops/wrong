@@ -779,10 +779,16 @@ end
 -- buttons and handler to close sub-menu (high scores, about, etc)
 
 function showMainMenu()
+    if sceneMainMenu.btns then
+        -- safe place to cancel glowing if we were logged in while button wasn't visible
+        cancelTweensOnNode(sceneMainMenu.btns.playServices)
+    end
+    
     sceneMainMenu:restoreButtonsAnim()
     sceneMainMenu:addMainMenuListeners()
     
     sceneMainMenu:titleFlash()
+    
 end
 
 function menuBackKeyListener(event)
@@ -969,7 +975,8 @@ function MenuStartGame()
     -- Try to log in now if we didnt already. Will suspend game state. If it doesn't
     -- code should be safe anyway
     if googlePlayServices and not sceneMainMenu.gotPlayServices and gameInfo.shouldLogIntoGameServices then
-        sceneMainMenu.gameServicesLogin(nil, true)
+        sceneMainMenu.waitingForServicesLogin = sceneMainMenu.goToGameScene
+        waitForServicesLogin = sceneMainMenu.gameServicesLogin(nil, true) --sets waitingForServicesLogin nil if fires immediately
     end
     
     -- Just in case! A good time to force re-hiding in case OS showed for some reason
@@ -986,6 +993,13 @@ function MenuStartGame()
         --require("GameScene")
         gameSceneLoadFlag = true
     end
+    
+    if not sceneMainMenu.waitingForServicesLogin then
+        sceneMainMenu.goToGameScene()
+    end
+end
+
+function sceneMainMenu.goToGameScene()
     director:moveToScene(sceneGame, {transitionType="slideInT", transitionTime=0.8})
 end
 
@@ -1109,43 +1123,67 @@ end
 
 function touchAbout(self, event)
     if event.phase == "ended" then
-        sceneMainMenu:buttonPressedAnim("about")
-        analytics:logEvent("showAbout")
-        sceneMainMenu.title.menuTween = tween:to(sceneMainMenu.title,
-            {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayAbout})
-        sceneMainMenu.title.nextMenu = menuDisplayAbout
-        sceneMainMenu.subMenu = "about"
-        playEffect("arcadebleep.snd")
+        if sceneMainMenu.gameServicesTimer then
+            sceneMainMenu.waitingForServicesLogin = sceneMainMenu.goToAbout
+            sceneMainMenu.gameServicesLogin(nil, false)
+        end
+        
+        if not sceneMainMenu.waitingForServicesLogin then
+            sceneMainMenu.goToAbout()
+        end
     end
+end
+
+function sceneMainMenu.goToAbout()
+    sceneMainMenu:buttonPressedAnim("about")
+    analytics:logEvent("showAbout")
+    sceneMainMenu.title.menuTween = tween:to(sceneMainMenu.title,
+        {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayAbout})
+    sceneMainMenu.title.nextMenu = menuDisplayAbout
+    sceneMainMenu.subMenu = "about"
+    playEffect("arcadebleep.snd")
 end
 
 function touchHighScores(self, event)
     if event.phase == "ended" then
         if sceneMainMenu.gameServicesTimer then
-            sceneMainMenu.gameServicesLogin(nil, true)
+            sceneMainMenu.waitingForServicesLogin = sceneMainMenu.goToHighScoresMenu
+            sceneMainMenu.gameServicesLogin(nil, false)
         end
         
-        sceneMainMenu:buttonPressedAnim("highscores")
-        sceneMainMenu.title.menuTween = tween:to(sceneMainMenu.title, {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayHighScoreScreen})
-        sceneMainMenu.title.nextMenu = menuDisplayHighScoreScreen
-        sceneMainMenu.subMenu = "highscores"
-        playEffect("arcadebleep.snd")
+        if not sceneMainMenu.waitingForServicesLogin then
+            sceneMainMenu.goToHighScoresMenu()
+        end
     end
-    --dbg.print("NODE touch listener test - " .. event.phase .. " - x,y=" .. event.x .. "," .. event.y)
+end
+
+function sceneMainMenu.goToHighScoresMenu()
+    sceneMainMenu:buttonPressedAnim("highscores")
+    sceneMainMenu.title.menuTween = tween:to(sceneMainMenu.title, {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayHighScoreScreen})
+    sceneMainMenu.title.nextMenu = menuDisplayHighScoreScreen
+    sceneMainMenu.subMenu = "highscores"
+    playEffect("arcadebleep.snd")
 end
 
 function touchAchievements(self, event)
     if event.phase == "ended" then
         if sceneMainMenu.gameServicesTimer then
-            sceneMainMenu.gameServicesLogin(nil, true)
+            sceneMainMenu.waitingForServicesLogin = sceneMainMenu.goToAchievementsMenu
+            sceneMainMenu.gameServicesLogin(nil, false)
         end
-
-        sceneMainMenu:buttonPressedAnim("achievements")
-        sceneMainMenu.title.menuTween = tween:to(sceneMainMenu.title, {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayAchievementsScreen})
-        sceneMainMenu.title.nextMenu = menuDisplayAchievementsScreen
-        sceneMainMenu.subMenu = "achievements"
-        playEffect("arcadebleep.snd")
+        
+        if not sceneMainMenu.waitingForServicesLogin then
+            sceneMainMenu.goToAchievementsMenu()
+        end
     end
+end
+
+function sceneMainMenu.goToAchievementsMenu()
+    sceneMainMenu:buttonPressedAnim("achievements")
+    sceneMainMenu.title.menuTween = tween:to(sceneMainMenu.title, {y=sceneMainMenu.screenMinY-350, xScale=3, yScale=2, time=1.0, delay=0.3, onComplete=menuDisplayAchievementsScreen})
+    sceneMainMenu.title.nextMenu = menuDisplayAchievementsScreen
+    sceneMainMenu.subMenu = "achievements"
+    playEffect("arcadebleep.snd")
 end
 
 function touchFacebook(self, event)
@@ -1693,6 +1731,8 @@ function sceneMainMenu.gameServicesInit()
     else
         dbg.assert(false, "! Google Play Services wrapper not found !")
     end
+    
+    --cooment out these to test flow on desktop: googlePlayServices = nil
 end
 
 function sceneMainMenu.gameServicesLogin(event, dontAnimate)
@@ -1703,17 +1743,100 @@ function sceneMainMenu.gameServicesLogin(event, dontAnimate)
         sceneMainMenu.gameServicesTimer = nil
     end
     
-    if not dontAnimate then
-        sceneMainMenu.btns.playServices.color = {75,85,110}
-        tween:to(sceneMainMenu.btns.playServices, {color={r=255,g=255,b=255}, time=2, mode="mirror"})
+    -- login dialog if not on Android. Android docs say to auto-login but
+    -- UX is nasty (user can just be shown a random info free safari login) so
+    -- prefer to tell user what's going on.
+    if device:getInfo("platform") ~= "ANDROID" then
+        local splash = director:createRectangle({x=(appWidth*0.3)/2, y=(appWidth*0.3)/2, w=appWidth*0.7, h=appHeight*0.7,
+                color=color.black, strokeColor=menuGreen, strokeWidth=5})
+        
+        splash.title = director:createLabel({x=0, y=splash.h-60, w=splash.w, h=30, text="Game Services Sign-In",
+                font=fontMainLarge, color=menuBlue, hAlignment="centre", vAlignment="centre"})
+        splash:addChild(splash.title)
+        
+        splash.text = director:createLabel({x=splash.w*0.1, y=140, w=splash.w*0.84, h=splash.h*0.6, text="Do you want to use Google Game Services to store and share high scores & achievements?\n\nThis will auto-backup your scores and let you compete against friends on iOS and Android\n\nSign-in to connect via Google+ or browser...        ", font=fontMainSmall, color=menuGreen})
+        splash:addChild(splash.text)
+        --note: the spaces after "browser" compensate for a but where the string length assumes \n is characters
+        --without it, characters will be trimmed out of the end of the string! Bug ticket filed!
+        
+        splash.yes = director:createRectangle({x=splash.w/2-100, y=65, w=150, h=50, xAnchor=0.5, yAnchor=0.5,
+                color={0,50,0}, strokeColor=menuGreen, strokeWidth=5})
+        splash:addChild(splash.yes)
+        
+        splash.yes.text = director:createLabel({x=0, y=8, w=150, h=50, hAlignment="centre", vAlignment="centre", text="SIGN-IN", color=menuBlue, font=fontMainLarge})
+        splash.yes:addChild(splash.yes.text)
+        
+        splash.yes:addEventListener("touch", sceneMainMenu.playServicesConfirm)
+        tween:to(splash.yes, {strokeColor={r=255,g=255,b=255}, time=0.5, mode="mirror"})
+        tween:to(splash.yes.text, {color={r=255,g=255,b=255}, time=0.5, mode="mirror"})
+        
+        splash.no = director:createRectangle({x=splash.w/2+100, y=65, w=150, h=50, xAnchor=0.5, yAnchor=0.5,
+                color={0,50,0}, strokeColor=menuGreen, strokeWidth=4})
+        splash:addChild(splash.no)
+        
+        splash.no:addChild(director:createLabel({x=0, y=8, w=150, h=50, hAlignment="centre", vAlignment="centre", text="Cancel", color=menuBlue, font=fontMainLarge}))
+        
+        splash.no:addEventListener("touch", sceneMainMenu.playServicesCancel)
+        
+        splash.dontAnimate = dontAnimate
+        
+        sceneMainMenu.playServicesSplash = splash
+        sceneMainMenu:removeMainMenuListeners()
+        if sceneMainMenu.demoTimer then
+            sceneMainMenu.demoTimer:cancel()
+            sceneMainMenu.demoTimer = nil --will be restored when menu touch is reactivated
+        end
+    else
+        sceneMainMenu.waitingForServicesLogin = nil
+        if not dontAnimate then
+            sceneMainMenu.btns.playServices.color = {75,85,110}
+            tween:to(sceneMainMenu.btns.playServices, {color={r=255,g=255,b=255}, time=2, mode="mirror"})
+        end
+        googlePlayServices.signIn()
     end
-    
-    googlePlayServices.signIn()
+end
+
+function sceneMainMenu.playServicesConfirm(event)
+    if event.phase == "ended" then
+        if not sceneMainMenu.playServicesSplash.dontAnimate then
+            sceneMainMenu.btns.playServices.color = {75,85,110}
+            tween:to(sceneMainMenu.btns.playServices, {color={r=255,g=255,b=255}, time=2, mode="mirror"})
+        end
+        
+        sceneMainMenu.playServicesSplash = destroyNode(sceneMainMenu.playServicesSplash)
+        system:addTimer(googlePlayServices.signIn, 0.5, 1) -- 1 sec delay fades pop-up nicely
+        
+        if sceneMainMenu.waitingForServicesLogin then
+            sceneMainMenu.waitingForServicesLogin()
+        else
+            sceneMainMenu:addMainMenuListeners()
+        end
+        sceneMainMenu.waitingForServicesLogin = false
+    end
+end
+
+function sceneMainMenu.playServicesCancel(event)
+    if event.phase == "ended" then
+        sceneMainMenu.loggingServicesIn = false
+        gameInfo.shouldLogIntoGameServices = false
+        if not sceneMainMenu.playServicesSplash.dontAnimate then
+            cancelTweensOnNode(sceneMainMenu.btns.playServices)
+        end
+        sceneMainMenu.btns.playServices.color = {75,85,110}
+        sceneMainMenu.playServicesSplash = destroyNode(sceneMainMenu.playServicesSplash)
+        
+        if sceneMainMenu.waitingForServicesLogin then
+            sceneMainMenu.waitingForServicesLogin()
+        else
+            sceneMainMenu:addMainMenuListeners()
+        end
+        sceneMainMenu.waitingForServicesLogin = false
+    end
 end
 
 function sceneMainMenu.playServicesListener(event)
     if event.type == "status" then
-        if sceneMainMenu.btns then --can be called after scene ends!
+        if sceneMainMenu.btns and sceneMainMenu.menuActive then --can be called in sub menus and after scene ends!
             cancelTweensOnNode(sceneMainMenu.btns.playServices)
         end
         
@@ -2053,7 +2176,7 @@ function sceneMainMenu:setUp(event)
         end
     end
     
-    if googlePlayServices and googlePlayServices.isAvailable() then
+    if googlePlayServices then --and googlePlayServices.isAvailable() then
         local playServicesBtn = self:createServicesButtonTouch("playServices", "google_play_services", touchPlayServices, column)
         serviceBtns = serviceBtns + 1
         if serviceBtns > 4 then column = column + 1 end
@@ -2094,7 +2217,7 @@ function sceneMainMenu:setUp(event)
             tween:from(self.title, {y=self.screenMinY-500, time=0.4, onComplete=enableMenu})
         end
         
-        -- Login tarts after a timeout to prevent freezing the game immediately n first run
+        -- Login starts after a timeout to prevent freezing the game immediately on first run
         -- Want to see the title animate, hear music, etc
         if googlePlayServices then
             if gameInfo.shouldLogIntoGameServices and not self.gotPlayServices then

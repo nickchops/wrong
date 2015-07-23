@@ -22,7 +22,7 @@ function getPlatformVersion()
     return versionMajor, versionMinor
 end
 
-function getStoreUrl(platform, majorVersion, minorVersion, appId, iosId)
+function getStoreUrl(platform, versionMajor, versionMinor, appId, iosId)
     local storeUrl = nil
     local storeName = nil
     if platform == "ANDROID" then

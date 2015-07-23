@@ -72,11 +72,11 @@ performanceLevel = 1
 local iosIsNew = false
 if platform == "IPHONE" then
     if string.startswith(deviceId, "iPad") then
-        if tonumber(deviceId[5]) > 3 then --ipad4,x (mini retina) or newer
+        if tonumber(string.sub(deviceId, 5, 5)) > 3 then --ipad4,x (mini retina) or newer
             iosIsNew = true
         end
     elseif string.startswith(deviceId, "iPhone") then
-        if tonumber(deviceId[5]) > 5 then --iphone6,x (iphont 5s) or newer
+        if tonumber(string.sub(deviceId, 5, 5)) > 5 then --iphone6,x (iphont 5s) or newer
             iosIsNew = true
         end
     end
@@ -332,7 +332,8 @@ twitterUrl = "http://twitter.com/nick_chops"
 -----------
 
 appId = "com.nickchops.wrong"
-storeUrl, storeName = getStoreUrl(platform, majorVersion, minorVersion, appId, "wrong!/id897361366")
+local vMajor, vMinor = getPlatformVersion()
+storeUrl, storeName = getStoreUrl(platform, vMajor, vMinor, appId, "wrong!/id897361366")
 blogUrl = "http://nickchops.github.io/wrong"
 
 ---------------------------------------------------------
