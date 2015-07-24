@@ -28,7 +28,7 @@ subprojects
 {
     s3eAndroidFullscreen
     dpi/PixelDensity
-    IwGameController
+    #IwGameController
     s3eFlurry
     s3eGooglePlayServices
 }

@@ -2176,7 +2176,7 @@ function sceneMainMenu:setUp(event)
         end
     end
     
-    if googlePlayServices then --and googlePlayServices.isAvailable() then
+    if googlePlayServices and googlePlayServices.isAvailable() then
         local playServicesBtn = self:createServicesButtonTouch("playServices", "google_play_services", touchPlayServices, column)
         serviceBtns = serviceBtns + 1
         if serviceBtns > 4 then column = column + 1 end
