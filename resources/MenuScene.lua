@@ -1760,7 +1760,7 @@ function sceneMainMenu.gameServicesLogin(event, dontAnimate)
         --without it, characters will be trimmed out of the end of the string! Bug ticket filed!
         
         splash.yes = director:createRectangle({x=splash.w/2-100, y=65, w=150, h=50, xAnchor=0.5, yAnchor=0.5,
-                color={0,50,0}, strokeColor=menuGreen, strokeWidth=5})
+                color={0,50,0}, strokeColor=menuGreen, strokeWidth=4})
         splash:addChild(splash.yes)
         
         splash.yes.text = director:createLabel({x=0, y=8, w=150, h=50, hAlignment="centre", vAlignment="centre", text="SIGN-IN", color=menuBlue, font=fontMainLarge})

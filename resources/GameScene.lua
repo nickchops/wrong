@@ -1131,9 +1131,9 @@ function AddNewBall(event)
             end
         end
         if gameInfo.mode == "survival" then
-            if gameInfo.score == 40 and not gameInfo.achievements.survival40 then
+            if sceneGame.score.value == 40 and not gameInfo.achievements.survival40 then
                 ShowAchievement("survival40")
-            elseif gameInfo.score == 50 and not gameInfo.achievements.survival50 then
+            elseif sceneGame.score.value == 50 and not gameInfo.achievements.survival50 then
                 ShowAchievement("survival50")
             end
         end
