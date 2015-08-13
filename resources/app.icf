@@ -63,6 +63,9 @@ SplashScreenHeight="384"
 #WinHeigh=???
 
 
+WinWidth=800
+WinHeight=1200
+
 #-- Kindle Fire HD 1st & 2nd gen 7"
 #WinWidth=1280
 #WinHeight=800
