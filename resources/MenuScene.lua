@@ -1725,7 +1725,7 @@ function sceneMainMenu.gameServicesInit()
         if googlePlayServices.isAvailable() then
             dbg.print("initialising google play services")
             if googlePlayServices.init() then
-                system:addEventListener("googlePlayServices", sceneMainMenu.playServicesListener)
+                system:addEventListener("googlePlayServices", sceneMainMenu.gameServicesListener)
                 
                 -- Building an gameServices wrapper on the fly (until I get around to making a proper one)
                 -- Mostly we just re-use the Google funciton names and map other services to match
@@ -1901,16 +1901,16 @@ function sceneMainMenu.gameCircleListener(event)
         else if event.status ~= "initializing" then
             sceneMainMenu.gameServicesListener({type="status"})
         end
-    end
-    
-end
-
-function sceneMainMenu.playServicesListener(event)
-    if event.type == "status" then
+    elseif event.type = "getAchievements" then
+        event.type = "achievementsLoaded"
         sceneMainMenu.gameServicesListener(event)
     end
 end
 
+--TODO: Game Center goes here
+
+--This uses googlePlayServices event values. Other services are converted to match
+--and redirected here
 function sceneMainMenu.gameServicesListener(event)
     if event.type == "status" then
         if sceneMainMenu.btns and sceneMainMenu.menuActive then --can be called in sub menus and after scene ends!
