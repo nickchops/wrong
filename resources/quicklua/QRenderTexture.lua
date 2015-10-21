@@ -70,19 +70,21 @@ Create a render texture node, with the specified size.
 @return The created render texture object.
 */
 --]]
-function director:createRenderTexture(w, h, eFormat, uDepthStencilFormat)
+function director:createRenderTexture(w, h, eFormat, uDepthStencilFormat, x, y)
     local args = {}
     if (type(w) == "table") then
-        table.setValuesFromTable(args, x)
+        table.setValuesFromTable(args, w)
     else
-        dbg.assertFuncVarTypes({"number", "number", "number", "number"}, w, h, eFormat, uDepthStencilFormat)
+        dbg.assertFuncVarTypes({"number", "number", "number", "number", "number", "number"}, w, h, eFormat, uDepthStencilFormat, x, y)
         args.w = w
         args.h = h
         args.eFormat = eFormat
         args.uDepthStencilFormat = uDepthStencilFormat
+        args.x = x
+        args.y = y
     end
 
-    local n = quick.QRenderTexture(args.w, args.h, args.eFormat, args.uDepthStencilFormat)
+    local n = quick.QRenderTexture(args.w, args.h, args.eFormat, args.uDepthStencilFormat, args.x, args.y)
 
     -- Must call init.. on all subclasses in hierarchy order
     QNode:initNode(n)

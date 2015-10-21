@@ -1,16 +1,16 @@
 --[[/*
  * (C) 2012-2013 Marmalade.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -271,7 +271,7 @@ end
 table.setValuesFromTable = function(t, s)
     if s == nil then return end
     for i,v in pairs(s) do
---		dbg.assert(table.hasIndex(t, i), "Trying to set table value at missing index: ", i)
+--      dbg.assert(table.hasIndex(t, i), "Trying to set table value at missing index: ", i)
         --dbg.print("i = " ..i ..", v = " ..v)
         t[i] = v
     end
@@ -288,11 +288,11 @@ end
 
 -- Count number of keys in table
 table.numKeys = function(t)
-	local k = 0
-	for i,v in pairs(t) do
-		k = k + 1
-	end
-	return k
+    local k = 0
+    for i,v in pairs(t) do
+        k = k + 1
+    end
+    return k
 end
 
 --------------------------------------------------------------------------------
@@ -307,45 +307,55 @@ end
 local _require = require
 local requiredFiles = {}
 require = function(p)
-	local r = _require(p)
-	table.insert(requiredFiles, r)
-	return r
+    local r = _require(p)
+    table.insert(requiredFiles, r)
+    return r
 end
 purgeRequiredFiles = function()
-	for i,v in pairs(requiredFiles) do
-		package.loaded[i] = nil
-		-- TODO FIND INDEX OF I WITHIN PACKAGE.LOADED, AND DO
-		-- TABLE.REMOVE
-	end
-	requiredFiles = {}
+    for i,v in pairs(requiredFiles) do
+        package.loaded[i] = nil
+        -- TODO FIND INDEX OF I WITHIN PACKAGE.LOADED, AND DO
+        -- TABLE.REMOVE
+    end
+    requiredFiles = {}
 end
 --]]
+
+function loadLuac(file)
+    local f
+    quick.MainLuaLoadFile("luac://" .. file)
+    f = _G['CURRENT_LOADED_FILE']
+    if f == nil then
+        quick.MainLuaLoadFile(file)
+        f = _G['CURRENT_LOADED_FILE']
+    end
+    return f
+end
 
 -- THIS MUST BE THE LAST THING IN DBG.LUA
 --if config.debug.general == false then -- only override dofile() for release builds. MH: Now needs to always be overriden
     if config.debug.mock_tolua == false then
       function dofile(file)
+          if (string.find(file, ".lua") == nil) then
+            file = file .. ".lua"
+          end
+          local f
+          _G['CURRENT_LOADED_FILE'] = nil
           if (string.find(file, ".luac") ~= nil) then
-              local f, r = loadfile("luac://" .. file)
-              if tostring(f) == "nil" then
-                  local f, r = loadfile(file)
-                  if tostring(f) == "nil" then
-                    dbg.assert(false, "Failed to load Luac file '" .. file .. "', with error:\r\n" .. dbg.getProcessedError(r or ""))
-                    return nil
-                  else
-                    return f()
-                  end
-              else
-                  return f()
+              f = loadLuac(file)
+              if f == nil then
+                dbg.assert(false, "Failed to load Luac file '" .. file .."'")
+                return nil
               end
+              return f()
           end
 
           if (config.debug.makePrecompiledLua) then
               if (quick.MainLuaPrecompileFile(file) == false) then
-                  dbg.assert(false, "Failed to precompile Lua file '" .. file)
+                  dbg.assert(false, "Failed to precompile Lua file '" .. file .."'")
               end
               if (quick.isFileConcatInProgress()) then
-				  -- If file was concatenated then it was not compiled separately so return nil
+                  -- If file was concatenated then it was not compiled separately so return nil
                   return nil
               else
                 return dofile(file .. "c")
@@ -353,32 +363,18 @@ end
           end
 
           if (config.debug.usePrecompiledLua == true) then
-              local f, r = loadfile("luac://" .. file .. "c")
-              if tostring(f) == "nil" then
-                  local f, r = loadfile(file .. "c")
-                  if tostring(f) == "nil" then
-                    dbg.assert(false, "Failed to load Luac file '" .. file .. "', with error:\r\n" .. dbg.getProcessedError(r or ""))
-                    return nil
-                  else
-                    return f()
-                  end
-              else
-                  return f()
-              end
-          else
-              -- Get a processed string version of the Lua file
-              local s = quick.MainLuaLoadFile(file)
-
-              -- Load string into a Lua chunk
-              local f,r = loadstring(s, file)
-
-              if tostring(f) == "nil" then
-                  dbg.assert(false, "Failed to load Lua file '" .. file .. "', with error:\r\n" .. dbg.getProcessedError(r or ""))
-                  return nil
-              else
-                  return f()
+              f = loadLuac(file .. "c")
+              if f ~= nil then
+                return f()
               end
           end
+          quick.MainLuaLoadFile(file)
+          f = _G['CURRENT_LOADED_FILE']
+          if f == nil then
+              dbg.assert(false, "Failed to load Lua file '" .. file .."'")
+              return nil
+          end
+          return f()
       end
       -- Dummy required when Lua file preprocessing is used
     --  function f(filename) end
