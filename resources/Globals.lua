@@ -230,16 +230,16 @@ gameInfo.achievementIndex = {
     "survival50"}
 
 gameInfo.achievementServiceIds = {
-    wave6 =      {googlePlay = "CgkI37a3vLQYEAIQAg"},
-    survival =   {googlePlay = "CgkI37a3vLQYEAIQAw"},
-    wave15 =     {googlePlay = "CgkI37a3vLQYEAIQBA"},
-    wave20 =     {googlePlay = "CgkI37a3vLQYEAIQBQ"},
-    streak20 =   {googlePlay = "CgkI37a3vLQYEAIQBg"},
-    battle =     {googlePlay = "CgkI37a3vLQYEAIQBw"},
-    streak40 =   {googlePlay = "CgkI37a3vLQYEAIQCA"},
-    streak50 =   {googlePlay = "CgkI37a3vLQYEAIQCQ"},
-    survival40 = {googlePlay = "CgkI37a3vLQYEAIQCg"},
-    survival50 = {googlePlay = "CgkI37a3vLQYEAIQCw"}}
+    wave6 =      {googlePlay = "CgkI37a3vLQYEAIQAg", gameCircle=""},
+    survival =   {googlePlay = "CgkI37a3vLQYEAIQAw", gameCircle=""},
+    wave15 =     {googlePlay = "CgkI37a3vLQYEAIQBA", gameCircle=""},
+    wave20 =     {googlePlay = "CgkI37a3vLQYEAIQBQ", gameCircle=""},
+    streak20 =   {googlePlay = "CgkI37a3vLQYEAIQBg", gameCircle=""},
+    battle =     {googlePlay = "CgkI37a3vLQYEAIQBw", gameCircle=""},
+    streak40 =   {googlePlay = "CgkI37a3vLQYEAIQCA", gameCircle=""},
+    streak50 =   {googlePlay = "CgkI37a3vLQYEAIQCQ", gameCircle=""},
+    survival40 = {googlePlay = "CgkI37a3vLQYEAIQCg", gameCircle=""},
+    survival50 = {googlePlay = "CgkI37a3vLQYEAIQCw", gameCircle=""}}
 
 gameInfo.achievements = {}
 for k,v in ipairs(gameInfo.achievementIndex) do
