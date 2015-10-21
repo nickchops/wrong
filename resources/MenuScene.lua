@@ -1898,10 +1898,10 @@ function sceneMainMenu.gameCircleListener(event)
     if event.type == "initialization" then
         if event.status == "connected" then
             sceneMainMenu.gameServicesListener({type="status", signedIn=true})
-        else if event.status ~= "initializing" then
+        elseif event.status ~= "initializing" then
             sceneMainMenu.gameServicesListener({type="status"})
         end
-    elseif event.type = "getAchievements" then
+    elseif event.type == "getAchievements" then
         event.type = "achievementsLoaded"
         sceneMainMenu.gameServicesListener(event)
     end
