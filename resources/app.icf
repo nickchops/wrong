@@ -100,3 +100,4 @@ WinHeight=1200
 [QUICK]
 mainFileName="main.lua"
 DeferRenderingOnStart=1
+RenderTextureLegacyBehaviour=1
